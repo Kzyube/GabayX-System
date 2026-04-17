@@ -1,0 +1,853 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>GabayX | Field Node</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:,">
+
+    <style>
+        :root {
+            --bg-base: #010a07;
+            --bg-surface: rgba(6, 25, 18, 0.7);
+            --glass-border: rgba(16, 185, 129, 0.2);
+            --primary: #10b981;
+            --accent-cyan: #34d399;
+            --danger: #ff2a5f;
+            --warning: #f59e0b;
+            --accent-orange: #ff8c00;
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+            --font-ui: 'Outfit', sans-serif;
+            --font-data: 'Space Mono', monospace;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: var(--font-ui);
+            margin: 0;
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- HEADER --- */
+        header {
+            background: var(--bg-surface);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            padding: 16px 20px;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid var(--glass-border);
+            z-index: 1001;
+            box-shadow: 0 4px 30px rgba(0,0,0,0.5);
+        }
+
+        .app-logo {
+            font-weight: 800; font-size: 1.2rem; color: var(--primary);
+            display: flex; align-items: center; gap: 12px; cursor: pointer; letter-spacing: -0.5px;
+        }
+
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 10px currentColor; }
+        .conn-container { display: flex; align-items: center; gap: 8px; font-family: var(--font-data); font-size: 10px; font-weight: 700; letter-spacing: 1px; color: var(--text-sub); }
+
+        /* --- ENHANCED SIDEBAR --- */
+        #sidebar {
+            position: fixed; left: -300px; top: 0; bottom: 0; width: 300px;
+            background: rgba(3, 15, 10, 0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            z-index: 11000; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 30px 24px; display: flex; flex-direction: column;
+            border-right: 1px solid var(--glass-border);
+        }
+        #sidebar.active { left: 0; box-shadow: 20px 0 50px rgba(0,0,0,0.8); }
+
+        .sidebar-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 10999; display: none; opacity: 0; transition: opacity 0.3s; }
+        .sidebar-overlay.active { display: block; opacity: 1; }
+
+        .sidebar-user-card {
+            background: rgba(16, 185, 129, 0.05); border: 1px solid var(--glass-border);
+            border-radius: 20px; padding: 24px 20px; margin-bottom: 25px;
+            display: flex; align-items: center; gap: 16px;
+        }
+        .user-avatar { font-size: 42px; color: var(--primary); text-shadow: 0 0 15px rgba(16,185,129,0.4); }
+        .welcome-text { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-sub); }
+        #sidebar-name { font-weight: 800; margin: 0; font-size: 20px; color: #fff; line-height: 1.2; }
+        .mono-stat { font-family: var(--font-data); font-size: 10px; color: var(--primary); margin-top: 4px; display: flex; align-items: center; gap: 5px; }
+
+        .sidebar-label { font-size: 10px; font-weight: 800; text-transform: uppercase; color: var(--text-sub); letter-spacing: 1.5px; margin-bottom: 12px; display: block; }
+        
+        .guidelines-container { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 12px; margin-bottom: 20px; }
+        .tabs-header { display: flex; gap: 8px; margin-bottom: 15px; }
+        .tab-btn {
+            flex: 1; border: 1px solid transparent; background: rgba(255,255,255,0.05); color: var(--text-sub);
+            padding: 12px 5px; border-radius: 10px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; transition: 0.3s;
+        }
+        .tab-btn span { font-family: var(--font-ui); font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;}
+        .tab-btn.active { background: rgba(16,185,129,0.1); border-color: var(--glass-border); color: var(--primary); }
+
+        .tab-pane { display: none; animation: fadeIn 0.4s ease; }
+        .tab-pane.active { display: block; }
+        .guide-content { background: rgba(0,0,0,0.5); padding: 16px; border-radius: 12px; font-size: 12px; color: #cbd5e1; line-height: 1.6; }
+        .guide-content b { color: var(--danger); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 8px;}
+
+        .contact-item { background: rgba(0,0,0,0.4); padding: 14px; border-radius: 12px; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 12px; font-size: 13px; font-weight: 600;}
+
+        /* Offline Toggle Area */
+        .offline-box { background: rgba(0,0,0,0.6); border: 1px solid var(--glass-border); border-radius: 16px; padding: 16px; margin-top: auto; margin-bottom: 15px; }
+        .switch { position: relative; display: inline-block; width: 46px; height: 26px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.1); transition: .4s; border-radius: 34px; border: 1px solid rgba(255,255,255,0.2); }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: var(--text-sub); transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: rgba(245,158,11,0.2); border-color: var(--warning); }
+        input:checked + .slider:before { transform: translateX(20px); background-color: var(--warning); box-shadow: 0 0 10px var(--warning); }
+
+        .btn-logout { background: rgba(255,42,95,0.1); color: var(--danger); border: 1px solid rgba(255,42,95,0.2); padding: 16px; border-radius: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; width: 100%; cursor: pointer; display: flex; justify-content: center; gap: 10px;}
+
+        /* --- LOGIN MODAL --- */
+        #login-modal { position: fixed; inset: 0; background: var(--bg-base); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 24px; background-image: radial-gradient(circle at 50% 50%, rgba(16,185,129,0.05) 0%, transparent 60%); }
+        .login-box { background: rgba(10,25,20,0.8); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); padding: 40px 30px; border-radius: 24px; width: 100%; max-width: 400px; text-align: center; border: 1px solid var(--glass-border); box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        .login-input { width: 100%; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); padding: 16px 20px; border-radius: 14px; color: white; font-family: var(--font-data); font-size: 1rem; margin-bottom: 20px; outline: none; transition: 0.3s; text-align: center; letter-spacing: 2px;}
+        .login-input:focus { border-color: var(--primary); box-shadow: 0 0 15px rgba(16,185,129,0.2); }
+        .btn-login { width: 100%; background: var(--primary); color: var(--bg-base); border: none; padding: 16px; border-radius: 14px; font-weight: 800; font-size: 1rem; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; transition: 0.3s;}
+
+        /* --- ACTIONS TRAY (APP SHEET) --- */
+        #main-container { flex: 1; position: relative; display: flex; flex-direction: column; }
+        #map-container { flex: 1; width: 100%; z-index: 1; background: #000; }
+        #map { height: 100%; width: 100%; }
+
+        .actions-tray {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            background: rgba(5,10,8,0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid var(--glass-border); border-radius: 30px 30px 0 0;
+            padding: 24px 24px 35px 24px; z-index: 1002; box-shadow: 0 -10px 40px rgba(0,0,0,0.8);
+        }
+
+        .location-badge { background: rgba(255,255,255,0.05); color: var(--text-main); padding: 6px 12px; border-radius: 8px; font-family: var(--font-data); font-size: 10px; font-weight: 700; border: 1px solid rgba(255,255,255,0.1); }
+        
+        .quick-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px; }
+        .btn-quick { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.05); color: var(--text-sub); border-radius: 12px; padding: 12px; font-size: 11px; font-weight: 700; cursor: pointer; transition: 0.2s;}
+        .btn-quick:active { background: rgba(255,255,255,0.1); color: #fff; }
+
+        .button-group { display: grid; grid-template-columns: 1fr 1.5fr; gap: 12px; margin-top: 20px; }
+        .btn-action { border: none; border-radius: 16px; font-weight: 800; padding: 16px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 1px; font-size: 11px; transition: 0.2s;}
+        .btn-safe { background: rgba(16,185,129,0.1); color: var(--primary); border: 1px solid rgba(16,185,129,0.3); }
+        .btn-danger { background: var(--danger); color: white; box-shadow: 0 0 20px rgba(255,42,95,0.4); }
+        .btn-action:active { transform: scale(0.96); }
+
+        .msg-bar { margin-top: 20px; background: rgba(0,0,0,0.5); border: 1px solid var(--glass-border); border-radius: 14px; display: flex; align-items: center; padding: 4px; }
+        .msg-bar input { flex: 1; border: none; background: transparent; padding: 12px 16px; color: white; outline: none; font-size: 13px; font-family: var(--font-ui);}
+        .btn-send { background: var(--primary); color: var(--bg-base); border: none; width: 38px; height: 38px; border-radius: 10px; cursor: pointer; font-size: 14px; }
+
+        /* --- NOTIFICATIONS & ROUTING --- */
+        .alert-banner { background: rgba(255,42,95,0.15); border: 1px solid var(--danger); backdrop-filter: blur(10px); padding: 16px; border-radius: 16px; margin: 15px; position: absolute; top: 0; left: 0; right: 0; display: none; z-index: 1003; text-align: center; box-shadow: 0 10px 30px rgba(255,42,95,0.3);}
+        
+        #route-info { position: absolute; top: 100px; left: 50%; transform: translateX(-50%); background: rgba(6,25,18,0.9); border: 1px solid var(--glass-border); backdrop-filter: blur(10px); color: white; padding: 12px 24px; border-radius: 30px; display: none; align-items: center; gap: 15px; z-index: 1005; box-shadow: 0 10px 30px rgba(0,0,0,0.5); font-family: var(--font-data); font-size: 12px; width: max-content; }
+
+        #toast-notification { position: fixed; top: -100px; left: 50%; transform: translateX(-50%); background: var(--primary); color: var(--bg-base); padding: 12px 24px; border-radius: 99px; font-weight: 800; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; z-index: 20000; transition: 0.5s; box-shadow: 0 10px 20px rgba(16,185,129,0.3);}
+
+        #admin-reply-modal { position: fixed; top: -400px; left: 50%; transform: translateX(-50%); background: rgba(10,25,20,0.95); backdrop-filter: blur(15px); color: white; width: 90%; max-width: 400px; padding: 24px; border-radius: 20px; z-index: 20001; box-shadow: 0 20px 50px rgba(0,0,0,0.6); border: 1px solid var(--primary); transition: top 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        #admin-reply-modal.active { top: 20px; }
+
+        /* --- TACTICAL PINS & TOOLS --- */
+        .dest-pin { display: flex; justify-content: center; align-items: center; }
+        .pin-circle { width: 45px; height: 45px; background: rgba(0,0,0,0.8); border-radius: 50%; border: 2px solid var(--primary); box-shadow: 0 0 20px rgba(16,185,129,0.6); display: flex; align-items: center; justify-content: center; color: var(--primary); font-size: 18px; animation: pulse-pin 1.5s infinite; }
+        @keyframes pulse-pin { 0% { box-shadow: 0 0 0 0 rgba(16,185,129,0.6); } 70% { box-shadow: 0 0 0 15px rgba(16,185,129,0); } 100% { box-shadow: 0 0 0 0 transparent; } }
+
+        .offline-toolbelt { position: fixed; bottom: 280px; right: 20px; display: none; flex-direction: column; gap: 15px; z-index: 2000; align-items: center; background: rgba(0,0,0,0.6); padding: 12px; border-radius: 40px; backdrop-filter: blur(10px); border: 1px solid var(--glass-border); touch-action: none; }
+        .drag-handle { width: 30px; height: 5px; background: rgba(255,255,255,0.3); border-radius: 10px; cursor: grab; margin-bottom: 5px; }
+        .tool-btn { width: 50px; height: 50px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); color: white; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.05); transition: 0.2s;}
+        .tool-btn:active { transform: scale(0.9); }
+        .tool-flashlight { color: #facc15; border-color: rgba(250,204,21,0.3); }
+        .tool-flashlight.flash-on { background: #facc15; color: #000; box-shadow: 0 0 30px rgba(250,204,21,0.6); }
+        .tool-sms { color: #38bdf8; border-color: rgba(56,189,248,0.3); }
+
+        /* --- SOS OVERLAY --- */
+        #sos-overlay { display: none; position: fixed; inset: 0; z-index: 20000; background: #000; cursor: pointer; flex-direction: column; align-items: center; justify-content: center; }
+        .sos-text { font-family: var(--font-data); font-size: 80px; font-weight: 700; color: var(--danger); letter-spacing: 10px; text-shadow: 0 0 30px var(--danger); }
+        .sos-active { animation: strobe 0.1s infinite alternate; }
+        @keyframes strobe { from { background: #000; } to { background: #fff; } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .bldg-dot, .bldg-text { opacity: 0; transition: 0.2s; pointer-events: auto; color: var(--accent-cyan); font-family: var(--font-data); font-weight: 700; text-shadow: 0 2px 5px #000; }
+        .bldg-dot { background: rgba(0,0,0,0.8); border: 1px solid var(--accent-cyan); border-radius: 6px; padding: 2px 6px; white-space: nowrap; font-size: 10px;}
+        .label-visible { opacity: 1 !important; }
+    </style>
+</head>
+
+<body>
+    <div id="sos-overlay" onclick="toggleFlashlight(false)">
+        <i class="fas fa-satellite-dish" style="font-size: 60px; color: var(--danger); margin-bottom: 20px;"></i>
+        <div class="sos-text">S.O.S</div>
+        <div style="font-size: 12px; font-weight: 800; color: var(--text-sub); margin-top: 20px; letter-spacing: 2px;">TAP SCREEN TO ABORT</div>
+    </div>
+
+    <div id="toast-notification"><span id="toast-msg"></span></div>
+
+    <div id="admin-reply-modal">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <span style="background: rgba(0,240,255,0.1); color: var(--accent-cyan); border: 1px solid rgba(0,240,255,0.2); padding: 4px 8px; border-radius: 6px; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Command Intel</span>
+            <button style="background: transparent; border: none; color: var(--text-sub); font-size: 20px; cursor: pointer;" onclick="closeAdminModal()">&times;</button>
+        </div>
+        <div style="font-size: 14px; line-height: 1.6; color: white; font-style: italic;" id="admin-msg-content"></div>
+        <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); font-family: var(--font-data); font-size: 10px; color: var(--text-sub); display: flex; justify-content: space-between;">
+            <span>TIMESTAMP:</span>
+            <span id="admin-msg-time">--</span>
+        </div>
+    </div>
+
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar(false)"></div>
+    <div id="sidebar">
+        <div class="sidebar-user-card">
+            <div class="user-avatar"><i class="fas fa-fingerprint"></i></div>
+            <div style="display: flex; flex-direction: column;">
+                <span class="welcome-text">Operative</span>
+                <h2 id="sidebar-name">Node</h2>
+                <p class="mono-stat" id="sidebar-id-display"><i class="fas fa-hashtag"></i> Loading...</p>
+                <p class="mono-stat" id="sidebar-phone-display" style="color:var(--text-sub);"><i class="fas fa-satellite"></i> Loading...</p>
+            </div>
+        </div>
+
+        <div style="flex: 1; overflow-y: auto; padding-right: 5px;">
+            <span class="sidebar-label">Protocol Guidelines</span>
+            <div class="guidelines-container">
+                <div class="tabs-header">
+                    <button class="tab-btn active" onclick="openTab(event, 'quake-tab')"><i class="fas fa-house-crack"></i><span>Quake</span></button>
+                    <button class="tab-btn" onclick="openTab(event, 'fire-tab')"><i class="fas fa-fire"></i><span>Fire</span></button>
+                    <button class="tab-btn" onclick="openTab(event, 'flood-tab')"><i class="fas fa-water"></i><span>Flood</span></button>
+                </div>
+                <div id="quake-tab" class="tab-pane active"><div class="guide-content"><b>DROP, COVER, HOLD</b><p>Avoid structural hazards. Relocate to Primary Front protocol zone.</p></div></div>
+                <div id="fire-tab" class="tab-pane"><div class="guide-content"><b>EVACUATE IMMEDIATELY</b><p>Minimize smoke inhalation. Proceed to Secondary Sector.</p></div></div>
+                <div id="flood-tab" class="tab-pane"><div class="guide-content"><b>ELEVATE POSITION</b><p>Avoid submerged areas. Maintain comms via offline array if needed.</p></div></div>
+            </div>
+
+            <span class="sidebar-label" style="margin-top: 20px;">Emergency Relays</span>
+            <div class="contact-item"><i class="fas fa-tower-cell" style="color: var(--primary);"></i> Tambai Clinic: 0912-345-6789</div>
+            <div class="contact-item"><i class="fas fa-truck-medical" style="color: var(--danger);"></i> Local Response: 911</div>
+        </div>
+
+        <div class="offline-box">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-satellite-dish" style="color: var(--warning);"></i>
+                    <span style="font-size: 11px; font-weight: 800; color: white; text-transform: uppercase;">Offline Grid</span>
+                </div>
+                <label class="switch"><input type="checkbox" id="offline-toggle" onchange="toggleOfflineMode()"><span class="slider"></span></label>
+            </div>
+            <div style="font-size: 10px; color: var(--text-sub); line-height: 1.4;">Activate to cache telemetry when network link drops. Flashlight & SMS beacons will initialize.</div>
+        </div>
+        
+        <button onclick="logoutUser()" class="btn-logout"><i class="fas fa-power-off"></i> Disconnect Link</button>
+    </div>
+
+    <div id="login-modal">
+        <div class="login-box">
+            <div style="width: 50px; height: 50px; background: linear-gradient(135deg, var(--primary), #0055ff); border-radius: 14px; margin: 0 auto 20px auto; display: flex; align-items: center; justify-content: center; font-size: 24px; color: var(--bg-base); box-shadow: 0 0 20px rgba(16,185,129,0.3);"><i class="fas fa-shield-halved"></i></div>
+            <h2 style="color: white; font-weight: 800; margin-bottom: 5px; font-size: 1.5rem; letter-spacing: -0.5px;">GabayX Link</h2>
+            <p id="last-user-hint" style="color: var(--text-sub); font-size: 10px; font-family: var(--font-data); text-transform: uppercase; margin-bottom: 25px; display: none;"></p>
+
+            <input type="text" id="student-id-input" class="login-input" placeholder="ID CODE" />
+            <button class="btn-login" onclick="loginUser()">Establish Uplink</button>
+
+            <button id="btn-quick-access" onclick="checkLogin()" style="display: none; width: 100%; margin-top: 15px; background: rgba(255,255,255,0.05); color: var(--text-sub); border: 1px solid rgba(255,255,255,0.1); padding: 14px; border-radius: 12px; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; transition: 0.3s;">Resume: <span id="quick-name" style="color: #fff;"></span></button>
+        </div>
+    </div>
+
+    <header>
+        <div class="app-logo" onclick="toggleSidebar(true)"><i class="fas fa-bars" style="color: var(--text-sub);"></i> GabayX</div>
+        <div class="conn-container">
+            <div class="status-dot" id="conn-dot" style="color: var(--primary);"></div>
+            <span id="conn-text">SYNCING</span>
+        </div>
+    </header>
+
+    <div id="main-container">
+        <div id="admin-banner" class="alert-banner">
+            <strong id="alert-title" style="color: #fff; font-size: 14px; letter-spacing: 1px;">EMERGENCY</strong>
+            <p id="admin-banner-text" style="font-size: 12px; color: rgba(255,255,255,0.8); margin: 6px 0 0 0;"></p>
+            <div id="banner-action-container" style="margin-top: 10px; display: none;"></div>
+        </div>
+        
+        <div id="route-info">
+            <i class="fas fa-location-arrow" style="color: var(--primary); font-size: 18px;"></i>
+            <div style="display: flex; flex-direction: column; line-height: 1.3;">
+                <div style="font-size: 9px; color: var(--text-sub); text-transform: uppercase; letter-spacing: 1px;">Navigating To Safety</div>
+                <div><span id="route-dist" style="color: white; font-weight: 700;">0m</span><span style="color: var(--text-sub); margin: 0 6px;">•</span><span id="route-time" style="color: var(--accent-cyan);">0 min</span></div>
+            </div>
+        </div>
+
+        <div id="map-container"><div id="map"></div></div>
+
+        <div id="offline-floating-tools" class="offline-toolbelt">
+            <div id="tool-grip" class="drag-handle"></div>
+            <button id="btn-flash" class="tool-btn tool-flashlight" onclick="toggleFlashlight(true)"><i class="fas fa-bolt"></i></button>
+            <button class="tool-btn tool-sms" onclick="sendOfflineSMS()"><i class="fas fa-comment-sms"></i></button>
+        </div>
+
+        <div class="actions-tray">
+            <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 10px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px;">LOCALITY SENSOR</span>
+                <span id="nearest-bldg-badge" class="location-badge">Scanning...</span>
+            </div>
+            
+            <div id="quick-responses" style="display: none;">
+                <span style="font-size: 10px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px;">RAPID DISPATCH</span>
+                <div class="quick-grid" id="quick-grid"></div>
+            </div>
+            
+            <div class="button-group">
+                <button class="btn-action btn-safe" onclick="markAsSafe()"><i class="fas fa-shield-check" style="font-size: 18px;"></i> Clear</button>
+                <button class="btn-action btn-danger" onclick="markAsDanger()"><i class="fas fa-triangle-exclamation" style="font-size: 18px;"></i> Critical SOS</button>
+            </div>
+            
+            <div class="msg-bar">
+                <input type="text" id="student-note" placeholder="Transmit intel to command..." />
+                <button class="btn-send" onclick="sendNote()"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <audio id="siren" loop src="https://image2url.com/r2/default/audio/1770035245086-6d368099-59b3-4f94-9f42-a06ce04c585a.mp3"></audio>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+
+    <script>
+        let socket, map, userMarker, routingControl;
+        let destMarkers = [];
+        let studentID = null;
+        let activeDestination = null;
+
+        let notificationAudio = new Audio("https://image2url.com/r2/default/audio/1770035478181-9daca647-30be-478d-bef0-2700b5dfcbdd.mp3");
+        let hasAskedPermission = false;
+        let offlineMarkers = [];
+        let currentStatus = "--";
+
+        let isOfflineMode = false;
+        let wakeLock = null; 
+        const OFFLINE_STORAGE_KEY = "knhs_offline_data";
+        const OFFLINE_STATE_KEY = "knhs_is_offline_persistent";
+
+        const LOCATIONS = {
+            "PRINCIPAL FRONT": [7.100589893149529, 124.82393056927546],
+            "MENDOZA COURT": [7.100077551009359, 124.82369094608939],
+            "TEJADA COURT": [7.1001461901808565, 124.82430112059413],
+        };
+
+        const BUILDINGS = [
+            { name: "BLDG A", coords: [7.100767, 124.824077] }, { name: "BLDG B", coords: [7.100636, 124.824271] },
+            { name: "BLDG C", coords: [7.100458, 124.824615] }, { name: "BLDG D", coords: [7.100415, 124.824701] },
+            { name: "BLDG E", coords: [7.100423, 124.824379] }, { name: "BLDG F", coords: [7.100282, 124.824365] },
+            { name: "BLDG G", coords: [7.100051, 124.824532] }, { name: "BLDG H", coords: [7.09991, 124.82414] },
+            { name: "BLDG I", coords: [7.099777, 124.824108] }, { name: "BLDG J", coords: [7.099643, 124.824357] },
+            { name: "BLDG K", coords: [7.09963, 124.824164] }, { name: "BLDG L", coords: [7.099713, 124.823939] },
+            { name: "BLDG M", coords: [7.099851, 124.823724] }, { name: "BLDG N", coords: [7.100224, 124.824046] },
+            { name: "BLDG O", coords: [7.100439, 124.823966] }, { name: "BLDG P", coords: [7.100232, 124.82388] },
+            { name: "BLDG Q", coords: [7.100362, 124.823746] }, { name: "BLDG R", coords: [7.100351, 124.823617] },
+            { name: "BLDG S", coords: [7.100532, 124.823703] },
+        ];
+
+        const DISASTER_ZONES = {
+            EARTHQUAKE: ["PRINCIPAL FRONT"],
+            FIRE: ["PRINCIPAL FRONT", "MENDOZA COURT", "TEJADA COURT"],
+            FLOOD: ["MENDOZA COURT", "TEJADA COURT"],
+        };
+
+        const QUICK_MSGS = {
+            EARTHQUAKE: ["Trapped", "Injured", "Exit Blocked"],
+            FIRE: ["Can't breathe", "Stuck in room", "Need medical"],
+            FLOOD: ["Water rising", "Stuck on roof", "Can't swim"],
+            DEFAULT: ["Need help", "Injured"],
+        };
+
+        function urlBase64ToUint8Array(base64String) {
+            const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+            const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) { outputArray[i] = rawData.charCodeAt(i); }
+            return outputArray;
+        }
+
+        window.onload = () => {
+            initMap();
+            initSocket();
+            checkLogin();
+            loadBuildingLabels();
+
+            if ("serviceWorker" in navigator) {
+                navigator.serviceWorker.register("/sw.js").catch(err => console.error("SW Failed:", err));
+            }
+            subscribeToPush();
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const emergencyType = urlParams.get('alert'); 
+            if (emergencyType) {
+                const loginModal = document.getElementById('login-modal');
+                if (loginModal) loginModal.style.display = 'none';
+                setTimeout(() => {
+                    handleAlert({ type: emergencyType, message: "EMERGENCY: Immediate Evacuation Required!" });
+                    showToast("🚨 ROUTING ACTIVATED...");
+                }, 1000);
+            }
+
+            const savedOfflineState = localStorage.getItem(OFFLINE_STATE_KEY);
+            if (savedOfflineState === "true") {
+                const toggle = document.getElementById("offline-toggle");
+                if (toggle) toggle.checked = true;
+                toggleOfflineMode(true); 
+            }
+
+            activateGPS();
+            checkLogin();
+            setInterval(() => { if (!isOfflineMode) checkLogin(true); }, 30000);
+
+            const savedName = localStorage.getItem("knhs_student_name");
+            if (savedName) {
+                document.getElementById("last-user-hint").style.display = "block";
+                document.getElementById("last-user-hint").innerText = "Resuming secured link";
+                document.getElementById("btn-quick-access").style.display = "block";
+                document.getElementById("quick-name").innerText = savedName.split(" ")[0];
+            }
+        };
+
+        function toggleOfflineMode(skipToast = false) {
+            const toggle = document.getElementById("offline-toggle");
+            const floatingTools = document.getElementById("offline-floating-tools"); 
+            const connDot = document.getElementById("conn-dot");
+            const connText = document.getElementById("conn-text");
+
+            isOfflineMode = toggle.checked;
+            localStorage.setItem(OFFLINE_STATE_KEY, isOfflineMode);
+
+            if (isOfflineMode) {
+                if (!skipToast) showToast("🔌 Offline Matrix Active");
+                if (floatingTools) floatingTools.style.display = "flex";
+                if (connDot) { connDot.style.color = "var(--warning)"; }
+                if (connText) connText.innerText = "CACHING DATA";
+                if (socket) socket.disconnect();
+                showOfflineSafeZones();
+            } else {
+                if (!skipToast) showToast("🟢 Online Link Restored");
+                if (floatingTools) floatingTools.style.display = "none";
+                if (connDot) { connDot.style.color = "var(--primary)"; }
+                if (connText) connText.innerText = "LIVE: " + (studentID || "...");
+                toggleFlashlight(false);
+                hideOfflineSafeZones();
+                if (socket) socket.connect();
+                setTimeout(syncOfflineData, 1000);
+            }
+        }
+
+        const floater = document.getElementById("offline-floating-tools");
+        if (floater) makeDraggable(floater);
+
+        function saveOfflineAction(type, content, lat = null, lng = null) {
+            const existingData = JSON.parse(localStorage.getItem(OFFLINE_STORAGE_KEY) || "[]");
+            existingData.push({ type: type, content: content, lat: lat, lng: lng, timestamp: new Date().toISOString() });
+            localStorage.setItem(OFFLINE_STORAGE_KEY, JSON.stringify(existingData));
+            showToast("Saved to Cache");
+        }
+
+        async function syncOfflineData() {
+            const storedData = JSON.parse(localStorage.getItem(OFFLINE_STORAGE_KEY) || "[]");
+            if (storedData.length === 0) return;
+            showToast(`Syncing ${storedData.length} packets...`);
+            try {
+                const response = await fetch("/api/sync", {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id: studentID, logs: storedData }),
+                });
+                if (response.ok) { showToast("✅ Data Synced"); localStorage.removeItem(OFFLINE_STORAGE_KEY); } 
+                else { showToast("⚠️ Sync Failed"); }
+            } catch (error) { showToast("⚠️ No Link"); }
+        }
+
+        function sendNote() {
+            const input = document.getElementById("student-note"); const msg = input.value.trim();
+            if (msg && studentID) {
+                if (isOfflineMode) { saveOfflineAction("NOTE", msg); input.value = ""; } 
+                else { if (socket) socket.emit("student-note", { id: studentID, message: msg }); input.value = ""; showToast("Transmitted"); }
+            }
+        }
+
+        function markAsDanger() {
+            if (!studentID) return;
+            if (isOfflineMode) {
+                const lat = userMarker ? userMarker.getLatLng().lat : null; const lng = userMarker ? userMarker.getLatLng().lng : null;
+                currentStatus = "DANGER"; saveOfflineAction("STATUS", "DANGER", lat, lng);
+            } else {
+                currentStatus = "DANGER";
+                if (userMarker) {
+                    const lat = userMarker.getLatLng().lat; const lng = userMarker.getLatLng().lng;
+                    socket.emit("student-status", { id: studentID, status: "DANGER", lat: lat, lng: lng });
+                    showToast("SOS Broadcasted");
+                } else {
+                    showToast("Acquiring Satellites...");
+                    navigator.geolocation.getCurrentPosition((pos) => {
+                        const lat = pos.coords.latitude; const lng = pos.coords.longitude;
+                        if (!userMarker) { userMarker = L.circleMarker([lat, lng], { radius: 8, color: "var(--primary)", fillColor: "white", fillOpacity: 1, weight: 3 }).addTo(map); map.setView([lat, lng], 19); }
+                        socket.emit("student-status", { id: studentID, status: "DANGER", lat: lat, lng: lng });
+                        showToast("SOS Broadcasted");
+                    }, (err) => { alert("⚠️ GPS Error"); }, { enableHighAccuracy: true });
+                }
+            }
+        }
+
+        function sendQuickMsg(text) {
+            if (isOfflineMode) { currentStatus = "DANGER"; saveOfflineAction("NOTE", `[QUICK]: ${text}`); saveOfflineAction("STATUS", "DANGER"); } 
+            else { markAsDanger(); if (socket) socket.emit("student-note", { id: studentID, message: `[QUICK]: ${text}` }); showToast("Alert Sent"); }
+        }
+
+        async function toggleFlashlight(turnOn) {
+            const overlay = document.getElementById("sos-overlay");
+            const btn = document.getElementById("btn-flash");
+            if (turnOn) {
+                overlay.style.display = "flex"; overlay.classList.add("sos-active");
+                if (btn) btn.classList.add("flash-on");
+                try { if ("wakeLock" in navigator) { wakeLock = await navigator.wakeLock.request("screen"); } } catch (err) {}
+            } else {
+                overlay.style.display = "none"; overlay.classList.remove("sos-active");
+                if (btn) btn.classList.remove("flash-on");
+                if (wakeLock !== null) { await wakeLock.release(); wakeLock = null; }
+            }
+        }
+
+        function sendOfflineSMS() {
+            const targetNumber = "09465025720"; const id = studentID || "UNKNOWN";
+            const name = document.getElementById("sidebar-name").innerText || "Student";
+            let locString = "Unknown";
+            if (userMarker) { locString = `${userMarker.getLatLng().lat.toFixed(5)}, ${userMarker.getLatLng().lng.toFixed(5)}`; } 
+            else { const lastLog = JSON.parse(localStorage.getItem(OFFLINE_STORAGE_KEY) || "[]").pop(); if (lastLog && lastLog.lat) { locString = `${lastLog.lat}, ${lastLog.lng}`; } }
+            const message = `SOS! ID: ${id} (${name}) - OFFLINE.\nLOC: ${locString}`;
+            window.open(`sms:${targetNumber}?body=${encodeURIComponent(message)}`, "_parent");
+        }
+
+        function showOfflineSafeZones() {
+            hideOfflineSafeZones();
+            let nearestZone = null; let minDistance = Infinity; let userLatLng = userMarker ? userMarker.getLatLng() : null;
+
+            Object.keys(LOCATIONS).forEach((name) => {
+                const coords = LOCATIONS[name]; let distLabel = "";
+                if (userLatLng) { const dist = map.distance(userLatLng, coords); distLabel = `<br>Dist: <b>${Math.round(dist)}m</b>`; if (dist < minDistance) { minDistance = dist; nearestZone = { name: name, coords: coords }; } }
+                const pinIcon = L.divIcon({ className: "dest-pin", html: `<div class="pin-circle" style="background:var(--primary); border-color:#000;"><i class="fas fa-shield-alt" style="color:#000;"></i></div>`, iconSize: [40, 40], iconAnchor: [20, 20] });
+                const marker = L.marker(coords, { icon: pinIcon }).addTo(map).bindPopup(`<div style="font-family:var(--font-ui); background:#000; color:#fff; padding:5px; border-radius:8px;"><b>SECURE ZONE</b><br>${name}${distLabel}</div>`);
+                offlineMarkers.push(marker);
+            });
+
+            if (userLatLng && nearestZone) {
+                const guidanceLine = L.polyline([userLatLng, nearestZone.coords], { color: "var(--warning)", weight: 5, dashArray: "10, 10", opacity: 0.8 }).addTo(map);
+                offlineMarkers.push(guidanceLine);
+                const bounds = L.latLngBounds([userLatLng, nearestZone.coords]); map.fitBounds(bounds, { padding: [50, 50] });
+            }
+        }
+
+        function hideOfflineSafeZones() { offlineMarkers.forEach((marker) => map.removeLayer(marker)); offlineMarkers = []; }
+
+        async function subscribeToPush() {
+            if ("serviceWorker" in navigator) {
+                try {
+                    const register = await navigator.serviceWorker.ready;
+                    let subscription = await register.pushManager.getSubscription();
+                    if (!subscription) {
+                        const response = await fetch("/api/vapid-key"); const json = await response.json(); const publicKey = json.publicKey;
+                        if (publicKey) { subscription = await register.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(publicKey) }); }
+                    }
+                    if (subscription) { await fetch("/subscribe", { method: "POST", body: JSON.stringify(subscription), headers: { "content-type": "application/json" } }); if (!hasAskedPermission) { showToast("Alerts Active ✅"); } }
+                } catch (err) {}
+            }
+        }
+
+        function initMap() {
+            map = L.map("map", { zoomControl: false, attributionControl: false }).setView([7.1002, 124.824], 19);
+            L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}").addTo(map);
+            map.on("zoomend", function () { if (typeof updateLabels === "function") { updateLabels(); } });
+        }
+
+        function initSocket() {
+            if (typeof io !== "undefined") {
+                socket = io();
+                socket.on("connect", () => { updateStatus(true); if (studentID) socket.emit("register-student", studentID); });
+                socket.on("disconnect", () => updateStatus(false));
+                socket.on("receive-reply", (data) => {
+                    notificationAudio.currentTime = 0; notificationAudio.play().catch((e) => {});
+                    const now = new Date();
+                    document.getElementById("admin-msg-content").innerText = `"${data.message}"`;
+                    document.getElementById("admin-msg-time").innerText = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+                    document.getElementById("admin-reply-modal").classList.add("active");
+                });
+                socket.on("receive-alert", handleAlert);
+            }
+        }
+
+        function closeAdminModal() { document.getElementById("admin-reply-modal").classList.remove("active"); notificationAudio.pause(); notificationAudio.currentTime = 0; }
+
+        async function checkLogin(isHeartbeat = false) {
+            try {
+                const response = await fetch("/api/me");
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.id) {
+                        localStorage.setItem("knhs_student_id", data.id); localStorage.setItem("knhs_student_name", data.name); localStorage.setItem("knhs_student_phone", data.phone_number || "No Phone");
+                        studentID = data.id;
+                        document.getElementById("sidebar-id-display").innerHTML = `<i class="fas fa-hashtag"></i> ID: ${data.id}`;
+                        document.getElementById("sidebar-name").innerText = data.name.split(" ")[0];
+                        document.getElementById("sidebar-phone-display").innerHTML = `<i class="fas fa-satellite"></i> ${data.phone_number || "N/A"}`;
+                        document.getElementById("conn-text").innerText = "LINK: " + data.id;
+                        document.getElementById("login-modal").style.display = "none";
+                        if (socket && !isHeartbeat) socket.emit("register-student", studentID);
+                        return;
+                    }
+                }
+            } catch (error) {}
+            
+            const cachedID = localStorage.getItem("knhs_student_id"); const cachedName = localStorage.getItem("knhs_student_name"); const cachedPhone = localStorage.getItem("knhs_student_phone");
+            if (cachedID && cachedName) {
+                document.getElementById("last-user-hint").style.display = "block"; document.getElementById("last-user-hint").innerText = "Clearance found in local storage";
+                const quickAccessBtn = document.getElementById("btn-quick-access"); quickAccessBtn.style.display = "block";
+                document.getElementById("quick-name").innerText = cachedName.split(" ")[0];
+                document.getElementById("student-id-input").value = cachedID;
+                studentID = cachedID;
+                document.getElementById("sidebar-id-display").innerHTML = `<i class="fas fa-hashtag"></i> ID: ${cachedID} (OFFLINE)`;
+                document.getElementById("sidebar-name").innerText = cachedName.split(" ")[0];
+                document.getElementById("sidebar-phone-display").innerHTML = `<i class="fas fa-satellite"></i> ${cachedPhone || "N/A"}`;
+            }
+        }
+
+        // --- UPDATED ALERTS FUNCTION TO HANDLE SUPPLIES WITH MANUAL ROUTE BUTTON ---
+        function handleAlert(data) {
+            const banner = document.getElementById("admin-banner"); 
+            const routeInfo = document.getElementById("route-info"); 
+            const siren = document.getElementById("siren"); 
+            const quickTray = document.getElementById("quick-responses"); 
+            const quickGrid = document.getElementById("quick-grid");
+            const actionContainer = document.getElementById("banner-action-container");
+            
+            if (data.type === "SAFE" || data.type === "CLEAR") {
+                banner.style.display = "none"; 
+                routeInfo.style.display = "none"; 
+                quickTray.style.display = "none";
+                actionContainer.style.display = "none";
+                if (siren) { siren.pause(); siren.currentTime = 0; }
+                if (routingControl) { map.removeControl(routingControl); routingControl = null; }
+                destMarkers.forEach((m) => map.removeLayer(m)); destMarkers = []; activeDestination = null;
+            } 
+            else if (data.type === "SUPPLY") {
+                // Supply Logic - ONLY NOTIFY, NO AUTO-ROUTE
+                banner.style.display = "block"; 
+                banner.style.background = "rgba(255, 140, 0, 0.15)";
+                banner.style.borderColor = "var(--accent-orange)";
+                document.getElementById("alert-title").innerText = "SUPPLY DROP"; 
+                document.getElementById("alert-title").style.color = "var(--accent-orange)";
+                document.getElementById("admin-banner-text").innerText = data.message;
+
+                // Add "Show Route" Button
+                if (data.lat && data.lng) {
+                    actionContainer.style.display = "block";
+                    actionContainer.innerHTML = `<button onclick="startSupplyRoute(${data.lat}, ${data.lng})" style="background: var(--accent-orange); color: #fff; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 800; cursor: pointer; text-transform: uppercase; font-size: 10px; letter-spacing: 1px; box-shadow: 0 0 10px rgba(255,140,0,0.4);"><i class="fas fa-route"></i> Show Route</button>`;
+                } else {
+                    actionContainer.style.display = "none";
+                }
+                
+                showToast(`Supply Drop Alert Received`);
+            } 
+            else {
+                // Standard Disaster Logic
+                banner.style.display = "block"; 
+                banner.style.background = "rgba(255,42,95,0.15)";
+                banner.style.borderColor = "var(--danger)";
+                document.getElementById("alert-title").innerText = data.type + " ALERT"; 
+                document.getElementById("alert-title").style.color = "#fff";
+                document.getElementById("admin-banner-text").innerText = data.message;
+                actionContainer.style.display = "none";
+
+                quickTray.style.display = "block"; quickGrid.innerHTML = "";
+                const msgs = QUICK_MSGS[data.type] || QUICK_MSGS.DEFAULT;
+                msgs.forEach((msg) => { const btn = document.createElement("button"); btn.className = "btn-quick"; btn.innerText = msg; btn.onclick = () => sendQuickMsg(msg); quickGrid.appendChild(btn); });
+                if (siren) { siren.volume = 1.0; siren.play().catch(() => { }); }
+
+                const allowedZones = DISASTER_ZONES[data.type] || ["PRINCIPAL FRONT"];
+                const bestZone = getNearestSafeZone(allowedZones);
+
+                if (bestZone) {
+                    activeDestination = [bestZone.coords[0], bestZone.coords[1]];
+                    if (userMarker) { startRouting(userMarker.getLatLng(), activeDestination, false); } 
+                    else { navigator.geolocation.getCurrentPosition((pos) => { const currentPos = L.latLng(pos.coords.latitude, pos.coords.longitude); startRouting(currentPos, activeDestination, false); }); }
+                    showToast(`Head to ${bestZone.name}`);
+                }
+
+                allowedZones.forEach((zoneName) => {
+                    if (bestZone && zoneName === bestZone.name) return;
+                    const coords = LOCATIONS[zoneName];
+                    const altPin = L.divIcon({ className: "dest-pin", html: `<div class="pin-circle" style="transform: scale(0.8); background: rgba(0,0,0,0.8); border: 2px solid var(--text-sub); box-shadow: none;"><i class="fas fa-shield-alt" style="color:var(--text-sub);"></i></div>`, iconSize: [35, 35], iconAnchor: [17, 17] });
+                    const marker = L.marker(coords, { icon: altPin }).addTo(map).bindPopup(`<div style="background:#000; color:#fff; font-family:var(--font-ui); padding:5px;"><b>ALT ZONE</b><br>${zoneName}</div>`);
+                    destMarkers.push(marker);
+                });
+            }
+        }
+
+        // --- NEW: FUNCTION TO START SUPPLY ROUTE FROM BUTTON ---
+        window.startSupplyRoute = function(lat, lng) {
+            activeDestination = [lat, lng];
+            if (userMarker) { 
+                startRouting(userMarker.getLatLng(), activeDestination, true); 
+            } else { 
+                navigator.geolocation.getCurrentPosition((pos) => { 
+                    const currentPos = L.latLng(pos.coords.latitude, pos.coords.longitude); 
+                    startRouting(currentPos, activeDestination, true); 
+                }); 
+            }
+            showToast(`Routing to Supply Drop`);
+            document.getElementById("banner-action-container").style.display = "none"; // Hide button after clicking
+        }
+
+        function getNearestSafeZone(zoneNames) {
+            let best = null; let min = Infinity;
+            if (!userMarker) return { name: zoneNames[0], coords: LOCATIONS[zoneNames[0]] };
+            const userLoc = userMarker.getLatLng();
+            zoneNames.forEach((name) => {
+                const coords = LOCATIONS[name]; const dist = map.distance(userLoc, coords);
+                if (dist < min) { min = dist; best = { name, coords }; }
+            });
+            return best;
+        }
+
+        // --- UPDATED ROUTING LOGIC ---
+        function startRouting(start, endCoords, isSupply = false) {
+            if (routingControl) { map.removeControl(routingControl); }
+            destMarkers.forEach(m => map.removeLayer(m)); destMarkers = [];
+
+            const endPoint = L.latLng(endCoords[0], endCoords[1]);
+            
+            const iconHtml = isSupply ? `<div class="pin-circle" style="background:var(--accent-orange); border: 2px solid #fff; box-shadow: 0 0 20px rgba(255,140,0,0.6);"><i class="fas fa-box-open" style="color:#fff;"></i></div>` : `<div class="pin-circle"><i class="fas fa-person-running"></i></div>`;
+            const pinIcon = L.divIcon({ className: "dest-pin", html: iconHtml, iconSize: [45, 45], iconAnchor: [22, 22] });
+            const dMarker = L.marker(endPoint, { icon: pinIcon }).addTo(map); destMarkers.push(dMarker);
+
+            routingControl = L.Routing.control({
+                waypoints: [L.latLng(start.lat, start.lng), endPoint],
+                router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1', profile: 'foot' }),
+                createMarker: () => null,
+                lineOptions: { styles: [{ color: isSupply ? "var(--accent-orange)" : "var(--danger)", weight: 6, opacity: 0.9 }], addWaypoints: false },
+                show: false, fitSelectedRoutes: true
+            }).on('routesfound', function(e) {
+                const summary = e.routes[0].summary;
+                document.getElementById("route-dist").innerText = Math.round(summary.totalDistance) + "m";
+                document.getElementById("route-time").innerText = Math.ceil(summary.totalTime / 60) + " min";
+                document.getElementById("route-info").style.display = "flex";
+            }).addTo(map);
+        }
+
+        function drawPath(start, end) {
+            if (routingControl) { routingControl.setWaypoints([start, end]); } 
+            else { routingControl = L.Routing.control({ waypoints: [start, end], createMarker: () => null, lineOptions: { styles: [{ color: "var(--danger)", weight: 6, opacity: 0.9 }] }, show: false, addWaypoints: false, draggableWaypoints: false, fitSelectedRoutes: false }).addTo(map); }
+        }
+
+        function toggleSidebar(show) { document.getElementById("sidebar").classList.toggle("active", show); document.getElementById("sidebar-overlay").classList.toggle("active", show); }
+
+        function markAsSafe() {
+            if (socket && studentID) {
+                if (!confirm("Confirm you are secure?")) return;
+                currentStatus = "SAFE";
+                if (routingControl) { map.removeControl(routingControl); routingControl = null; }
+                activeDestination = null;
+                socket.emit("student-status", { id: studentID, status: "SAFE", lat: userMarker?.getLatLng().lat, lng: userMarker?.getLatLng().lng });
+                const siren = document.getElementById("siren"); if (siren) { siren.pause(); siren.currentTime = 0; }
+                showToast("Cleared");
+            }
+        }
+
+        function showToast(text) { const toast = document.getElementById("toast-notification"); document.getElementById("toast-msg").innerText = text; toast.style.top = "20px"; setTimeout(() => (toast.style.top = "-100px"), 3000); }
+        function logoutUser() { window.location.href = "/logout"; }
+
+        function activateGPS() {
+            if (navigator.geolocation) {
+                navigator.geolocation.watchPosition((pos) => {
+                    const lat = pos.coords.latitude, lng = pos.coords.longitude; const newLatLng = new L.LatLng(lat, lng);
+                    if (!userMarker) { userMarker = L.circleMarker(newLatLng, { radius: 7, color: "var(--primary)", fillColor: "var(--bg-base)", fillOpacity: 1, weight: 3 }).addTo(map); map.setView(newLatLng, 19); } 
+                    else { userMarker.setLatLng(newLatLng); }
+                    findNearestBuilding(newLatLng);
+                    if (activeDestination) { drawPath(newLatLng, activeDestination); }
+                    if (socket && studentID && !isOfflineMode) { socket.emit("student-status", { id: studentID, lat: lat, lng: lng, status: currentStatus }); }
+                }, null, { enableHighAccuracy: true });
+            }
+        }
+
+        function updateStatus(online) { document.getElementById("conn-dot").style.color = online ? "var(--primary)" : "var(--danger)"; document.getElementById("conn-text").innerText = online && studentID ? "LINK: " + studentID : "DISCONNECTED"; }
+
+        function makeDraggable(element) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0; const grip = document.getElementById("tool-grip");
+            if (grip) { grip.onmousedown = dragMouseDown; grip.ontouchstart = dragTouchStart; } 
+            else { element.onmousedown = dragMouseDown; element.ontouchstart = dragTouchStart; }
+
+            function dragMouseDown(e) { e = e || window.event; e.preventDefault(); pos3 = e.clientX; pos4 = e.clientY; document.onmouseup = closeDragElement; document.onmousemove = elementDrag; }
+            function elementDrag(e) { e = e || window.event; e.preventDefault(); pos1 = pos3 - e.clientX; pos2 = pos4 - e.clientY; pos3 = e.clientX; pos4 = e.clientY; element.style.top = element.offsetTop - pos2 + "px"; element.style.left = element.offsetLeft - pos1 + "px"; }
+            function dragTouchStart(e) { const touch = e.touches[0]; pos3 = touch.clientX; pos4 = touch.clientY; document.ontouchend = closeDragElement; document.ontouchmove = elementTouchDrag; }
+            function elementTouchDrag(e) { const touch = e.touches[0]; pos1 = pos3 - touch.clientX; pos2 = pos4 - touch.clientY; pos3 = touch.clientX; pos4 = touch.clientY; element.style.top = element.offsetTop - pos2 + "px"; element.style.left = element.offsetLeft - pos1 + "px"; }
+            function closeDragElement() { document.onmouseup = null; document.onmousemove = null; document.ontouchend = null; document.ontouchmove = null; }
+        }
+
+        function openTab(evt, tabName) {
+            const tabPanes = document.getElementsByClassName("tab-pane"); for (let i = 0; i < tabPanes.length; i++) { tabPanes[i].classList.remove("active"); }
+            const tabBtns = document.getElementsByClassName("tab-btn"); for (let i = 0; i < tabBtns.length; i++) { tabBtns[i].classList.remove("active"); }
+            document.getElementById(tabName).classList.add("active"); evt.currentTarget.classList.add("active");
+        }
+
+        async function loginUser(autoID = null) {
+            const idInput = document.getElementById("student-id-input"); const id = autoID || idInput.value.trim();
+            if (!id) return alert("Requires ID Code");
+            const form = document.createElement("form"); form.method = "POST"; form.action = "/auth/login";
+            const userField = document.createElement("input"); userField.type = "hidden"; userField.name = "username"; userField.value = id;
+            const passField = document.createElement("input"); passField.type = "hidden"; passField.name = "password"; passField.value = ""; 
+            form.appendChild(userField); form.appendChild(passField); document.body.appendChild(form);
+            localStorage.setItem("knhs_student_id", id);
+            form.submit();
+        }
+
+        let bldgMarkers = [];
+        function loadBuildingLabels() {
+            bldgMarkers.forEach((m) => map.removeLayer(m)); bldgMarkers = [];
+            BUILDINGS.forEach((b) => {
+                const marker = L.marker(b.coords, { interactive: true }).addTo(map);
+                marker.bldgData = { name: b.name, short: b.name.replace("BLDG ", "") };
+                marker.on('mouseover', function() { const iconElement = this.getElement(); if (iconElement) iconElement.classList.add('label-visible'); });
+                marker.on('mouseout', function() { const iconElement = this.getElement(); if (iconElement) iconElement.classList.remove('label-visible'); });
+                bldgMarkers.push(marker);
+            });
+            updateLabels(); map.on("zoomend", updateLabels);
+        }
+
+        function updateLabels() {
+            const currentZoom = map.getZoom();
+            bldgMarkers.forEach((marker) => {
+                let newIcon;
+                if (currentZoom >= 20) { newIcon = L.divIcon({ className: "bldg-text", html: marker.bldgData.name, iconSize: [60, 20], iconAnchor: [30, 10] }); } 
+                else { newIcon = L.divIcon({ className: "bldg-dot", html: marker.bldgData.short, iconSize: [24, 24], iconAnchor: [12, 12] }); }
+                marker.setIcon(newIcon);
+                if (currentZoom < 16) { marker.getElement()?.style.setProperty('display', 'none'); } else { marker.getElement()?.style.setProperty('display', 'block'); }
+            });
+        }
+
+        function findNearestBuilding(userLatLng) {
+            let nearest = null; let minDist = Infinity;
+            BUILDINGS.forEach((b) => { const dist = map.distance(userLatLng, b.coords); if (dist < minDist) { minDist = dist; nearest = b; } });
+            const badge = document.getElementById("nearest-bldg-badge");
+            if (nearest && badge) {
+                if (minDist < 60) { badge.innerText = `Zone: ${nearest.name}`; badge.style.background = "rgba(16,185,129,0.1)"; badge.style.color = "var(--primary)"; badge.style.borderColor = "var(--glass-border)";} 
+                else { badge.innerText = "Out of Bounds"; badge.style.background = "rgba(255,255,255,0.05)"; badge.style.color = "var(--text-sub)"; badge.style.borderColor = "transparent";}
+            }
+        }
+    </script>
+</body>
+</html>

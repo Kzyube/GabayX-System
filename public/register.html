@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GabayX | Enlistment</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --base-bg: #020806;
+            --surface: rgba(12, 24, 18, 0.45);
+            --surface-hover: rgba(20, 35, 27, 0.6);
+            --border-subtle: rgba(255, 255, 255, 0.08);
+            --border-highlight: rgba(16, 185, 129, 0.4);
+            --emerald-500: #10b981;
+            --emerald-400: #34d399;
+            --emerald-600: #059669;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background-color: var(--base-bg);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow-x: hidden;
+            padding: 1.5rem;
+        }
+
+        /* --- ALIVE & DYNAMIC MESH BACKGROUND --- */
+        .mesh-bg {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: -1;
+            overflow: hidden;
+            background: #020806;
+        }
+
+        .mesh-blob {
+            position: absolute;
+            filter: blur(120px);
+            border-radius: 50%;
+            animation: float-blob 20s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
+            opacity: 0.5;
+        }
+
+        .blob-1 {
+            background: var(--emerald-600);
+            width: 50vw; height: 50vw;
+            top: -20%; right: -10%;
+        }
+
+        .blob-2 {
+            background: #064e3b; 
+            width: 60vw; height: 60vw;
+            bottom: -20%; left: -20%;
+            animation-delay: -5s;
+        }
+
+        .blob-3 {
+            background: var(--emerald-400);
+            width: 30vw; height: 30vw;
+            top: 40%; left: 40%;
+            opacity: 0.2;
+            animation-delay: -10s;
+        }
+
+        @keyframes float-blob {
+            0% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(-5%, 5%) scale(1.1); }
+            100% { transform: translate(5%, -5%) scale(0.9); }
+        }
+
+        /* --- PREMIUM GLASS SAAS CARD --- */
+        .auth-card {
+            background: var(--surface);
+            backdrop-filter: blur(32px);
+            -webkit-backdrop-filter: blur(32px);
+            border: 1px solid var(--border-subtle);
+            border-radius: 28px;
+            padding: 3rem;
+            width: 100%;
+            max-width: 520px;
+            box-shadow: 0 40px 80px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            position: relative;
+        }
+
+        /* Header / Logo Area */
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 2rem;
+            justify-content: center;
+        }
+
+        .logo-mark {
+            width: 30px;
+            height: 30px;
+            background: linear-gradient(135deg, var(--emerald-400), var(--emerald-600));
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .brand-text {
+            font-size: 1.4rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            color: #fff;
+        }
+
+        .header-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.5px;
+            text-align: center;
+        }
+
+        .header-subtitle {
+            color: var(--text-muted);
+            font-size: 1rem;
+            font-weight: 400;
+            margin-bottom: 2.5rem;
+            text-align: center;
+        }
+
+        /* --- FORMS & INPUTS (GRID LAYOUT FOR DESKTOP) --- */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+            position: relative;
+        }
+        
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        input {
+            width: 100%;
+            padding: 16px 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-subtle);
+            border-radius: 14px;
+            font-size: 1rem;
+            color: var(--text-main);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        input:focus {
+            outline: none;
+            background: rgba(0, 0, 0, 0.5);
+            border-color: var(--border-highlight);
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+        }
+
+        input::placeholder {
+            color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* --- BUTTONS --- */
+        .btn-primary {
+            width: 100%;
+            padding: 16px;
+            background: var(--text-main);
+            color: var(--base-bg);
+            border: none;
+            border-radius: 14px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 1.5rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            background: var(--emerald-400);
+            box-shadow: 0 10px 25px rgba(52, 211, 153, 0.3);
+        }
+
+        /* --- UTILITIES --- */
+        .auth-link {
+            text-align: center;
+            margin-top: 1.5rem;
+            font-size: 0.95rem;
+            color: var(--text-muted);
+        }
+
+        .auth-link a {
+            color: var(--emerald-400);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.2s;
+        }
+
+        .auth-link a:hover {
+            color: var(--emerald-500);
+            text-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+        }
+
+        .error {
+            background: rgba(239, 68, 68, 0.1);
+            color: #fca5a5;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            margin-bottom: 24px;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            display: none;
+            text-align: center;
+        }
+
+        .footer {
+            margin-top: 2.5rem;
+            text-align: center;
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.3);
+            font-weight: 400;
+        }
+
+        @media (max-width: 540px) {
+            .auth-card { padding: 2.5rem 1.5rem; }
+            .form-grid { grid-template-columns: 1fr; gap: 0; }
+            .header-title { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="mesh-bg">
+        <div class="mesh-blob blob-1"></div>
+        <div class="mesh-blob blob-2"></div>
+        <div class="mesh-blob blob-3"></div>
+    </div>
+
+    <div class="auth-card">
+        <div class="brand-logo">
+            <div class="logo-mark"></div>
+            <div class="brand-text">GabayX</div>
+        </div>
+
+        <h2 class="header-title">Create your identity</h2>
+        <p class="header-subtitle">Enlist to monitor network deployments.</p>
+
+        <div id="error-msg" class="error"></div>
+        
+        <form action="/auth/register" method="POST">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="reg-id">Operative ID</label>
+                    <input type="text" id="reg-id" name="username" placeholder="e.g. 2026-001" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="reg-phone">Phone Data</label>
+                    <input type="tel" id="reg-phone" name="phone_number" placeholder="09123456789" required 
+                        pattern="[0-9]{11}" title="Please enter an 11-digit phone number">
+                </div>
+
+                <div class="form-group full-width">
+                    <label for="reg-name">Full Designation</label>
+                    <input type="text" id="reg-name" name="fullname" placeholder="Legal Name" required>
+                </div>
+                
+                <div class="form-group full-width">
+                    <label for="reg-pass">Secure Passkey</label>
+                    <input type="password" id="reg-pass" name="password" placeholder="••••••••" required>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn-primary">
+                Establish Clearance
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+            </button>
+        </form>
+
+        <div class="auth-link">
+            Already enlisted? <a href="/">Initialize session</a>
+        </div>
+
+        <div class="footer">
+            Powered by Tambai
+        </div>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const errorDiv = document.getElementById('error-msg');
+        const errorType = urlParams.get('error');
+
+        if (errorType) {
+            errorDiv.style.display = 'block';
+            
+            if (errorType === 'user_already_exists') {
+                errorDiv.innerText = "Conflict: Identity ID is already registered.";
+            } else if (errorType === 'missing_fields') {
+                errorDiv.innerText = "Data missing: Please complete all inputs.";
+            } else {
+                errorDiv.innerText = "System error during enlistment.";
+            }
+        }
+
+        document.querySelector('form').addEventListener('submit', function() {
+            const fullName = document.getElementById('reg-name').value;
+            const studentID = document.getElementById('reg-id').value; 
+            
+            if (fullName && studentID) {
+                localStorage.setItem('knhs_student_name', fullName);
+                localStorage.setItem('knhs_student_id', studentID);
+            }
+        });
+    </script>
+</body>
+</html>

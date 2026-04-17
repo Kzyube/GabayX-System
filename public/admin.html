@@ -1,0 +1,931 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Tambai | Emergency Response Console</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            /* DARK MODE (DEFAULT) */
+            --bg-base: #050505;
+            --bg-surface: rgba(20, 20, 20, 0.6);
+            --bg-surface-hover: rgba(40, 40, 40, 0.8);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --text-main: #ffffff;
+            --text-dim: #8892b0;
+            --accent-cyan: #00f0ff;
+            --accent-green: #00ff66;
+            --accent-red: #ff2a5f;
+            --accent-orange: #ff8c00;
+            --shadow-glow: 0 0 20px rgba(0, 240, 255, 0.15);
+            --table-hover: rgba(255,255,255,0.03);
+            --btn-glass: rgba(0,0,0,0.4);
+            --font-ui: 'Outfit', sans-serif;
+            --font-data: 'Space Mono', monospace;
+        }
+
+        body.light-mode {
+            /* LIGHT MODE OVERRIDES */
+            --bg-base: #f1f5f9;
+            --bg-surface: rgba(255, 255, 255, 0.85);
+            --bg-surface-hover: rgba(255, 255, 255, 1);
+            --glass-border: rgba(0, 0, 0, 0.1);
+            --text-main: #0f172a;
+            --text-dim: #475569;
+            --accent-cyan: #0284c7;
+            --accent-green: #16a34a;
+            --shadow-glow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            --table-hover: rgba(0,0,0,0.03);
+            --btn-glass: rgba(255,255,255,0.8);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: var(--font-ui);
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* --- CUSTOM SCROLLBAR --- */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent-cyan); }
+
+        /* --- FLOATING COMMAND DOCK (SIDEBAR) --- */
+        .dock {
+            position: fixed;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--bg-surface);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 15px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            z-index: 1000;
+            box-shadow: var(--shadow-glow);
+            transition: background 0.3s ease, border-color 0.3s ease;
+        }
+
+        .dock-brand {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #00f0ff, #0055ff);
+            border-radius: 16px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; color: #fff;
+            margin-bottom: 5px;
+            box-shadow: var(--shadow-glow);
+        }
+
+        .nav-item {
+            width: 48px; height: 48px;
+            border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--text-dim);
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .nav-item:hover { color: var(--text-main); background: var(--bg-surface-hover); }
+        .nav-item.active {
+            color: var(--accent-cyan);
+            background: rgba(0, 132, 199, 0.1);
+            border: 1px solid rgba(0, 132, 199, 0.2);
+            box-shadow: inset 0 0 10px rgba(0, 132, 199, 0.1);
+        }
+
+        /* Tooltip */
+        .nav-item::after {
+            content: attr(data-tooltip);
+            position: absolute; left: 65px;
+            background: var(--text-main); color: var(--bg-base);
+            padding: 6px 12px; border-radius: 6px;
+            font-size: 0.75rem; font-weight: 800; white-space: nowrap;
+            opacity: 0; pointer-events: none; transition: 0.2s;
+            transform: translateX(-10px);
+        }
+        .nav-item:hover::after { opacity: 1; transform: translateX(0); }
+
+        .btn-theme { margin-top: auto; }
+        
+        .btn-logout {
+            margin-top: 5px; color: var(--accent-red);
+            background: rgba(255, 42, 95, 0.1);
+        }
+        .btn-logout:hover { background: var(--accent-red); color: white; box-shadow: 0 0 15px rgba(255, 42, 95, 0.4); }
+
+        /* --- MAIN WORKSPACE (STRICTLY FITTED 100VH) --- */
+        .workspace {
+            margin-left: 90px;
+            flex: 1; display: flex; flex-direction: column;
+            padding: 15px 25px;
+            height: 100vh; overflow: hidden; /* Prevent page scrolling */
+        }
+
+        header {
+            display: flex; justify-content: space-between; align-items: flex-end;
+            margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--glass-border);
+            flex-shrink: 0; /* Prevent header from squishing */
+        }
+
+        .header-titles h1 { font-size: 1.6rem; font-weight: 800; letter-spacing: -1px; margin-bottom: 2px; }
+        .header-titles p { color: var(--text-dim); font-size: 0.75rem; font-family: var(--font-data); text-transform: uppercase; letter-spacing: 2px;}
+
+        .time-badge {
+            background: var(--btn-glass); border: 1px solid var(--glass-border);
+            padding: 6px 14px; border-radius: 10px;
+            font-family: var(--font-data); font-weight: 700; color: var(--accent-cyan);
+            font-size: 1rem; display: flex; align-items: center; gap: 10px;
+        }
+
+        .tab-content { flex: 1; display: none; flex-direction: column; min-height: 0;}
+        .tab-content.active { display: flex; }
+
+        /* --- PREMIUM GLASS CARDS --- */
+        .glass-panel {
+            background: var(--bg-surface);
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px; padding: 15px;
+            box-shadow: var(--shadow-glow);
+            transition: background 0.3s ease, border-color 0.3s ease;
+            display: flex; flex-direction: column; min-height: 0; /* Important for flex fitting */
+        }
+
+        .panel-header {
+            font-size: 0.85rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
+            color: var(--text-dim); margin-bottom: 10px; display: flex; align-items: center; gap: 10px; justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        /* --- LIVE SURVEILLANCE TAB --- */
+        .telemetry-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 15px; flex-shrink: 0; }
+        
+        .stat-card {
+            position: relative; overflow: hidden; padding: 12px 15px;
+            display: flex; flex-direction: column; justify-content: center;
+        }
+        .stat-card span { font-size: 0.7rem; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .stat-card h3 { font-family: var(--font-data); font-size: 2rem; margin-top: 5px; line-height: 1; font-weight: 700; }
+        
+        .stat-total h3 { color: var(--text-main); }
+        .stat-safe h3 { color: var(--accent-green); text-shadow: 0 0 15px rgba(22, 163, 74, 0.3); }
+        .stat-danger h3 { color: var(--accent-red); text-shadow: 0 0 15px rgba(255, 42, 95, 0.3); }
+
+        .dashboard-layout { display: flex; flex-direction: row; gap: 15px; flex: 1; min-height: 0; overflow: hidden; }
+
+        /* Map Engine */
+        .map-container { flex: 2; display: flex; flex-direction: column; min-height: 0; }
+        #admin-map { width: 100%; flex: 1; border-radius: 12px; background: #000; z-index: 1; min-height: 0; }
+        .supply-cursor { cursor: crosshair !important; }
+        
+        .route-btn {
+            background: rgba(0, 132, 199, 0.1); border: 1px solid var(--accent-cyan);
+            color: var(--accent-cyan); padding: 6px 12px; border-radius: 6px;
+            font-size: 10px; font-weight: 800; cursor: pointer; text-transform: uppercase;
+            transition: all 0.3s ease; display: flex; align-items: center; gap: 5px;
+        }
+        .route-btn:hover { background: var(--accent-cyan); color: #fff; }
+        
+        .supply-btn {
+            background: rgba(255, 140, 0, 0.1); border-color: var(--accent-orange); color: var(--accent-orange);
+        }
+        .supply-btn:hover { background: var(--accent-orange); color: #fff; }
+
+        /* Actions & Feed */
+        .command-stack { flex: 1; display: flex; flex-direction: column; gap: 15px; min-height: 0; overflow: hidden; }
+
+        .trigger-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; flex-shrink: 0;}
+        .trigger-btn {
+            background: var(--btn-glass); border: 1px solid var(--glass-border);
+            color: var(--text-main); padding: 10px; border-radius: 10px;
+            font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;
+            cursor: pointer; transition: all 0.3s ease;
+            display: flex; flex-direction: column; align-items: center; gap: 6px;
+        }
+        .trigger-btn i { font-size: 1.1rem; }
+        
+        .btn-eq:hover { border-color: var(--accent-orange); color: var(--accent-orange); box-shadow: inset 0 0 15px rgba(255, 140, 0, 0.1); }
+        .btn-fire:hover { border-color: var(--accent-red); color: var(--accent-red); box-shadow: inset 0 0 15px rgba(255, 42, 95, 0.1); }
+        .btn-flood:hover { border-color: #0088ff; color: #0088ff; box-shadow: inset 0 0 15px rgba(0, 136, 255, 0.1); }
+        .btn-clear:hover { border-color: var(--accent-green); color: var(--accent-green); box-shadow: inset 0 0 15px rgba(22, 163, 74, 0.1); }
+
+        .feed-container { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 5px; min-height: 0; }
+        
+        .intercept-card {
+            background: var(--btn-glass); border: 1px solid var(--glass-border);
+            padding: 10px; border-radius: 10px; position: relative; flex-shrink: 0;
+        }
+        .urgent-card { border-left: 3px solid var(--accent-red); }
+        .sync-card { border-left: 3px solid var(--accent-orange); }
+
+        .sos-badge { background: var(--accent-red); color: #fff; padding: 3px 6px; border-radius: 4px; font-weight: 800; font-size: 9px; letter-spacing: 1px; animation: blink 1s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        /* --- DATA TABLES (Logs & Roster) --- */
+        .table-wrapper { width: 100%; overflow-y: auto; flex: 1; min-height: 0; }
+        table { width: 100%; border-collapse: separate; border-spacing: 0 8px; }
+        th { text-align: left; padding: 10px 16px; font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--glass-border); position: sticky; top: 0; background: var(--bg-surface); z-index: 2;}
+        td { padding: 12px 16px; background: var(--btn-glass); font-size: 0.85rem; }
+        tr td:first-child { border-top-left-radius: 10px; border-bottom-left-radius: 10px; }
+        tr td:last-child { border-top-right-radius: 10px; border-bottom-right-radius: 10px; }
+        tr:hover td { background: var(--table-hover); border-color: var(--glass-border); }
+
+        .data-mono { font-family: var(--font-data); font-size: 0.8rem; color: var(--text-dim); }
+        
+        .status-pill { padding: 6px 12px; border-radius: 6px; font-size: 0.65rem; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
+        .pill-safe { background: rgba(22, 163, 74, 0.1); color: var(--accent-green); border: 1px solid rgba(22, 163, 74, 0.2); }
+        .pill-danger { background: rgba(255, 42, 95, 0.1); color: var(--accent-red); border: 1px solid rgba(255, 42, 95, 0.2); }
+        .pill-neutral { background: rgba(136, 146, 176, 0.1); color: var(--text-dim); border: 1px solid var(--glass-border); }
+
+        .search-input {
+            background: var(--btn-glass); border: 1px solid var(--glass-border); border-radius: 8px;
+            padding: 8px 16px 8px 36px; color: var(--text-main); font-family: var(--font-ui); font-size: 0.85rem; outline: none; width: 250px;
+        }
+        .search-input:focus { border-color: var(--accent-cyan); box-shadow: inset 0 0 10px rgba(0,240,255,0.1); }
+        .search-box { position: relative; display: flex; align-items: center;}
+        .search-box i { position: absolute; left: 12px; color: var(--text-dim); }
+
+        /* --- MAP MARKERS --- */
+        .blip { width: 14px; height: 14px; border-radius: 50%; box-shadow: 0 0 10px rgba(0,0,0,0.5); border: 2px solid #fff; }
+        .blip-safe { background-color: var(--accent-green); }
+        .blip-danger { background-color: var(--accent-red); animation: radar-ping 1.5s infinite; }
+        .blip-neutral { background-color: var(--text-dim); }
+
+        @keyframes radar-ping { 
+            0% { box-shadow: 0 0 0 0 rgba(255, 42, 95, 0.8); } 
+            70% { box-shadow: 0 0 0 15px rgba(255, 42, 95, 0); } 
+            100% { box-shadow: 0 0 0 0 transparent; } 
+        }
+
+        .map-popup { text-align: left; color: var(--text-main); min-width: 160px; font-family: var(--font-ui); }
+        .leaflet-popup-content-wrapper { background: var(--bg-surface); border: 1px solid var(--glass-border); border-radius: 12px; backdrop-filter: blur(10px); color: var(--text-main);}
+        .leaflet-popup-tip { background: var(--bg-surface); border: 1px solid var(--glass-border); }
+        .map-popup h3 { font-size: 15px; font-weight: 800; margin: 0 0 2px 0; }
+        .map-popup p { font-family: var(--font-data); font-size: 10px; color: var(--text-dim); margin: 0 0 8px 0;}
+        .map-btn { background: var(--text-main); color: var(--bg-base); border: none; padding: 6px; width: 100%; border-radius: 6px; font-weight: 800; cursor: pointer; text-transform: uppercase; font-size: 9px;}
+
+        .bldg-dot { opacity: 0; pointer-events: auto; background: rgba(0,0,0,0.7); border: 1px solid var(--accent-cyan); border-radius: 4px; padding: 2px 4px; color: var(--accent-cyan); font-weight: 800; font-size: 9px; font-family: var(--font-data); transition: 0.3s; }
+        .bldg-text { opacity: 0; pointer-events: auto; color: var(--accent-cyan); font-weight: 800; font-family: var(--font-data); text-shadow: 0 2px 5px #000; transition: 0.3s; }
+        .label-visible { opacity: 1 !important; }
+
+        .dest-pin { display: flex; justify-content: center; align-items: center; }
+        .pin-circle { width: 35px; height: 35px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+
+        /* --- TOAST NOTIFICATION --- */
+        #toast-notification {
+            position: fixed; top: -100px; left: 50%; transform: translateX(-50%);
+            background: var(--accent-cyan); color: var(--bg-base); padding: 10px 20px;
+            border-radius: 99px; z-index: 20000; transition: 0.5s; font-weight: 800;
+            font-size: 11px; letter-spacing: 1px; text-transform: uppercase; box-shadow: var(--shadow-glow);
+        }
+
+        /* --- RESPONSIVE FIX (MOBILE SCROLLING) --- */
+        @media (max-width: 1024px) {
+            .workspace { height: auto; min-height: 100vh; overflow-y: auto; overflow-x: hidden; }
+            .dashboard-layout { flex-direction: column; overflow: visible; }
+            .map-container { flex: none; height: 500px; min-height: 500px; }
+            .command-stack { flex: none; overflow: visible; }
+            .feed-container { max-height: 300px; } 
+        }
+        @media (max-width: 768px) {
+            .dock {
+                left: 50%; top: auto; bottom: 15px; transform: translateX(-50%);
+                flex-direction: row; padding: 10px 20px; width: 90%; justify-content: space-between;
+            }
+            .dock-brand { display: none; }
+            .workspace { margin-left: 0; padding: 10px; padding-bottom: 100px; height: auto; min-height: 100vh; overflow-y: auto; overflow-x: hidden; }
+            header { flex-direction: column; align-items: flex-start; gap: 10px; }
+            .telemetry-grid { grid-template-columns: 1fr; }
+            .search-input { width: 100%; }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="toast-notification"><span id="toast-msg"></span></div>
+
+    <nav class="dock">
+        <div class="dock-brand"><i class="fas fa-satellite-dish"></i></div>
+        <div class="nav-item active" id="nav-live" onclick="switchTab('map')" data-tooltip="Live Surveillance">
+            <i class="fas fa-crosshairs"></i>
+        </div>
+        <div class="nav-item" id="nav-logs" onclick="switchTab('logs')" data-tooltip="Disaster Logs">
+            <i class="fas fa-database"></i>
+        </div>
+        <div class="nav-item" id="nav-directory" onclick="switchTab('students')" data-tooltip="Student Directory">
+            <i class="fas fa-users-viewfinder"></i>
+        </div>
+        
+        <div class="nav-item btn-theme" onclick="toggleTheme()" data-tooltip="Toggle Theme">
+            <i class="fas fa-sun" id="theme-icon"></i>
+        </div>
+        <div class="nav-item btn-logout" onclick="logoutSystem()" data-tooltip="System Logout">
+            <i class="fas fa-power-off"></i>
+        </div>
+    </nav>
+
+    <main class="workspace">
+        <header>
+            <div class="header-titles">
+                <h1>Emergency Response Console</h1>
+                <p>Tambai • Strategic Monitoring</p>
+            </div>
+            <div id="live-clock" class="time-badge">00:00:00</div>
+        </header>
+
+        <div id="tab-map" class="tab-content active">
+            <div class="telemetry-grid">
+                <div class="glass-panel stat-card stat-total">
+                    <span>Active Students</span>
+                    <h3 id="count-total">0</h3>
+                </div>
+                <div class="glass-panel stat-card stat-safe">
+                    <span>Verified Safe</span>
+                    <h3 id="count-safe">0</h3>
+                </div>
+                <div class="glass-panel stat-card stat-danger">
+                    <span>At Immediate Risk</span>
+                    <h3 id="count-danger">0</h3>
+                </div>
+            </div>
+
+            <div class="dashboard-layout">
+                <div class="glass-panel map-container">
+                    <div class="panel-header">
+                        <span style="display:flex; align-items:center; gap:8px;"><i class="fas fa-map"></i> Live Surveillance</span>
+                        <div style="display:flex; gap: 8px;">
+                            <button class="route-btn" onclick="toggleAllRoutes()"><i class="fas fa-route"></i> Show Routes</button>
+                            <button class="route-btn supply-btn" onclick="enableSupplyMarkerMode()"><i class="fas fa-box-open"></i> Mark Available Supply</button>
+                        </div>
+                    </div>
+                    <div id="admin-map"></div>
+                </div>
+
+                <div class="command-stack">
+                    <div class="glass-panel" style="padding: 15px;">
+                        <div class="panel-header"><i class="fas fa-tower-broadcast"></i> Broadcast Protocol</div>
+                        <div class="trigger-grid">
+                            <button class="trigger-btn btn-eq" onclick="triggerAlert('EARTHQUAKE')"><i class="fas fa-house-crack"></i> Earthquake</button>
+                            <button class="trigger-btn btn-fire" onclick="triggerAlert('FIRE')"><i class="fas fa-fire-extinguisher"></i> Fire</button>
+                            <button class="trigger-btn btn-flood" onclick="triggerAlert('FLOOD')"><i class="fas fa-water"></i> Flood</button>
+                            <button class="trigger-btn btn-clear" onclick="triggerAlert('SAFE')"><i class="fas fa-shield-check"></i> All Clear</button>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel" style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 15px;">
+                        <div class="panel-header">
+                            <span><i class="fas fa-wave-square"></i> Critical SOS Feed</span>
+                            <button onclick="clearSOSMessages()" style="background: rgba(255,42,95,0.1); border: 1px solid var(--accent-red); color: var(--accent-red); padding: 4px 8px; border-radius: 4px; font-size: 9px; font-weight: 800; cursor: pointer; text-transform: uppercase;">Clear All</button>
+                        </div>
+                        <div class="feed-container" id="list-danger"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-logs" class="tab-content">
+            <div class="glass-panel" style="flex:1; display: flex; flex-direction: column; min-height: 0;">
+                <div class="panel-header"><i class="fas fa-clock-rotate-left"></i> Historical Disaster Logs</div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Event</th>
+                                <th style="color: var(--accent-green)">Safe</th>
+                                <th style="color: var(--accent-red)">At Risk</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="disaster-logs-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-students" class="tab-content">
+            <div class="glass-panel" style="flex:1; display: flex; flex-direction: column; min-height: 0;">
+                <div class="panel-header">
+                    <span><i class="fas fa-users-viewfinder"></i> Global Student Roster</span>
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="roster-search" class="search-input" placeholder="Search by name or ID..." onkeyup="filterRoster()" />
+                    </div>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Student Identifier</th>
+                                <th>Phone Number</th>
+                                <th>Account Status</th>
+                                <th>Status Condition</th>
+                                <th>Last Check-in</th>
+                            </tr>
+                        </thead>
+                        <tbody id="roster-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        let socket, supabaseAdmin, map;
+        const studentMarkers = {};
+        const studentData = new Map();
+        let fullRoster = [];
+        const TAMBAI_LOC = [7.100265815095807, 124.82402407212273];
+
+        const BUILDINGS = [
+            { name: "BLDG A", coords: [7.100767, 124.824077] }, { name: "BLDG B", coords: [7.100636, 124.824271] },
+            { name: "BLDG C", coords: [7.100458, 124.824615] }, { name: "BLDG D", coords: [7.100415, 124.824701] },
+            { name: "BLDG E", coords: [7.100423, 124.824379] }, { name: "BLDG F", coords: [7.100282, 124.824365] },
+            { name: "BLDG G", coords: [7.100051, 124.824532] }, { name: "BLDG H", coords: [7.09991, 124.82414] },
+            { name: "BLDG I", coords: [7.099777, 124.824108] }, { name: "BLDG J", coords: [7.099643, 124.824357] },
+            { name: "BLDG K", coords: [7.09963, 124.824164] }, { name: "BLDG L", coords: [7.099713, 124.823939] },
+            { name: "BLDG M", coords: [7.099851, 124.823724] }, { name: "BLDG N", coords: [7.100224, 124.824046] },
+            { name: "BLDG O", coords: [7.100439, 124.823966] }, { name: "BLDG P", coords: [7.100232, 124.82388] },
+            { name: "BLDG Q", coords: [7.100362, 124.823746] }, { name: "BLDG R", coords: [7.100351, 124.823617] },
+            { name: "BLDG S", coords: [7.100532, 124.823703] },
+        ];
+
+        let bldgMarkers = [];
+        let roadsLayer = null;
+        let allRoutesVisible = false;
+        let supplyMode = false;
+        let supplyMarkers = [];
+
+        function showToast(text) {
+            const toast = document.getElementById("toast-notification");
+            document.getElementById("toast-msg").innerText = text;
+            toast.style.top = "20px";
+            setTimeout(() => (toast.style.top = "-100px"), 3000);
+        }
+
+        window.onload = function () {
+            initTheme();
+            initMap();
+            initSupabase();
+            initSocket();
+            fetchStudentRoster();
+            loadSavedMessages();
+            setInterval(() => fetchStudentRoster(), 15000);
+            setInterval(() => document.getElementById("live-clock").innerText = new Date().toLocaleTimeString(), 1000);
+        };
+
+        function initTheme() {
+            const savedTheme = localStorage.getItem('gabayx_theme');
+            if (savedTheme === 'light') {
+                document.body.classList.add('light-mode');
+                document.getElementById('theme-icon').className = 'fas fa-moon';
+            }
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            const isLight = document.body.classList.contains('light-mode');
+            localStorage.setItem('gabayx_theme', isLight ? 'light' : 'dark');
+            document.getElementById('theme-icon').className = isLight ? 'fas fa-moon' : 'fas fa-sun';
+        }
+
+        function initMap() {
+            map = L.map("admin-map", { zoomControl: false }).setView(TAMBAI_LOC, 18);
+            L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}").addTo(map);
+            L.control.zoom({ position: "bottomright" }).addTo(map);
+            
+            // Supply Drop Click Listener
+            map.on('click', function(e) {
+                if (supplyMode) {
+                    placeSupplyDrop(e.latlng);
+                }
+            });
+
+            loadSafeZones();
+            loadBuildingLabels();
+        }
+
+        async function loadSafeZones() {
+            const zones = [
+                { name: "Primary Front", coords: [7.100589893149529, 124.82393056927546] },
+                { name: "Secondary Court", coords: [7.100077551009359, 124.82369094608939] },
+                { name: "Tertiary Sector", coords: [7.1001461901808565, 124.82430112059413] },
+            ];
+            const shieldIcon = L.divIcon({
+                html: `<div style="display:flex; justify-content:center; align-items:center; width:28px; height:28px; background:rgba(0,0,0,0.8); border-radius:8px; border: 2px solid var(--accent-cyan); box-shadow: 0 0 10px rgba(0, 132, 199, 0.5);"><i class="fas fa-shield-halved" style="color:var(--accent-cyan); font-size:12px;"></i></div>`,
+                className: "custom-shield-marker", iconSize: [28, 28],
+            });
+            zones.forEach((z) => L.marker(z.coords, { icon: shieldIcon }).addTo(map).bindPopup(`<div class="map-popup"><h3>Zone Secure</h3><p>${z.name}</p></div>`));
+        }
+
+        async function toggleAllRoutes() {
+            allRoutesVisible = !allRoutesVisible;
+            if (allRoutesVisible) {
+                if (!roadsLayer) roadsLayer = L.layerGroup().addTo(map);
+                roadsLayer.clearLayers();
+                
+                const bounds = map.getBounds();
+                const bbox = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`;
+                const query = `[out:json];way[highway](${bbox});out geom;`;
+                
+                showToast("Fetching road network...");
+                try {
+                    const response = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`);
+                    const data = await response.json();
+                    let roadCount = 0;
+                    data.elements.forEach(el => {
+                        if(el.type === 'way' && el.geometry) {
+                            const latlngs = el.geometry.map(g => [g.lat, g.lon]);
+                            L.polyline(latlngs, {
+                                color: "#0ea5e9", 
+                                weight: 3, 
+                                opacity: 0.8
+                            }).addTo(roadsLayer);
+                            roadCount++;
+                        }
+                    });
+                    showToast(`Loaded ${roadCount} real roads`);
+                } catch(e) {
+                    console.error(e);
+                    showToast("Failed to load routes. Check connection.");
+                    allRoutesVisible = false;
+                }
+            } else {
+                if (roadsLayer) roadsLayer.clearLayers();
+            }
+        }
+
+        function enableSupplyMarkerMode() {
+            supplyMode = true;
+            document.getElementById('admin-map').classList.add('supply-cursor');
+            showToast("Click on map to mark supply drop");
+        }
+
+        function placeSupplyDrop(latlng) {
+            supplyMode = false;
+            document.getElementById('admin-map').classList.remove('supply-cursor');
+            
+            const supplyIcon = L.divIcon({
+                className: "dest-pin",
+                html: `<div class="pin-circle" style="background:var(--accent-orange); border: 2px solid #fff;"><i class="fas fa-box-open" style="color:#fff;"></i></div>`,
+                iconSize: [35, 35],
+                iconAnchor: [17, 17]
+            });
+            
+            const markerId = Date.now();
+            const marker = L.marker(latlng, { icon: supplyIcon }).addTo(map);
+            
+            const popupContent = `
+                <div class="map-popup">
+                    <h3 style="color:var(--accent-orange)">Supply Drop</h3>
+                    <p>Active at this location</p>
+                    <button class="map-btn" style="background: var(--accent-red); margin-top: 8px;" onclick="removeSupply(${markerId})">Unlist Supply</button>
+                </div>
+            `;
+            
+            marker.bindPopup(popupContent).openPopup();
+            marker.markerId = markerId;
+            supplyMarkers.push(marker);
+
+            if (socket) {
+                const safeCount = parseInt(document.getElementById("count-safe").innerText) || 0;
+                const dangerCount = parseInt(document.getElementById("count-danger").innerText) || 0;
+                
+                socket.emit("broadcast-alert", { 
+                    type: "SUPPLY", 
+                    message: "Supplies are available at marked location!",
+                    lat: latlng.lat,
+                    lng: latlng.lng
+                });
+                
+                if (supabaseAdmin) { 
+                    supabaseAdmin.from("disaster_history").insert([{ 
+                        type: "SUPPLY", 
+                        instructions: "Supplies available at marked location!", 
+                        count_safe: safeCount, 
+                        count_danger: dangerCount, 
+                        created_at: new Date().toISOString() 
+                    }]).then(()=>fetchDisasterLogs()); 
+                }
+            }
+            showToast("Supply Location Marked & Broadcasted!");
+        }
+
+        function removeSupply(id) {
+            const index = supplyMarkers.findIndex(m => m.markerId === id);
+            if (index !== -1) {
+                map.removeLayer(supplyMarkers[index]);
+                supplyMarkers.splice(index, 1);
+                showToast("Supply marker unlisted.");
+            }
+        }
+
+        function initSupabase() {
+            const url = "https://pvmgvuvhhdvqhwfrejaf.supabase.co";
+            const key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2bWd2dXZoaGR2cWh3ZnJlamFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyOTcyMjcsImV4cCI6MjA5MTg3MzIyN30.1nrc9_XupIDXpU4qXHKcTET-5pbtXSErs_MD31Z0RAM";
+            if (window.supabase) supabaseAdmin = window.supabase.createClient(url, key);
+        }
+
+        async function fetchStudentRoster() {
+            if (supabaseAdmin) {
+                const { data, error } = await supabaseAdmin.from("students").select("student_id, name, phone_number, last_seen, last_status").order("name");
+                if (data) { fullRoster = data; document.getElementById("count-total").innerText = fullRoster.length; updateUI(); }
+            }
+        }
+
+        function initSocket() {
+            socket = io();
+
+            socket.on("admin-dashboard-update", async (data) => {
+                const id = data.id.toString(); 
+                const { status, lat, lng } = data;
+                const currentTime = new Date().toLocaleString();
+                let studentName = "Unknown Identity";
+
+                const rosterMatch = fullRoster.find((s) => s.student_id.toString() === id);
+                if (rosterMatch) { studentName = rosterMatch.name; rosterMatch.last_seen = currentTime; rosterMatch.last_status = status; }
+
+                studentData.set(id, { status: status || "SAFE", time: currentTime, name: studentName, isOnline: true });
+
+                if (supabaseAdmin) { await supabaseAdmin.from("students").update({ last_seen: currentTime, last_status: status }).eq("student_id", id); }
+
+                if (lat && lng) {
+                    const isDanger = status === "DANGER";
+                    let className = "blip blip-neutral";
+                    if (status === "SAFE") className = "blip blip-safe";
+                    if (status === "DANGER") className = "blip blip-danger";
+
+                    const customIcon = L.divIcon({ className: "custom-div-icon", html: `<div class="${className}"></div>`, iconSize: [14, 14], iconAnchor: [7, 7], popupAnchor: [0, -10] });
+                    let statusColor = "var(--text-dim)"; let statusText = "DATA LINK ACTIVE";
+                    if (status === "SAFE") { statusColor = "var(--accent-green)"; statusText = "VERIFIED SAFE"; }
+                    if (status === "DANGER") { statusColor = "var(--accent-red)"; statusText = "SOS ALERT CRITICAL"; }
+
+                    const popupContent = `<div class="map-popup"><div style="color:${statusColor}; font-weight:800; font-size:9px; letter-spacing:1px; margin-bottom:3px;">${statusText}</div><h3>${studentName}</h3><p>ID: ${id}</p><div class="data-mono" style="font-size:9px; color:var(--text-dim); margin-bottom:10px;">${lat.toFixed(5)}, ${lng.toFixed(5)}</div>${isDanger ? `<button class="map-btn" onclick="replyTo('${id}')">Dispatch Intel</button>` : ""}</div>`;
+
+                    if (studentMarkers[id]) {
+                        studentMarkers[id].setLatLng([lat, lng]); studentMarkers[id].setIcon(customIcon); studentMarkers[id].getPopup().setContent(popupContent);
+                    } else {
+                        studentMarkers[id] = L.marker([lat, lng], { icon: customIcon }).addTo(map).bindPopup(popupContent);
+                    }
+
+                    if (isDanger) {
+                        studentMarkers[id].openPopup(); map.flyTo([lat, lng], 18, { animate: true, duration: 1.5 });
+                        new Audio("https://image2url.com/r2/default/audio/1770035478181-9daca647-30be-478d-bef0-2700b5dfcbdd.mp3").play().catch(() => {});
+                    }
+                }
+                updateUI();
+            });
+
+            socket.on("student-disconnected", (data) => {
+                const id = data.id.toString();
+                if (studentData.has(id)) studentData.delete(id);
+                if (studentMarkers[id]) { map.removeLayer(studentMarkers[id]); delete studentMarkers[id]; }
+                updateUI();
+            });
+
+            socket.on("admin-receive-note", async (data) => {
+                const list = document.getElementById("list-danger");
+                const item = document.createElement("div");
+                const tempId = `temp-${Date.now()}`;
+                
+                const distressKeywords = ["help", "trapped", "emergency", "hurt", "danger", "sos", "tulong"];
+                const isSOS = distressKeywords.some((word) => data.message.toLowerCase().includes(word));
+                
+                item.className = `intercept-card ${isSOS ? 'urgent-card' : ''}`; item.id = tempId;
+
+                item.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
+                        <div>${isSOS ? `<span class="sos-badge">PRIORITY</span>` : ""}<span style="font-family:var(--font-data); font-size:0.8rem; color:var(--accent-cyan); margin-left:${isSOS?'5px':'0'}">OP: ${data.id}</span></div>
+                        <small class="data-mono" style="font-size:9px;">JUST NOW</small>
+                    </div>
+                    <div style="color:var(--text-main); font-size: 0.85rem; line-height: 1.4; margin-bottom: 10px; font-style: italic;">"${data.message}"</div>
+                    <button id="btn-${tempId}" onclick="replyTo('${data.id}', '${tempId}')" style="background: var(--btn-glass); border: 1px solid var(--glass-border); color: var(--text-main); font-size:9px; font-weight:800; font-family:var(--font-ui); padding:6px 10px; border-radius:6px; cursor:pointer; transition: 0.3s; width:100%; text-transform:uppercase; letter-spacing:1px;">Respond</button>`;
+                
+                list.prepend(item);
+
+                if (supabaseAdmin) {
+                    const { data: savedData, error } = await supabaseAdmin.from("sos_messages").insert([{ student_id: data.id, message: data.message, is_critical: isSOS, replied: false, created_at: new Date().toISOString() }]).select();
+                    if (!error && savedData.length > 0) {
+                        const realDbId = savedData[0].id; const btn = document.getElementById(`btn-${tempId}`);
+                        if (btn) btn.setAttribute("onclick", `replyTo('${data.id}', '${tempId}', ${realDbId})`);
+                    }
+                }
+                if (isSOS) new Audio("https://image2url.com/r2/default/audio/1770035478181-9daca647-30be-478d-bef0-2700b5dfcbdd.mp3").play();
+            });
+
+            socket.on("admin-sync-report", async (data) => {
+                const feed = document.getElementById("list-danger"); if (!feed) return;
+                let address = "No GPS Intel"; let mapLink = "#"; let lastLog = null;
+                if (data.logs && data.logs.length > 0) lastLog = data.logs.filter((l) => l.lat && l.lng).pop();
+                
+                if (lastLog) {
+                    try {
+                        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lastLog.lat}&lon=${lastLog.lng}`);
+                        if (res.ok) { const json = await res.json(); if (json.display_name) { const parts = json.display_name.split(","); address = parts[0] + ", " + (parts[1] || ""); } }
+                        mapLink = `https://www.google.com/maps?q=${lastLog.lat},${lastLog.lng}`;
+                    } catch (e) { address = `LAT: ${lastLog.lat.toFixed(4)}, LNG: ${lastLog.lng.toFixed(4)}`; }
+                }
+
+                const reportHTML = `
+                    <div class="intercept-card sync-card">
+                        <div style="font-size: 9px; color: var(--accent-orange); font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;"><i class="fas fa-history"></i> CACHED PACKAGES SYNCED</div>
+                        <div style="font-family:var(--font-data); font-size:0.8rem; color:var(--text-main);">OP: ${data.id}</div>
+                        <div style="font-size: 0.75rem; margin: 4px 0 8px 0; color: var(--text-dim);">Processed <b>${data.count}</b> data fragments.</div>
+                        <div style="background: var(--btn-glass); padding: 8px; border-radius: 6px; font-size: 0.75rem; border: 1px solid var(--glass-border);">
+                            <div style="margin-bottom:4px; color:var(--text-dim);">LOC: <span style="color:var(--text-main);">${address}</span></div>
+                            ${lastLog ? `<a href="${mapLink}" target="_blank" style="color:var(--accent-cyan); text-decoration:none; font-weight:800; display:block; margin-top:6px; font-size:9px; text-transform:uppercase;">Extract Coordinates →</a>` : ""}
+                        </div>
+                    </div>`;
+                feed.insertAdjacentHTML("afterbegin", reportHTML);
+                if (data.logs.length > 1) drawGhostPath(data.logs);
+            });
+        }
+
+        async function triggerAlert(type) {
+            const msg = prompt(`Enter broadcast payload for ${type}:`, `CRITICAL: ${type} protocol initiated. Please proceed to the nearest safe zone.`);
+            if (msg) {
+                const safeCount = parseInt(document.getElementById("count-safe").innerText) || 0;
+                const dangerCount = parseInt(document.getElementById("count-danger").innerText) || 0;
+                socket.emit("broadcast-alert", { type: type, message: msg });
+                if (supabaseAdmin) { await supabaseAdmin.from("disaster_history").insert([{ type: type, instructions: msg, count_safe: safeCount, count_danger: dangerCount, created_at: new Date().toISOString() }]); }
+                fetchDisasterLogs();
+            }
+        }
+
+        async function replyTo(sid, uiMsgId, dbId) {
+            const msg = prompt(`Transmit to OP ${sid}:`, "Help is on the way. Stay calm.");
+            if (msg) {
+                socket.emit("admin-reply", { targetId: sid.toString().trim(), message: msg });
+                const btn = document.getElementById(`btn-${uiMsgId}`);
+                if (btn) { btn.innerHTML = `<i class="fas fa-check"></i> CONFIRMED`; btn.style.background = "rgba(22, 163, 74, 0.1)"; btn.style.color = "var(--accent-green)"; btn.style.borderColor = "var(--accent-green)"; btn.disabled = true; }
+                if (supabaseAdmin && dbId) { await supabaseAdmin.from("sos_messages").update({ replied: true }).eq("id", dbId); }
+            }
+        }
+
+        function updateUI() {
+            let safe = 0, danger = 0;
+            const body = document.getElementById('roster-table-body');
+            if (!body) return; body.innerHTML = '';
+            
+            studentData.forEach(v => { if (v.status === 'SAFE') safe++; else if (v.status === 'DANGER') danger++; });
+            document.getElementById('count-safe').innerText = safe;
+            document.getElementById('count-danger').innerText = danger;
+
+            if (fullRoster.length > 0) {
+                fullRoster.forEach(student => {
+                    const sid = student.student_id.toString(); 
+                    const isOnline = studentData.has(sid);
+                    const liveInfo = studentData.get(sid);
+                    
+                    const connBadge = isOnline ? `<span class="status-pill pill-safe">● ONLINE</span>` : `<span class="status-pill pill-neutral">○ OFFLINE</span>`;
+                    const currentStatus = isOnline ? liveInfo.status : student.last_status;
+                    let statusBadge = `<span class="status-pill pill-neutral">--</span>`;
+                    
+                    if (currentStatus === 'SAFE') statusBadge = `<span class="status-pill pill-safe">SAFE</span>`;
+                    else if (currentStatus === 'DANGER') statusBadge = `<span class="status-pill pill-danger">DANGER</span>`;
+
+                    const lastSeenDisplay = isOnline ? liveInfo.time : (student.last_seen || "NO DATA");
+
+                    body.innerHTML += `
+                        <tr>
+                            <td><div style="font-weight:600; font-size:0.95rem;">${student.name}</div><div class="data-mono" style="font-size:9px; margin-top:2px;">${sid}</div></td>
+                            <td class="data-mono">${student.phone_number || 'UNKNOWN'}</td>
+                            <td>${connBadge}</td><td>${statusBadge}</td>
+                            <td class="data-mono" style="font-size:0.75rem;">${lastSeenDisplay}</td>
+                        </tr>`;
+                });
+            } else { body.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text-dim);">No operatives on network.</td></tr>`; }
+        }
+
+        function switchTab(t) {
+            document.getElementById("tab-map").classList.toggle("active", t === "map");
+            document.getElementById("tab-logs").classList.toggle("active", t === "logs");
+            document.getElementById("tab-students").classList.toggle("active", t === "students");
+
+            document.getElementById("nav-live").classList.toggle("active", t === "map");
+            document.getElementById("nav-logs").classList.toggle("active", t === "logs");
+            document.getElementById("nav-directory").classList.toggle("active", t === "students");
+
+            if (t === "map") setTimeout(() => map.invalidateSize(), 200); 
+            else if (t === "logs") fetchDisasterLogs();
+        }
+
+        async function fetchDisasterLogs() {
+            if (!supabaseAdmin) return;
+            const logBody = document.getElementById("disaster-logs-body");
+            const { data, error } = await supabaseAdmin.from("disaster_history").select("*").order("created_at", { ascending: false });
+
+            if (error) { logBody.innerHTML = `<tr><td colspan="5">Telemetry failure</td></tr>`; return; }
+            logBody.innerHTML = data.map((log) => {
+                const isSafe = log.type === "SAFE" || log.type === "CLEAR";
+                return `
+                    <tr>
+                        <td class="data-mono" style="font-size:0.75rem;">${new Date(log.created_at).toLocaleString()}</td>
+                        <td style="font-weight:800; letter-spacing:1px;">${log.type}</td>
+                        <td><span style="font-family:var(--font-data); font-weight: 700; color: var(--accent-green); cursor:pointer; text-decoration:underline; text-underline-offset:4px;" onclick="viewStatusGroup('SAFE')">${log.count_safe || 0}</span></td>
+                        <td><span style="font-family:var(--font-data); font-weight: 700; color: var(--accent-red); cursor:pointer; text-decoration:underline; text-underline-offset:4px;" onclick="viewStatusGroup('DANGER')">${log.count_danger || 0}</span></td>
+                        <td><span class="status-pill ${isSafe ? "pill-safe" : "pill-danger"}">${isSafe ? "RESOLVED" : "ACTIVE"}</span></td>
+                    </tr>`;
+            }).join("");
+        }
+
+        function viewStatusGroup(status) { switchTab("students"); const s = document.getElementById("roster-search"); if (s) { s.value = status; filterRoster(); } }
+        function logoutSystem() { if (confirm("Terminate session connection?")) location.href = "/logout"; }
+
+        function drawGhostPath(logs) {
+            const pathPoints = logs.filter((l) => l.lat && l.lng).map((l) => [l.lat, l.lng]);
+            if (pathPoints.length > 0) { L.polyline(pathPoints, { color: "var(--accent-orange)", dashArray: "5, 10", weight: 3, opacity: 0.8 }).addTo(map); }
+        }
+
+        function filterRoster() {
+            const query = document.getElementById("roster-search").value.toLowerCase();
+            const rows = document.querySelectorAll("#roster-table-body tr");
+            rows.forEach((row) => { const text = row.innerText.toLowerCase(); row.style.display = text.includes(query) ? "" : "none"; });
+        }
+
+        async function loadSavedMessages() {
+            if (!supabaseAdmin) return;
+            const list = document.getElementById("list-danger"); if (!list) return;
+            const { data, error } = await supabaseAdmin.from("sos_messages").select("*").order("created_at", { ascending: false }).limit(50);
+            if (error) return;
+            list.innerHTML = "";
+            data.forEach((msg) => {
+                const item = document.createElement("div"); const msgId = `msg-${msg.id}`; const isReplied = msg.replied === true;
+                item.className = `intercept-card ${msg.is_critical ? 'urgent-card' : ''}`; item.style.opacity = isReplied ? "0.6" : "1"; item.id = msgId;
+                const sosBadge = msg.is_critical ? `<span class="sos-badge">PRIORITY</span>` : "";
+                
+                item.innerHTML = `
+                    <div style="margin-bottom:6px; display:flex; justify-content:space-between; align-items:flex-start;">
+                        <div>${sosBadge}<span style="font-family:var(--font-data); font-size:0.8rem; color:var(--accent-cyan); margin-left:${msg.is_critical ? '5px': '0'}">OP: ${msg.student_id}</span></div>
+                        <small class="data-mono" style="font-size:9px;">${new Date(msg.created_at).toLocaleTimeString()}</small>
+                    </div>
+                    <div style="color:var(--text-main); font-size: 0.85rem; line-height: 1.4; margin-bottom: 10px; font-style: italic;">"${msg.message}"</div>
+                    <button id="btn-${msgId}" onclick="${isReplied ? "" : `replyTo('${msg.student_id}', '${msgId}', ${msg.id})`}" 
+                        style="background: ${isReplied ? "rgba(22, 163, 74, 0.1)" : "var(--btn-glass)"}; border: 1px solid ${isReplied ? "var(--accent-green)" : "var(--glass-border)"}; color: ${isReplied ? "var(--accent-green)" : "var(--text-main)"}; font-size:9px; font-weight:800; font-family:var(--font-ui); padding:6px 10px; border-radius:6px; width:100%; text-transform:uppercase; letter-spacing:1px; cursor:${isReplied ? "default" : "pointer"}; transition: 0.3s;" ${isReplied ? "disabled" : ""}>
+                        ${isReplied ? '<i class="fas fa-check"></i> CONFIRMED' : "Respond"}
+                    </button>`;
+                list.appendChild(item);
+            });
+        }
+
+        async function clearSOSMessages() {
+            if (!confirm("Wipe all intercepted feed logs permanently?")) return;
+            if (supabaseAdmin) {
+                const { error } = await supabaseAdmin.from("sos_messages").delete().neq("id", 0);
+                if (error) return;
+                const feed = document.getElementById("list-danger");
+                if (feed) feed.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-dim); font-size: 0.85rem;"><i class="fas fa-check-circle" style="color: var(--accent-green); display: block; font-size: 1.5rem; margin-bottom: 10px;"></i>Feed Purged</div>`;
+            }
+        }
+
+        function loadBuildingLabels() {
+            bldgMarkers.forEach((m) => map.removeLayer(m)); bldgMarkers = [];
+            BUILDINGS.forEach((b) => {
+                const marker = L.marker(b.coords, { interactive: true }).addTo(map);
+                marker.bldgData = { name: b.name, short: b.name.replace("BLDG ", "") };
+                marker.on('mouseover', function() { const el = this.getElement(); if (el) el.classList.add('label-visible'); });
+                marker.on('mouseout', function() { const el = this.getElement(); if (el) el.classList.remove('label-visible'); });
+                bldgMarkers.push(marker);
+            });
+            updateLabels(); map.on("zoomend", updateLabels);
+        }
+
+        function updateLabels() {
+            const currentZoom = map.getZoom();
+            bldgMarkers.forEach((marker) => {
+                let newIcon;
+                if (currentZoom >= 20) { newIcon = L.divIcon({ className: "bldg-text", html: marker.bldgData.name, iconSize: [60, 20], iconAnchor: [30, 10] }); } 
+                else { newIcon = L.divIcon({ className: "bldg-dot", html: marker.bldgData.short, iconSize: [24, 24], iconAnchor: [12, 12] }); }
+                marker.setIcon(newIcon);
+                if (currentZoom < 16) marker.getElement()?.style.setProperty('display', 'none');
+                else marker.getElement()?.style.setProperty('display', 'block');
+            });
+        }
+    </script>
+</body>
+</html>
