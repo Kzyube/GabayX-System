@@ -124,8 +124,13 @@
         input:checked + .slider { background-color: rgba(245,158,11,0.2); border-color: var(--warning); }
         input:checked + .slider:before { transform: translateX(20px); background-color: var(--warning); box-shadow: 0 0 10px var(--warning); }
 
-        .btn-voucher { width: 100%; padding: 14px; background: linear-gradient(135deg, var(--emerald-500), #00f0ff); color: #b8b8b8; border: none; border-radius: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; margin-bottom: 10px; display: flex; justify-content: center; align-items: center; gap: 8px; box-shadow: 0 0 15px rgba(0, 240, 255, 0.3); transition: 0.3s; }
+        /* BUTTONS */
+        .btn-voucher { width: 100%; padding: 14px; background: linear-gradient(135deg, var(--emerald-500), #00f0ff); color: #ffffff; border: none; border-radius: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; margin-bottom: 10px; display: flex; justify-content: center; align-items: center; gap: 8px; box-shadow: 0 0 15px rgba(0, 240, 255, 0.3); transition: 0.3s; }
         .btn-voucher:active { transform: scale(0.96); }
+
+        .btn-donate-sidebar { width: 100%; padding: 14px; background: transparent; color: var(--emerald-400); border: 1px solid var(--emerald-500); border-radius: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; margin-bottom: 10px; display: flex; justify-content: center; align-items: center; gap: 8px; transition: 0.3s; }
+        .btn-donate-sidebar:hover { background: rgba(16, 185, 129, 0.1); box-shadow: 0 0 15px rgba(16, 185, 129, 0.2); }
+        .btn-donate-sidebar:active { transform: scale(0.96); }
 
         .btn-logout { background: rgba(255,42,95,0.1); color: var(--danger); border: 1px solid rgba(255,42,95,0.2); padding: 16px; border-radius: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; width: 100%; cursor: pointer; display: flex; justify-content: center; gap: 10px;}
 
@@ -202,13 +207,13 @@
 
 <body>
     
-    <div id="donation-alert-modal" style="display:none; position:fixed; inset:0; background:rgba(0, 0, 0, 0.8); z-index:30000; justify-content:center; align-items:center; padding:20px; backdrop-filter:blur(5px);">
+    <div id="donation-alert-modal" style="display:none; position:fixed; inset:0; background:rgba(255, 255, 255, 0.8); z-index:30000; justify-content:center; align-items:center; padding:20px; backdrop-filter:blur(5px);">
         <div style="background:var(--surface); border:1px solid #00f0ff; border-radius:24px; padding:30px; text-align:center; max-width:400px; width:100%; box-shadow:0 0 40px rgba(0,240,255,0.3);">
             <i class="fas fa-hand-holding-heart" style="font-size:45px; color:#00f0ff; margin-bottom:15px; filter: drop-shadow(0 0 10px rgba(0,240,255,0.5));"></i>
             <h2 style="color:white; font-size:1.5rem; margin-bottom:10px;">Financial Aid Arrived!</h2>
             <p style="color:var(--text-sub); font-size:0.95rem; margin-bottom:20px; line-height:1.5;">A generous donor has just sent financial aid directly to your area. We have secured your voucher.</p>
             
-            <div style="background:rgba(0,240,255,0.1); padding:15px; border-radius:12px; margin-bottom:20px; border:1px dashed #00f0ff; color: white; font-size: 0.9rem;">
+            <div style="background:rgba(255, 255, 255, 0.1); padding:15px; border-radius:12px; margin-bottom:20px; border:1px dashed #00f0ff; color: white; font-size: 0.9rem;">
                 Open your <b>Sidebar Menu</b> and click <br><b style="color: #00f0ff;">"Show GCash Vouchers"</b> to view and claim your code!
             </div>
 
@@ -294,6 +299,10 @@
         
         <button onclick="openVouchersModal()" class="btn-voucher">
             <i class="fas fa-ticket-alt"></i> Show GCash Vouchers
+        </button>
+
+        <button onclick="window.location.href='/donate.html'" class="btn-donate-sidebar">
+            <i class="fas fa-hand-holding-heart"></i> Donate to Relief
         </button>
 
         <button onclick="logoutUser()" class="btn-logout"><i class="fas fa-sign-out-alt"></i> Log Out</button>
