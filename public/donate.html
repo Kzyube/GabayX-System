@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GabayX | Donation Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+    <style>
+        :root {
+            --base-bg: #020504;
+            --surface: rgba(10, 20, 16, 0.6);
+            --surface-light: rgba(16, 185, 129, 0.05);
+            --border-subtle: rgba(255, 255, 255, 0.1);
+            --border-highlight: rgba(0, 240, 255, 0.4);
+            --emerald-400: #34d399;
+            --emerald-500: #10b981;
+            --emerald-600: #059669;
+            --accent-cyan: #00f0ff;
+            --text-main: #ffffff;
+            --text-muted: #94a3b8;
+            --font-ui: 'Outfit', sans-serif;
+            --font-data: 'Space Mono', monospace;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--font-ui); }
+
+        body {
+            background-color: var(--base-bg); color: var(--text-main);
+            min-height: 100vh; overflow-x: hidden;
+            display: flex; flex-direction: column;
+        }
+
+        /* --- DYNAMIC BACKGROUND --- */
+        .mesh-bg { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; background: #020504; overflow: hidden;}
+        .mesh-blob { position: absolute; filter: blur(140px); border-radius: 50%; animation: float-blob 25s infinite alternate ease-in-out; opacity: 0.4; }
+        .blob-1 { background: var(--emerald-600); width: 60vw; height: 60vw; top: -30%; right: -20%; }
+        .blob-2 { background: #004d40; width: 70vw; height: 70vw; bottom: -20%; left: -30%; animation-delay: -5s; }
+        .blob-3 { background: var(--accent-cyan); width: 40vw; height: 40vw; top: 30%; left: 30%; opacity: 0.15; animation-delay: -10s; }
+
+        @keyframes float-blob { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(8%, -8%) scale(1.1); } }
+
+        /* --- ASYMMETRICAL SPLIT LAYOUT --- */
+        .layout-wrapper {
+            display: flex;
+            flex-direction: row;
+            min-height: 100vh;
+            width: 100%;
+        }
+
+        /* LEFT PANEL: BRANDING & INFO */
+        .info-panel {
+            flex: 1;
+            padding: 4rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            border-right: 1px solid var(--border-subtle);
+            background: linear-gradient(90deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.2) 100%);
+            backdrop-filter: blur(10px);
+            position: relative;
+        }
+
+        .brand-logo { display: flex; align-items: center; gap: 16px; margin-bottom: 2rem; }
+        .logo-mark { width: 60px; height: 60px; border-radius: 14px; object-fit: cover; box-shadow: 0 0 30px rgba(0, 240, 255, 0.4); border: 1px solid var(--border-highlight); }
+        .brand-text { font-size: 2.8rem; font-weight: 800; letter-spacing: 2px; background: linear-gradient(135deg, #ffffff 0%, var(--emerald-400) 50%, var(--accent-cyan) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 15px rgba(0, 240, 255, 0.3)); }
+
+        .mission-text h1 { font-size: 3.5rem; font-weight: 800; line-height: 1.1; margin-bottom: 1.5rem; letter-spacing: -1px;}
+        .mission-text p { font-size: 1.1rem; color: var(--text-muted); line-height: 1.6; max-width: 500px; font-weight: 300;}
+
+        /* TRUST BADGES */
+        .trust-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 2rem;
+        }
+        .trust-badge {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid var(--emerald-500);
+            color: var(--emerald-400);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: inset 0 0 10px rgba(16, 185, 129, 0.1);
+        }
+        .trust-badge i { font-size: 1rem; }
+
+        /* RIGHT PANEL: DONATION TERMINAL */
+        .terminal-panel {
+            flex: 1.2;
+            padding: 4rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .donate-card {
+            background: var(--surface); backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
+            border: 1px solid var(--border-subtle); border-radius: 24px; padding: 3rem;
+            width: 100%; max-width: 550px; box-shadow: 0 30px 60px rgba(0, 0, 0, 0.7);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .donate-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+            background: linear-gradient(90deg, var(--emerald-500), var(--accent-cyan));
+        }
+
+        .header-title { font-size: 1.8rem; font-weight: 700; margin-bottom: 0.5rem; color: #fff;}
+        .header-subtitle { color: var(--text-muted); font-size: 0.95rem; font-weight: 400; margin-bottom: 2.5rem; line-height: 1.5;}
+
+        /* --- FORMS & INPUTS --- */
+        .form-group { margin-bottom: 1.8rem; position: relative; }
+        label { display: block; margin-bottom: 10px; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px; }
+        
+        input {
+            width: 100%; padding: 18px 20px; background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border-subtle); border-radius: 14px;
+            font-size: 1.05rem; color: var(--text-main); outline: none; transition: 0.3s;
+        }
+        input:focus { border-color: var(--accent-cyan); box-shadow: 0 0 0 4px rgba(0, 240, 255, 0.15); background: rgba(0, 0, 0, 0.7);}
+        input::placeholder { color: rgba(255,255,255,0.2); }
+
+        .amount-wrapper { position: relative; display: flex; align-items: center; }
+        .currency-symbol { position: absolute; left: 24px; font-family: var(--font-data); font-weight: 800; color: var(--emerald-400); font-size: 1.4rem;}
+        .amount-wrapper input { padding-left: 55px; font-family: var(--font-data); font-weight: 800; font-size: 1.4rem; color: var(--text-main); letter-spacing: 1px;}
+
+        /* --- REAL-TIME SEARCH UI --- */
+        .search-wrapper { position: relative; }
+        .search-icon { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 1.2rem;}
+        .search-wrapper input { padding-left: 55px; }
+        
+        .autocomplete-results {
+            position: absolute; top: 100%; left: 0; right: 0; background: #0a110e;
+            border: 1px solid var(--accent-cyan); border-radius: 12px; margin-top: 8px;
+            max-height: 220px; overflow-y: auto; z-index: 100; box-shadow: 0 15px 40px rgba(0,0,0,0.8);
+            display: none;
+        }
+        
+        /* Custom Scrollbar for results */
+        .autocomplete-results::-webkit-scrollbar { width: 6px; }
+        .autocomplete-results::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 10px; }
+        
+        .autocomplete-item {
+            padding: 14px 20px; cursor: pointer; display: flex; align-items: center; gap: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.05); transition: 0.2s; font-size: 0.9rem;
+        }
+        .autocomplete-item:last-child { border-bottom: none; }
+        .autocomplete-item:hover { background: rgba(0, 240, 255, 0.1); color: var(--accent-cyan); }
+        .autocomplete-item i { color: var(--emerald-400); }
+        
+        .quick-tags { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;}
+        .quick-tag { 
+            background: var(--surface-light); border: 1px solid var(--border-subtle); color: var(--text-muted);
+            padding: 6px 12px; border-radius: 8px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: 0.2s;
+        }
+        .quick-tag:hover { border-color: var(--accent-cyan); color: var(--accent-cyan); background: rgba(0,240,255,0.1); }
+
+        /* --- BUTTONS --- */
+        .btn-donate {
+            width: 100%; padding: 20px; background: linear-gradient(135deg, var(--emerald-500), var(--accent-cyan));
+            color: #000; border: none; border-radius: 14px; font-size: 1.1rem; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; cursor: pointer; transition: 0.3s; margin-top: 2rem; display: flex; justify-content: center; align-items: center; gap: 12px; box-shadow: 0 10px 30px rgba(0, 240, 255, 0.3);
+        }
+        .btn-donate:hover { transform: translateY(-3px); box-shadow: 0 15px 40px rgba(0, 240, 255, 0.5); filter: brightness(1.1);}
+
+        /* --- SUCCESS VOUCHER STATE --- */
+        .success-box {
+            background: rgba(0, 240, 255, 0.05); border: 1px solid rgba(0, 240, 255, 0.3);
+            padding: 30px; border-radius: 20px; text-align: center; margin-bottom: 20px; display: none;
+            backdrop-filter: blur(10px);
+        }
+        .success-icon { font-size: 3rem; color: var(--accent-cyan); margin-bottom: 15px; filter: drop-shadow(0 0 15px rgba(0,240,255,0.5));}
+        .success-box h3 { color: #fff; margin-bottom: 10px; font-size: 1.5rem; letter-spacing: 1px;}
+        .voucher-code { background: #000; padding: 15px; border-radius: 12px; font-family: var(--font-data); color: var(--accent-cyan); font-size: 1.8rem; font-weight: 800; letter-spacing: 4px; margin-top: 20px; border: 1px dashed var(--accent-cyan); box-shadow: inset 0 0 20px rgba(0,240,255,0.1);}
+
+        /* Back Link */
+        .back-link { position: absolute; top: 1.5rem; right: 2rem; color: var(--text-muted); text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: 0.3s; display: flex; align-items: center; gap: 8px;}
+        .back-link:hover { color: var(--accent-cyan); }
+
+        /* --- RESPONSIVE DESIGN (Fixes Mobile Layout) --- */
+        @media (max-width: 1024px) {
+            .layout-wrapper { flex-direction: column; }
+            .info-panel { 
+                padding: 3rem 2rem; 
+                border-right: none; 
+                border-bottom: 1px solid var(--border-subtle); 
+                text-align: center; 
+                align-items: center;
+            }
+            .mission-text p { max-width: 100%; }
+            .brand-logo { justify-content: center; }
+            .trust-badges { justify-content: center; }
+            .back-link { position: static; align-self: flex-end; margin-bottom: 1rem; }
+            .terminal-panel { padding: 2rem 1rem; }
+            .donate-card { padding: 2.5rem 1.5rem; border-radius: 20px; }
+        }
+
+        @media (max-width: 600px) {
+            .mission-text h1 { font-size: 2.2rem; }
+            .mission-text p { font-size: 1rem; }
+            .donate-card { padding: 1.5rem; }
+            .header-title { font-size: 1.5rem; }
+            .amount-wrapper input { font-size: 1.2rem; }
+            .btn-donate { font-size: 1rem; padding: 16px; }
+            .trust-badge { font-size: 0.7rem; padding: 6px 10px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="mesh-bg">
+        <div class="mesh-blob blob-1"></div><div class="mesh-blob blob-2"></div><div class="mesh-blob blob-3"></div>
+    </div>
+
+    <div class="layout-wrapper">
+        
+        <div class="info-panel">
+            <a href="/" class="back-link">Return to Home <i class="fas fa-arrow-right"></i></a>
+
+            <div class="brand-logo">
+                <img src="GabayXLOGO.jpg" class="logo-mark" alt="GabayX Logo">
+                <div class="brand-text">GABAYX</div>
+            </div>
+            
+            <div class="mission-text">
+                <h1>Send Help.<br>Instantly.</h1>
+                <p>Send your donation straight to the victims who need it. No middlemen, no delays. When you donate, victims in the affected area instantly receive a secure GCash voucher right on their phones.</p>
+            </div>
+
+            <div class="trust-badges">
+                <div class="trust-badge"><i class="fas fa-link"></i> Secured By Blockchain</div>
+                <div class="trust-badge"><i class="fas fa-shield-check"></i> 100% Anti-Fraud</div>
+                <div class="trust-badge"><i class="fas fa-hand-holding-heart"></i> Anti-Corrupt</div>
+            </div>
+        </div>
+
+        <div class="terminal-panel">
+            <div class="donate-card">
+                
+                <div id="success-message" class="success-box">
+                    <i class="fas fa-check-circle success-icon"></i>
+                    <h3>Donation Sent Successfully!</h3>
+                    <p style="font-size: 0.95rem; color: var(--text-muted); margin-top: 5px; line-height: 1.5;">Thank you! Your donation was verified and the voucher code below was instantly sent to students in your chosen location.</p>
+                    <div class="voucher-code" id="voucher-display"></div>
+                    <button onclick="window.location.href='/donate.html'" style="margin-top: 25px; padding: 12px 24px; background: transparent; border: 1px solid var(--accent-cyan); color: var(--accent-cyan); border-radius: 8px; cursor: pointer; font-weight: 700; text-transform: uppercase;">Make Another Donation</button>
+                </div>
+
+                <div id="form-container">
+                    <h2 class="header-title">Donation Form</h2>
+                    <p class="header-subtitle">Choose a specific location or send help to all affected areas.</p>
+
+                    <form action="/api/donate" method="POST">
+                        <div class="form-group">
+                            <label>Your Name (Optional)</label>
+                            <input type="text" name="donor_name" placeholder="Leave blank to donate anonymously">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Amount to Donate</label>
+                            <div class="amount-wrapper">
+                                <span class="currency-symbol">₱</span>
+                                <input type="number" name="amount" placeholder="0.00" min="1" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Choose Who To Help</label>
+                            <div class="search-wrapper">
+                                <i class="fas fa-search search-icon"></i>
+                                <input type="text" id="location-input" placeholder="Type a city or location (e.g. Davao, Kabacan)" autocomplete="off" required>
+                                <input type="hidden" name="target_zone" id="target-zone-hidden">
+                                
+                                <div class="autocomplete-results" id="autocomplete-results">
+                                    </div>
+                            </div>
+                            
+                            <div class="quick-tags">
+                                <span class="quick-tag" onclick="setQuickZone('ALL ZONES', 'Help everyone in need')">Help Everyone</span>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn-donate"><i class="fas fa-heart"></i> Send Donation Now</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Check for success state
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('success') === 'true') {
+            document.getElementById('form-container').style.display = 'none';
+            document.getElementById('success-message').style.display = 'block';
+            document.getElementById('voucher-display').innerText = urlParams.get('voucher');
+        }
+
+        // Real-Time Geographic Search (Nominatim API)
+        const locInput = document.getElementById('location-input');
+        const hiddenZone = document.getElementById('target-zone-hidden');
+        const resultsBox = document.getElementById('autocomplete-results');
+        let searchTimeout = null;
+
+        locInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            const query = this.value;
+            
+            if(query.length < 3) {
+                resultsBox.style.display = 'none';
+                return;
+            }
+
+            // Debounce the API call to prevent spamming
+            searchTimeout = setTimeout(async () => {
+                try {
+                    // Search specifically in the Philippines
+                    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=ph&limit=5`);
+                    const data = await res.json();
+                    
+                    resultsBox.innerHTML = '';
+                    
+                    if(data.length > 0) {
+                        data.forEach(place => {
+                            const div = document.createElement('div');
+                            div.className = 'autocomplete-item';
+                            // Clean up display name slightly
+                            const cleanName = place.display_name.split(',').slice(0, 3).join(',');
+                            div.innerHTML = `<i class="fas fa-map-marker-alt"></i> <span>${cleanName}</span>`;
+                            
+                            div.onclick = () => {
+                                locInput.value = cleanName;
+                                hiddenZone.value = cleanName; 
+                                resultsBox.style.display = 'none';
+                            };
+                            resultsBox.appendChild(div);
+                        });
+                        resultsBox.style.display = 'block';
+                    } else {
+                        resultsBox.innerHTML = `<div class="autocomplete-item" style="color:var(--text-muted); cursor:default;"><i class="fas fa-search-minus"></i> No places found</div>`;
+                        resultsBox.style.display = 'block';
+                    }
+                } catch(err) { 
+                    console.error("Geocoding Error:", err); 
+                }
+            }, 500); 
+        });
+
+        // Close dropdown if clicked outside
+        document.addEventListener('click', function(e) {
+            if (e.target !== locInput && e.target !== resultsBox) {
+                resultsBox.style.display = 'none';
+            }
+        });
+
+        // Quick Tag Selection logic
+        function setQuickZone(systemValue, displayValue) {
+            locInput.value = displayValue;
+            hiddenZone.value = systemValue;
+            resultsBox.style.display = 'none';
+        }
+    </script>
+</body>
+</html>

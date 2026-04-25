@@ -37,7 +37,6 @@ app.use(session({
     saveUninitialized: true,
     cookie: { secure: false } 
 }));
-app.use(express.static(path.join(__dirname, 'www')));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // --- 4. ROUTES ---
@@ -46,7 +45,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.get('/', (req, res) => {
     if (req.session.role === 'admin') return res.redirect('/admin');
     if (req.session.role === 'student') return res.redirect('/student');
-    res.sendFile(path.join(__dirname, 'public', 'login.html')); 
+    res.sendFile(path.join(__dirname, 'public', 'index.html')); 
 });
 
 // PUSH NOTIFICATION: Get Public Key
@@ -96,6 +95,8 @@ app.post('/auth/login', async (req, res) => {
         return req.session.save(() => {
             res.redirect('/student');
         });
+    } else {
+        return res.redirect('/?error=invalid_credentials');
     }
 });
 
@@ -123,6 +124,38 @@ app.post('/auth/register', async (req, res) => {
     }
 
     res.redirect('/?success=registered');
+});
+
+// --- NEW GCASH DONATION ROUTE ---
+app.post('/api/donate', async (req, res) => {
+    const donorName = req.body.donor_name ? req.body.donor_name.trim() : 'Anonymous Hero';
+    const amount = parseFloat(req.body.amount);
+    const targetZone = req.body.target_zone;
+    
+    // Generate a secure 8-character voucher code (e.g. GX-8F2B9A)
+    const voucherCode = 'GX-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+
+    const { error } = await supabase.from('donations').insert([{
+        donor_name: donorName,
+        amount: amount,
+        target_zone: targetZone,
+        voucher_code: voucherCode
+    }]);
+
+    if (!error) {
+        console.log(`💰 DONATION SECURED: ₱${amount} to ${targetZone}`);
+        // Broadcast the voucher to the students live
+        io.emit('donation-dropped', {
+            donor: donorName,
+            amount: amount,
+            zone: targetZone,
+            voucher: voucherCode
+        });
+        res.redirect(`/donate.html?success=true&voucher=${voucherCode}`);
+    } else {
+        console.error("Donation DB Error:", error);
+        res.redirect('/donate.html?error=true');
+    }
 });
 
 app.get('/api/me', (req, res) => {

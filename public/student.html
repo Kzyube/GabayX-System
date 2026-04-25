@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-    <link rel="icon" href="data:,\">
+    <link rel="icon" href="data:,">
 
     <style>
         :root {
@@ -116,13 +116,16 @@
         .contact-item { background: rgba(0,0,0,0.4); padding: 14px; border-radius: 12px; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 12px; font-size: 13px; font-weight: 600;}
 
         /* Offline Toggle Area */
-        .offline-box { background: rgba(0,0,0,0.6); border: 1px solid var(--glass-border); border-radius: 16px; padding: 16px; margin-top: auto; margin-bottom: 15px; }
+        .offline-box { background: rgba(0,0,0,0.6); border: 1px solid var(--glass-border); border-radius: 16px; padding: 16px; margin-bottom: 15px; }
         .switch { position: relative; display: inline-block; width: 46px; height: 26px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.1); transition: .4s; border-radius: 34px; border: 1px solid rgba(255,255,255,0.2); }
         .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: var(--text-sub); transition: .4s; border-radius: 50%; }
         input:checked + .slider { background-color: rgba(245,158,11,0.2); border-color: var(--warning); }
         input:checked + .slider:before { transform: translateX(20px); background-color: var(--warning); box-shadow: 0 0 10px var(--warning); }
+
+        .btn-voucher { width: 100%; padding: 14px; background: linear-gradient(135deg, var(--emerald-500), #00f0ff); color: #b8b8b8; border: none; border-radius: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; margin-bottom: 10px; display: flex; justify-content: center; align-items: center; gap: 8px; box-shadow: 0 0 15px rgba(0, 240, 255, 0.3); transition: 0.3s; }
+        .btn-voucher:active { transform: scale(0.96); }
 
         .btn-logout { background: rgba(255,42,95,0.1); color: var(--danger); border: 1px solid rgba(255,42,95,0.2); padding: 16px; border-radius: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; width: 100%; cursor: pointer; display: flex; justify-content: center; gap: 10px;}
 
@@ -198,6 +201,35 @@
 </head>
 
 <body>
+    
+    <div id="donation-alert-modal" style="display:none; position:fixed; inset:0; background:rgba(0, 0, 0, 0.8); z-index:30000; justify-content:center; align-items:center; padding:20px; backdrop-filter:blur(5px);">
+        <div style="background:var(--surface); border:1px solid #00f0ff; border-radius:24px; padding:30px; text-align:center; max-width:400px; width:100%; box-shadow:0 0 40px rgba(0,240,255,0.3);">
+            <i class="fas fa-hand-holding-heart" style="font-size:45px; color:#00f0ff; margin-bottom:15px; filter: drop-shadow(0 0 10px rgba(0,240,255,0.5));"></i>
+            <h2 style="color:white; font-size:1.5rem; margin-bottom:10px;">Financial Aid Arrived!</h2>
+            <p style="color:var(--text-sub); font-size:0.95rem; margin-bottom:20px; line-height:1.5;">A generous donor has just sent financial aid directly to your area. We have secured your voucher.</p>
+            
+            <div style="background:rgba(0,240,255,0.1); padding:15px; border-radius:12px; margin-bottom:20px; border:1px dashed #00f0ff; color: white; font-size: 0.9rem;">
+                Open your <b>Sidebar Menu</b> and click <br><b style="color: #00f0ff;">"Show GCash Vouchers"</b> to view and claim your code!
+            </div>
+
+            <button onclick="closeDonationAlert()" style="width:100%; padding:14px; background:linear-gradient(135deg, var(--primary), #00f0ff); color:#ffffff; border:none; border-radius:12px; font-weight:800; text-transform:uppercase; cursor:pointer; box-shadow: 0 0 15px rgba(0,240,255,0.4);">I Understand</button>
+        </div>
+    </div>
+
+    <div id="vouchers-list-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:30000; justify-content:center; align-items:center; padding:20px; backdrop-filter:blur(5px);">
+        <div style="background:var(--surface); border:1px solid #00f0ff; border-radius:24px; padding:25px; max-width:400px; width:100%; box-shadow:0 0 40px rgba(0,240,255,0.3); max-height: 85vh; display: flex; flex-direction: column;">
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px;">
+                <h2 style="color:white; font-size:1.4rem; margin:0;"><i class="fas fa-gift" style="color:#00f0ff; margin-right: 8px;"></i> My GCash Vouchers</h2>
+                <button onclick="closeVouchersModal()" style="background:transparent; border:none; color:var(--text-sub); font-size:24px; cursor:pointer; transition: 0.2s;">&times;</button>
+            </div>
+            
+            <div id="vouchers-container" style="overflow-y: auto; flex: 1; padding-right: 5px;">
+                </div>
+            
+        </div>
+    </div>
+
     <div id="sos-overlay" onclick="toggleFlashlight(false)">
         <i class="fas fa-satellite-dish" style="font-size: 60px; color: var(--danger); margin-bottom: 20px;"></i>
         <div class="sos-text">S.O.S</div>
@@ -219,6 +251,7 @@
     </div>
 
     <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar(false)"></div>
+    
     <div id="sidebar">
         <div class="sidebar-user-card">
             <div class="user-avatar"><i class="fas fa-user-circle"></i></div>
@@ -259,6 +292,10 @@
             <div style="font-size: 10px; color: var(--text-sub); line-height: 1.4;">Turn on to save your data if the internet disconnects. Flashlight and SMS tools will become available.</div>
         </div>
         
+        <button onclick="openVouchersModal()" class="btn-voucher">
+            <i class="fas fa-ticket-alt"></i> Show GCash Vouchers
+        </button>
+
         <button onclick="logoutUser()" class="btn-logout"><i class="fas fa-sign-out-alt"></i> Log Out</button>
     </div>
 
@@ -440,6 +477,41 @@
             }
         };
 
+        // --- NEW: VOUCHER MODAL FUNCTIONS ---
+        function closeDonationAlert() {
+            document.getElementById("donation-alert-modal").style.display = "none";
+        }
+
+        function openVouchersModal() {
+            const container = document.getElementById('vouchers-container');
+            const vouchers = JSON.parse(localStorage.getItem('gabayx_vouchers') || '[]');
+            
+            if(vouchers.length === 0) {
+                container.innerHTML = '<div style="text-align:center; color:var(--text-sub); padding: 30px; font-size: 0.9rem;">No vouchers available right now.</div>';
+            } else {
+                container.innerHTML = vouchers.map((v, index) => `
+                    <div style="background:rgba(0,0,0,0.5); padding:20px; border-radius:16px; margin-bottom:15px; border:1px dashed #00f0ff; position: relative;">
+                        <div style="font-size:0.75rem; color:var(--text-sub); text-transform:uppercase;">Amount</div>
+                        <div style="font-size:2rem; font-weight:800; color:var(--emerald-400); font-family:var(--font-data);">₱${parseFloat(v.amount).toFixed(2)}</div>
+                        <div style="font-size:0.75rem; color:var(--text-sub); text-transform:uppercase; margin-top:10px;">From Donor: <span style="color:white; font-weight:700; font-size:1rem;">${v.donor}</span></div>
+                        
+                        <div style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+                            <div style="font-size:0.75rem; color:var(--text-sub); text-transform:uppercase; margin-bottom:8px;">Your Claim Code</div>
+                            <div style="background:#000; color:#00f0ff; padding:12px; font-size:1.4rem; font-family:var(--font-data); font-weight:800; border-radius:8px; letter-spacing:3px; text-align:center;">${v.voucher}</div>
+                        </div>
+                    </div>
+                `).reverse().join('');
+            }
+            
+            document.getElementById('vouchers-list-modal').style.display = 'flex';
+            toggleSidebar(false); // Closes the sidebar menu automatically
+        }
+
+        function closeVouchersModal() {
+            document.getElementById('vouchers-list-modal').style.display = 'none';
+        }
+        // -------------------------------------
+
         function toggleOfflineMode(skipToast = false) {
             const toggle = document.getElementById("offline-toggle");
             const floatingTools = document.getElementById("offline-floating-tools"); 
@@ -606,6 +678,36 @@
                     document.getElementById("admin-reply-modal").classList.add("active");
                 });
                 socket.on("receive-alert", handleAlert);
+                
+                // --- NEW: LISTEN FOR INCOMING DONATIONS ---
+                socket.on("donation-dropped", (data) => {
+                    let isInZone = false;
+                    
+                    if (data.zone === "ALL ZONES") {
+                        isInZone = true;
+                    } else if (userMarker) {
+                        // Check if user is physically in the target zone radius
+                        const targetCoords = LOCATIONS[data.zone];
+                        if (targetCoords) {
+                            const dist = map.distance(userMarker.getLatLng(), targetCoords);
+                            if (dist < 60) { 
+                                isInZone = true;
+                            }
+                        }
+                    }
+
+                    if (isInZone) {
+                        // 1. Save voucher securely to device
+                        let myVouchers = JSON.parse(localStorage.getItem('gabayx_vouchers') || '[]');
+                        myVouchers.push(data);
+                        localStorage.setItem('gabayx_vouchers', JSON.stringify(myVouchers));
+
+                        // 2. Alert the user!
+                        document.getElementById("donation-alert-modal").style.display = "flex";
+                        new Audio("https://image2url.com/r2/default/audio/1770035478181-9daca647-30be-478d-bef0-2700b5dfcbdd.mp3").play().catch(() => {});
+                        showToast("💰 Relief Funds Received!");
+                    }
+                });
             }
         }
 
