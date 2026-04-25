@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Tambai | Emergency Response Console</title>
+    <title>GabayX | Admin Dashboard</title>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet" />
@@ -180,7 +180,7 @@
             flex-shrink: 0;
         }
 
-        /* --- LIVE SURVEILLANCE TAB --- */
+        /* --- LIVE MAP TAB --- */
         .telemetry-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 15px; flex-shrink: 0; }
         
         .stat-card {
@@ -329,10 +329,10 @@
 
     <nav class="dock">
         <div class="dock-brand"><i class="fas fa-satellite-dish"></i></div>
-        <div class="nav-item active" id="nav-live" onclick="switchTab('map')" data-tooltip="Live Surveillance">
+        <div class="nav-item active" id="nav-live" onclick="switchTab('map')" data-tooltip="Live Map">
             <i class="fas fa-crosshairs"></i>
         </div>
-        <div class="nav-item" id="nav-logs" onclick="switchTab('logs')" data-tooltip="Disaster Logs">
+        <div class="nav-item" id="nav-logs" onclick="switchTab('logs')" data-tooltip="Event Logs">
             <i class="fas fa-database"></i>
         </div>
         <div class="nav-item" id="nav-directory" onclick="switchTab('students')" data-tooltip="Student Directory">
@@ -342,7 +342,7 @@
         <div class="nav-item btn-theme" onclick="toggleTheme()" data-tooltip="Toggle Theme">
             <i class="fas fa-sun" id="theme-icon"></i>
         </div>
-        <div class="nav-item btn-logout" onclick="logoutSystem()" data-tooltip="System Logout">
+        <div class="nav-item btn-logout" onclick="logoutSystem()" data-tooltip="Log Out">
             <i class="fas fa-power-off"></i>
         </div>
     </nav>
@@ -350,8 +350,8 @@
     <main class="workspace">
         <header>
             <div class="header-titles">
-                <h1>Emergency Response Console</h1>
-                <p>Tambai • Strategic Monitoring</p>
+                <h1>Admin Dashboard</h1>
+                <p>GabayX • Admin Dashboard</p>
             </div>
             <div id="live-clock" class="time-badge">00:00:00</div>
         </header>
@@ -359,15 +359,15 @@
         <div id="tab-map" class="tab-content active">
             <div class="telemetry-grid">
                 <div class="glass-panel stat-card stat-total">
-                    <span>Active Students</span>
+                    <span>Connected Students</span>
                     <h3 id="count-total">0</h3>
                 </div>
                 <div class="glass-panel stat-card stat-safe">
-                    <span>Verified Safe</span>
+                    <span>Reported Safe</span>
                     <h3 id="count-safe">0</h3>
                 </div>
                 <div class="glass-panel stat-card stat-danger">
-                    <span>At Immediate Risk</span>
+                    <span>In Danger</span>
                     <h3 id="count-danger">0</h3>
                 </div>
             </div>
@@ -375,7 +375,7 @@
             <div class="dashboard-layout">
                 <div class="glass-panel map-container">
                     <div class="panel-header">
-                        <span style="display:flex; align-items:center; gap:8px;"><i class="fas fa-map"></i> Live Surveillance</span>
+                        <span style="display:flex; align-items:center; gap:8px;"><i class="fas fa-map"></i> Live Map</span>
                         <div style="display:flex; gap: 8px;">
                             <button class="route-btn" onclick="toggleAllRoutes()"><i class="fas fa-route"></i> Show Routes</button>
                             <button class="route-btn supply-btn" onclick="enableSupplyMarkerMode()"><i class="fas fa-box-open"></i> Mark Available Supply</button>
@@ -386,7 +386,7 @@
 
                 <div class="command-stack">
                     <div class="glass-panel" style="padding: 15px;">
-                        <div class="panel-header"><i class="fas fa-tower-broadcast"></i> Broadcast Protocol</div>
+                        <div class="panel-header"><i class="fas fa-tower-broadcast"></i> Send Alerts</div>
                         <div class="trigger-grid">
                             <button class="trigger-btn btn-eq" onclick="triggerAlert('EARTHQUAKE')"><i class="fas fa-house-crack"></i> Earthquake</button>
                             <button class="trigger-btn btn-fire" onclick="triggerAlert('FIRE')"><i class="fas fa-fire-extinguisher"></i> Fire</button>
@@ -397,7 +397,7 @@
 
                     <div class="glass-panel" style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 15px;">
                         <div class="panel-header">
-                            <span><i class="fas fa-wave-square"></i> Critical SOS Feed</span>
+                            <span><i class="fas fa-wave-square"></i> SOS Messages</span>
                             <button onclick="clearSOSMessages()" style="background: rgba(255,42,95,0.1); border: 1px solid var(--accent-red); color: var(--accent-red); padding: 4px 8px; border-radius: 4px; font-size: 9px; font-weight: 800; cursor: pointer; text-transform: uppercase;">Clear All</button>
                         </div>
                         <div class="feed-container" id="list-danger"></div>
@@ -408,7 +408,7 @@
 
         <div id="tab-logs" class="tab-content">
             <div class="glass-panel" style="flex:1; display: flex; flex-direction: column; min-height: 0;">
-                <div class="panel-header"><i class="fas fa-clock-rotate-left"></i> Historical Disaster Logs</div>
+                <div class="panel-header"><i class="fas fa-clock-rotate-left"></i> Past Event Logs</div>
                 <div class="table-wrapper">
                     <table>
                         <thead>
@@ -429,21 +429,21 @@
         <div id="tab-students" class="tab-content">
             <div class="glass-panel" style="flex:1; display: flex; flex-direction: column; min-height: 0;">
                 <div class="panel-header">
-                    <span><i class="fas fa-users-viewfinder"></i> Global Student Roster</span>
+                    <span><i class="fas fa-users-viewfinder"></i> Student Directory</span>
                     <div class="search-box">
                         <i class="fas fa-search"></i>
-                        <input type="text" id="roster-search" class="search-input" placeholder="Search by name or ID..." onkeyup="filterRoster()" />
+                        <input type="text" id="roster-search" class="search-input" placeholder="Search by name or email..." onkeyup="filterRoster()" />
                     </div>
                 </div>
                 <div class="table-wrapper">
                     <table>
                         <thead>
                             <tr>
-                                <th>Student Identifier</th>
+                                <th>Email Address</th>
                                 <th>Phone Number</th>
                                 <th>Account Status</th>
-                                <th>Status Condition</th>
-                                <th>Last Check-in</th>
+                                <th>Current Status</th>
+                                <th>Last Seen</th>
                             </tr>
                         </thead>
                         <tbody id="roster-table-body"></tbody>
@@ -540,7 +540,7 @@
                 html: `<div style="display:flex; justify-content:center; align-items:center; width:28px; height:28px; background:rgba(0,0,0,0.8); border-radius:8px; border: 2px solid var(--accent-cyan); box-shadow: 0 0 10px rgba(0, 132, 199, 0.5);"><i class="fas fa-shield-halved" style="color:var(--accent-cyan); font-size:12px;"></i></div>`,
                 className: "custom-shield-marker", iconSize: [28, 28],
             });
-            zones.forEach((z) => L.marker(z.coords, { icon: shieldIcon }).addTo(map).bindPopup(`<div class="map-popup"><h3>Zone Secure</h3><p>${z.name}</p></div>`));
+            zones.forEach((z) => L.marker(z.coords, { icon: shieldIcon }).addTo(map).bindPopup(`<div class="map-popup"><h3>Safe Zone</h3><p>${z.name}</p></div>`));
         }
 
         async function toggleAllRoutes() {
@@ -603,8 +603,8 @@
             const popupContent = `
                 <div class="map-popup">
                     <h3 style="color:var(--accent-orange)">Supply Drop</h3>
-                    <p>Active at this location</p>
-                    <button class="map-btn" style="background: var(--accent-red); margin-top: 8px;" onclick="removeSupply(${markerId})">Unlist Supply</button>
+                    <p>Available here</p>
+                    <button class="map-btn" style="background: var(--accent-red); margin-top: 8px;" onclick="removeSupply(${markerId})">Remove Marker</button>
                 </div>
             `;
             
@@ -633,7 +633,7 @@
                     }]).then(()=>fetchDisasterLogs()); 
                 }
             }
-            showToast("Supply Location Marked & Broadcasted!");
+            showToast("Supply Location Marked & Alert Sent!");
         }
 
         function removeSupply(id) {
@@ -641,7 +641,7 @@
             if (index !== -1) {
                 map.removeLayer(supplyMarkers[index]);
                 supplyMarkers.splice(index, 1);
-                showToast("Supply marker unlisted.");
+                showToast("Supply marker removed.");
             }
         }
 
@@ -653,7 +653,7 @@
 
         async function fetchStudentRoster() {
             if (supabaseAdmin) {
-                const { data, error } = await supabaseAdmin.from("students").select("student_id, name, phone_number, last_seen, last_status").order("name");
+                const { data, error } = await supabaseAdmin.from("students").select("email, name, phone_number, last_seen, last_status").order("name");
                 if (data) { fullRoster = data; document.getElementById("count-total").innerText = fullRoster.length; updateUI(); }
             }
         }
@@ -665,14 +665,14 @@
                 const id = data.id.toString(); 
                 const { status, lat, lng } = data;
                 const currentTime = new Date().toLocaleString();
-                let studentName = "Unknown Identity";
+                let studentName = "Unknown Student";
 
-                const rosterMatch = fullRoster.find((s) => s.student_id.toString() === id);
+                const rosterMatch = fullRoster.find((s) => s.email === id);
                 if (rosterMatch) { studentName = rosterMatch.name; rosterMatch.last_seen = currentTime; rosterMatch.last_status = status; }
 
                 studentData.set(id, { status: status || "SAFE", time: currentTime, name: studentName, isOnline: true });
 
-                if (supabaseAdmin) { await supabaseAdmin.from("students").update({ last_seen: currentTime, last_status: status }).eq("student_id", id); }
+                if (supabaseAdmin) { await supabaseAdmin.from("students").update({ last_seen: currentTime, last_status: status }).eq("email", id); }
 
                 if (lat && lng) {
                     const isDanger = status === "DANGER";
@@ -681,11 +681,11 @@
                     if (status === "DANGER") className = "blip blip-danger";
 
                     const customIcon = L.divIcon({ className: "custom-div-icon", html: `<div class="${className}"></div>`, iconSize: [14, 14], iconAnchor: [7, 7], popupAnchor: [0, -10] });
-                    let statusColor = "var(--text-dim)"; let statusText = "DATA LINK ACTIVE";
-                    if (status === "SAFE") { statusColor = "var(--accent-green)"; statusText = "VERIFIED SAFE"; }
-                    if (status === "DANGER") { statusColor = "var(--accent-red)"; statusText = "SOS ALERT CRITICAL"; }
+                    let statusColor = "var(--text-dim)"; let statusText = "CONNECTED";
+                    if (status === "SAFE") { statusColor = "var(--accent-green)"; statusText = "SAFE"; }
+                    if (status === "DANGER") { statusColor = "var(--accent-red)"; statusText = "SOS ALERT"; }
 
-                    const popupContent = `<div class="map-popup"><div style="color:${statusColor}; font-weight:800; font-size:9px; letter-spacing:1px; margin-bottom:3px;">${statusText}</div><h3>${studentName}</h3><p>ID: ${id}</p><div class="data-mono" style="font-size:9px; color:var(--text-dim); margin-bottom:10px;">${lat.toFixed(5)}, ${lng.toFixed(5)}</div>${isDanger ? `<button class="map-btn" onclick="replyTo('${id}')">Dispatch Intel</button>` : ""}</div>`;
+                    const popupContent = `<div class="map-popup"><div style="color:${statusColor}; font-weight:800; font-size:9px; letter-spacing:1px; margin-bottom:3px;">${statusText}</div><h3>${studentName}</h3><p>Email: ${id}</p><div class="data-mono" style="font-size:9px; color:var(--text-dim); margin-bottom:10px;">${lat.toFixed(5)}, ${lng.toFixed(5)}</div>${isDanger ? `<button class="map-btn" onclick="replyTo('${id}')">Send Message</button>` : ""}</div>`;
 
                     if (studentMarkers[id]) {
                         studentMarkers[id].setLatLng([lat, lng]); studentMarkers[id].setIcon(customIcon); studentMarkers[id].getPopup().setContent(popupContent);
@@ -720,11 +720,11 @@
 
                 item.innerHTML = `
                     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
-                        <div>${isSOS ? `<span class="sos-badge">PRIORITY</span>` : ""}<span style="font-family:var(--font-data); font-size:0.8rem; color:var(--accent-cyan); margin-left:${isSOS?'5px':'0'}">OP: ${data.id}</span></div>
+                        <div>${isSOS ? `<span class="sos-badge">PRIORITY</span>` : ""}<span style="font-family:var(--font-data); font-size:0.8rem; color:var(--accent-cyan); margin-left:${isSOS?'5px':'0'}">Email: ${data.id}</span></div>
                         <small class="data-mono" style="font-size:9px;">JUST NOW</small>
                     </div>
                     <div style="color:var(--text-main); font-size: 0.85rem; line-height: 1.4; margin-bottom: 10px; font-style: italic;">"${data.message}"</div>
-                    <button id="btn-${tempId}" onclick="replyTo('${data.id}', '${tempId}')" style="background: var(--btn-glass); border: 1px solid var(--glass-border); color: var(--text-main); font-size:9px; font-weight:800; font-family:var(--font-ui); padding:6px 10px; border-radius:6px; cursor:pointer; transition: 0.3s; width:100%; text-transform:uppercase; letter-spacing:1px;">Respond</button>`;
+                    <button id="btn-${tempId}" onclick="replyTo('${data.id}', '${tempId}')" style="background: var(--btn-glass); border: 1px solid var(--glass-border); color: var(--text-main); font-size:9px; font-weight:800; font-family:var(--font-ui); padding:6px 10px; border-radius:6px; cursor:pointer; transition: 0.3s; width:100%; text-transform:uppercase; letter-spacing:1px;">Reply</button>`;
                 
                 list.prepend(item);
 
@@ -740,7 +740,7 @@
 
             socket.on("admin-sync-report", async (data) => {
                 const feed = document.getElementById("list-danger"); if (!feed) return;
-                let address = "No GPS Intel"; let mapLink = "#"; let lastLog = null;
+                let address = "No GPS Data"; let mapLink = "#"; let lastLog = null;
                 if (data.logs && data.logs.length > 0) lastLog = data.logs.filter((l) => l.lat && l.lng).pop();
                 
                 if (lastLog) {
@@ -753,12 +753,12 @@
 
                 const reportHTML = `
                     <div class="intercept-card sync-card">
-                        <div style="font-size: 9px; color: var(--accent-orange); font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;"><i class="fas fa-history"></i> CACHED PACKAGES SYNCED</div>
-                        <div style="font-family:var(--font-data); font-size:0.8rem; color:var(--text-main);">OP: ${data.id}</div>
-                        <div style="font-size: 0.75rem; margin: 4px 0 8px 0; color: var(--text-dim);">Processed <b>${data.count}</b> data fragments.</div>
+                        <div style="font-size: 9px; color: var(--accent-orange); font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;"><i class="fas fa-history"></i> OFFLINE DATA SYNCED</div>
+                        <div style="font-family:var(--font-data); font-size:0.8rem; color:var(--text-main);">Email: ${data.id}</div>
+                        <div style="font-size: 0.75rem; margin: 4px 0 8px 0; color: var(--text-dim);">Received <b>${data.count}</b> saved updates.</div>
                         <div style="background: var(--btn-glass); padding: 8px; border-radius: 6px; font-size: 0.75rem; border: 1px solid var(--glass-border);">
                             <div style="margin-bottom:4px; color:var(--text-dim);">LOC: <span style="color:var(--text-main);">${address}</span></div>
-                            ${lastLog ? `<a href="${mapLink}" target="_blank" style="color:var(--accent-cyan); text-decoration:none; font-weight:800; display:block; margin-top:6px; font-size:9px; text-transform:uppercase;">Extract Coordinates →</a>` : ""}
+                            ${lastLog ? `<a href="${mapLink}" target="_blank" style="color:var(--accent-cyan); text-decoration:none; font-weight:800; display:block; margin-top:6px; font-size:9px; text-transform:uppercase;">View on Map →</a>` : ""}
                         </div>
                     </div>`;
                 feed.insertAdjacentHTML("afterbegin", reportHTML);
@@ -767,7 +767,7 @@
         }
 
         async function triggerAlert(type) {
-            const msg = prompt(`Enter broadcast payload for ${type}:`, `CRITICAL: ${type} protocol initiated. Please proceed to the nearest safe zone.`);
+            const msg = prompt(`Enter alert message for ${type}:`, `EMERGENCY: ${type} alert! Please proceed to the nearest safe zone.`);
             if (msg) {
                 const safeCount = parseInt(document.getElementById("count-safe").innerText) || 0;
                 const dangerCount = parseInt(document.getElementById("count-danger").innerText) || 0;
@@ -778,7 +778,7 @@
         }
 
         async function replyTo(sid, uiMsgId, dbId) {
-            const msg = prompt(`Transmit to OP ${sid}:`, "Help is on the way. Stay calm.");
+            const msg = prompt(`Reply to ${sid}:`, "Help is on the way. Stay calm.");
             if (msg) {
                 socket.emit("admin-reply", { targetId: sid.toString().trim(), message: msg });
                 const btn = document.getElementById(`btn-${uiMsgId}`);
@@ -798,7 +798,7 @@
 
             if (fullRoster.length > 0) {
                 fullRoster.forEach(student => {
-                    const sid = student.student_id.toString(); 
+                    const sid = student.email; 
                     const isOnline = studentData.has(sid);
                     const liveInfo = studentData.get(sid);
                     
@@ -819,7 +819,7 @@
                             <td class="data-mono" style="font-size:0.75rem;">${lastSeenDisplay}</td>
                         </tr>`;
                 });
-            } else { body.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text-dim);">No operatives on network.</td></tr>`; }
+            } else { body.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text-dim);">No students connected.</td></tr>`; }
         }
 
         function switchTab(t) {
@@ -840,7 +840,7 @@
             const logBody = document.getElementById("disaster-logs-body");
             const { data, error } = await supabaseAdmin.from("disaster_history").select("*").order("created_at", { ascending: false });
 
-            if (error) { logBody.innerHTML = `<tr><td colspan="5">Telemetry failure</td></tr>`; return; }
+            if (error) { logBody.innerHTML = `<tr><td colspan="5">System error</td></tr>`; return; }
             logBody.innerHTML = data.map((log) => {
                 const isSafe = log.type === "SAFE" || log.type === "CLEAR";
                 return `
@@ -855,7 +855,7 @@
         }
 
         function viewStatusGroup(status) { switchTab("students"); const s = document.getElementById("roster-search"); if (s) { s.value = status; filterRoster(); } }
-        function logoutSystem() { if (confirm("Terminate session connection?")) location.href = "/logout"; }
+        function logoutSystem() { if (confirm("Are you sure you want to log out?")) location.href = "/logout"; }
 
         function drawGhostPath(logs) {
             const pathPoints = logs.filter((l) => l.lat && l.lng).map((l) => [l.lat, l.lng]);
@@ -881,25 +881,25 @@
                 
                 item.innerHTML = `
                     <div style="margin-bottom:6px; display:flex; justify-content:space-between; align-items:flex-start;">
-                        <div>${sosBadge}<span style="font-family:var(--font-data); font-size:0.8rem; color:var(--accent-cyan); margin-left:${msg.is_critical ? '5px': '0'}">OP: ${msg.student_id}</span></div>
+                        <div>${sosBadge}<span style="font-family:var(--font-data); font-size:0.8rem; color:var(--accent-cyan); margin-left:${msg.is_critical ? '5px': '0'}">Email: ${msg.student_id}</span></div>
                         <small class="data-mono" style="font-size:9px;">${new Date(msg.created_at).toLocaleTimeString()}</small>
                     </div>
                     <div style="color:var(--text-main); font-size: 0.85rem; line-height: 1.4; margin-bottom: 10px; font-style: italic;">"${msg.message}"</div>
                     <button id="btn-${msgId}" onclick="${isReplied ? "" : `replyTo('${msg.student_id}', '${msgId}', ${msg.id})`}" 
                         style="background: ${isReplied ? "rgba(22, 163, 74, 0.1)" : "var(--btn-glass)"}; border: 1px solid ${isReplied ? "var(--accent-green)" : "var(--glass-border)"}; color: ${isReplied ? "var(--accent-green)" : "var(--text-main)"}; font-size:9px; font-weight:800; font-family:var(--font-ui); padding:6px 10px; border-radius:6px; width:100%; text-transform:uppercase; letter-spacing:1px; cursor:${isReplied ? "default" : "pointer"}; transition: 0.3s;" ${isReplied ? "disabled" : ""}>
-                        ${isReplied ? '<i class="fas fa-check"></i> CONFIRMED' : "Respond"}
+                        ${isReplied ? '<i class="fas fa-check"></i> CONFIRMED' : "Reply"}
                     </button>`;
                 list.appendChild(item);
             });
         }
 
         async function clearSOSMessages() {
-            if (!confirm("Wipe all intercepted feed logs permanently?")) return;
+            if (!confirm("Delete all emergency messages permanently?")) return;
             if (supabaseAdmin) {
                 const { error } = await supabaseAdmin.from("sos_messages").delete().neq("id", 0);
                 if (error) return;
                 const feed = document.getElementById("list-danger");
-                if (feed) feed.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-dim); font-size: 0.85rem;"><i class="fas fa-check-circle" style="color: var(--accent-green); display: block; font-size: 1.5rem; margin-bottom: 10px;"></i>Feed Purged</div>`;
+                if (feed) feed.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-dim); font-size: 0.85rem;"><i class="fas fa-check-circle" style="color: var(--accent-green); display: block; font-size: 1.5rem; margin-bottom: 10px;"></i>Messages Cleared</div>`;
             }
         }
 

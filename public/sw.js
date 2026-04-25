@@ -28,7 +28,6 @@ self.addEventListener('push', event => {
     }
 
     // 2. Build the Full URL (Prevents 502/404 Errors)
-    // We explicitly use /student.html because that is your actual file name.
     const baseUrl = self.location.origin;
     const targetUrl = `${baseUrl}/student.html?alert=${alertType}`;
 

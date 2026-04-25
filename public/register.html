@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GabayX | Enlistment</title>
+    <title>GabayX | Sign Up</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -271,43 +271,43 @@
             <div class="brand-text">GabayX</div>
         </div>
 
-        <h2 class="header-title">Create your identity</h2>
-        <p class="header-subtitle">Enlist to monitor network deployments.</p>
+        <h2 class="header-title">Create your account</h2>
+        <p class="header-subtitle">Sign up to access the safety system.</p>
 
         <div id="error-msg" class="error"></div>
         
         <form action="/auth/register" method="POST">
             <div class="form-grid">
                 <div class="form-group">
-                    <label for="reg-id">Operative ID</label>
-                    <input type="text" id="reg-id" name="username" placeholder="e.g. 2026-001" required>
+                    <label for="reg-id">Email Address</label>
+                    <input type="email" id="reg-id" name="username" placeholder="student@example.com" required>
                 </div>
 
                 <div class="form-group">
-                    <label for="reg-phone">Phone Data</label>
+                    <label for="reg-phone">Phone Number</label>
                     <input type="tel" id="reg-phone" name="phone_number" placeholder="09123456789" required 
                         pattern="[0-9]{11}" title="Please enter an 11-digit phone number">
                 </div>
 
                 <div class="form-group full-width">
-                    <label for="reg-name">Full Designation</label>
+                    <label for="reg-name">Full Name</label>
                     <input type="text" id="reg-name" name="fullname" placeholder="Legal Name" required>
                 </div>
                 
                 <div class="form-group full-width">
-                    <label for="reg-pass">Secure Passkey</label>
+                    <label for="reg-pass">Password</label>
                     <input type="password" id="reg-pass" name="password" placeholder="••••••••" required>
                 </div>
             </div>
             
             <button type="submit" class="btn-primary">
-                Establish Clearance
+                Sign Up
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
             </button>
         </form>
 
         <div class="auth-link">
-            Already enlisted? <a href="/">Initialize session</a>
+            Already have an account? <a href="/">Log in here</a>
         </div>
 
         <div class="footer">
@@ -316,7 +316,7 @@
     </div>
 
     <script>
-        const urlParams = new URLSearchParams(window.location.search);
+        const urlParams = newSearchParams(window.location.search);
         const errorDiv = document.getElementById('error-msg');
         const errorType = urlParams.get('error');
 
@@ -324,21 +324,21 @@
             errorDiv.style.display = 'block';
             
             if (errorType === 'user_already_exists') {
-                errorDiv.innerText = "Conflict: Identity ID is already registered.";
+                errorDiv.innerText = "Error: Email is already registered.";
             } else if (errorType === 'missing_fields') {
-                errorDiv.innerText = "Data missing: Please complete all inputs.";
+                errorDiv.innerText = "Error: Please fill in all fields.";
             } else {
-                errorDiv.innerText = "System error during enlistment.";
+                errorDiv.innerText = "System error during registration.";
             }
         }
 
         document.querySelector('form').addEventListener('submit', function() {
             const fullName = document.getElementById('reg-name').value;
-            const studentID = document.getElementById('reg-id').value; 
+            const studentEmail = document.getElementById('reg-id').value; 
             
-            if (fullName && studentID) {
+            if (fullName && studentEmail) {
                 localStorage.setItem('knhs_student_name', fullName);
-                localStorage.setItem('knhs_student_id', studentID);
+                localStorage.setItem('knhs_student_email', studentEmail);
             }
         });
     </script>

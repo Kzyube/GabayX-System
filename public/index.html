@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GabayX | Authentication</title>
+    <title>GabayX | Login</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -62,7 +62,7 @@
         }
 
         .blob-2 {
-            background: #064e3b; /* Darker green */
+            background: #064e3b; 
             width: 60vw; height: 60vw;
             bottom: -20%; left: -20%;
             animation-delay: -5s;
@@ -291,18 +291,18 @@
         </div>
 
         <h2 class="header-title">Welcome back</h2>
-        <p class="header-subtitle">Authenticate to access the command grid.</p>
+        <p class="header-subtitle">Please log in to continue.</p>
 
         <div id="error-msg" class="error"></div>
         
         <form action="/auth/login" method="POST">
             <div class="form-group">
-                <label for="login-id">Operative ID</label>
-                <input type="text" id="login-id" name="username" placeholder="e.g. 2026-001" required>
+                <label for="login-id">Email Address</label>
+                <input type="email" id="login-id" name="username" placeholder="e.g. student@example.com" required>
             </div>
             
             <div class="form-group">
-                <label for="login-pass">Passkey</label>
+                <label for="login-pass">Password</label>
                 <input type="password" id="login-pass" name="password" placeholder="••••••••" required>
             </div>
             
@@ -314,13 +314,13 @@
 
         <div id="quick-access-section" style="display:none;">
             <div class="divider">Or</div>
-            <button id="btn-quick-access" class="btn-primary" onclick="loginUser(localStorage.getItem('knhs_student_id'))">
+            <button id="btn-quick-access" class="btn-primary" onclick="loginUser(localStorage.getItem('knhs_student_email'))">
                 Continue as <span id="quick-name" style="margin-left: 5px;"></span>
             </button>
         </div>
 
         <div class="auth-link">
-            No clearance yet? <a href="register.html">Enlist now</a>
+            Don't have an account? <a href="register.html">Sign up now</a>
         </div>
 
         <div class="footer">
@@ -334,7 +334,7 @@
             const errorDiv = document.getElementById('error-msg');
             errorDiv.style.display = 'block';
             if (urlParams.get('error') === 'invalid_credentials') {
-                errorDiv.innerText = "Access denied: Invalid credentials.";
+                errorDiv.innerText = "Login failed: Incorrect Email or password.";
             }
         }
 
@@ -344,21 +344,21 @@
             errorDiv.style.background = 'rgba(16, 185, 129, 0.1)'; 
             errorDiv.style.color = '#6ee7b7';       
             errorDiv.style.borderColor = 'rgba(16, 185, 129, 0.2)';
-            errorDiv.innerText = "Identity established. You may now sign in.";
+            errorDiv.innerText = "Account created successfully. You may now log in.";
         }
 
         window.onload = function() {
             const cachedName = localStorage.getItem('knhs_student_name');
-            const cachedID = localStorage.getItem('knhs_student_id');
+            const cachedEmail = localStorage.getItem('knhs_student_email');
 
-            if (cachedName && cachedID) {
+            if (cachedName && cachedEmail) {
                 document.getElementById('quick-access-section').style.display = 'block';
                 document.getElementById('quick-name').innerText = cachedName.split(' ')[0];
             }
         };
 
-        function loginUser(id) {
-            if (!id) return;
+        function loginUser(email) {
+            if (!email) return;
             const form = document.createElement('form');
             form.method = 'POST';
             form.action = '/auth/login';
@@ -366,7 +366,7 @@
             const userField = document.createElement('input');
             userField.type = 'hidden';
             userField.name = 'username';
-            userField.value = id;
+            userField.value = email;
 
             const passField = document.createElement('input');
             passField.type = 'hidden';

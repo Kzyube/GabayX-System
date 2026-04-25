@@ -6,7 +6,7 @@ const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 const webpush = require('web-push'); 
 const bodyParser = require('body-parser');
-const admin = require('firebase-admin'); // Prepped for FCM Integration
+const admin = require('firebase-admin'); 
 
 const app = express();
 const server = http.createServer(app);
@@ -83,14 +83,14 @@ app.post('/auth/login', async (req, res) => {
     const { data: student } = await supabase
         .from('students')
         .select('*')
-        .eq('student_id', username)
+        .eq('email', username)
         .single(); 
 
     if (student) {
         req.session.loggedin = true;
         req.session.role = 'student';
         req.session.username = student.name;
-        req.session.studentId = student.student_id;
+        req.session.studentEmail = student.email;
         req.session.phoneNumber = student.phone_number;
         
         return req.session.save(() => {
@@ -103,7 +103,7 @@ app.post('/auth/login', async (req, res) => {
 app.post('/auth/register', async (req, res) => {
     const newId = req.body.username ? req.body.username.trim() : '';
     const newPassword = req.body.password ? req.body.password.trim() : '';
-    const newName = req.body.fullname ? req.body.fullname.trim() : 'New Operative';
+    const newName = req.body.fullname ? req.body.fullname.trim() : 'New Student';
     const newPhone = req.body.phone_number ? req.body.phone_number.trim() : '';
 
     if (!newId || !newPassword || !newPhone) return res.redirect('/register.html?error=missing_fields');
@@ -111,7 +111,7 @@ app.post('/auth/register', async (req, res) => {
     const { error } = await supabase
         .from('students')
         .insert([{ 
-            student_id: newId, 
+            email: newId, 
             password: newPassword, 
             name: newName,
             phone_number: newPhone
@@ -128,7 +128,7 @@ app.post('/auth/register', async (req, res) => {
 app.get('/api/me', (req, res) => {
     if (req.session.loggedin && req.session.role === 'student') {
         res.json({ 
-            id: req.session.studentId, 
+            id: req.session.studentEmail, 
             name: req.session.username,
             phone_number: req.session.phoneNumber
         });
@@ -226,7 +226,7 @@ io.on('connection', async (socket) => {
         if(studentId) {
             socket.join(studentId);
             activeSockets.set(socket.id, studentId);
-            console.log(`[ONLINE] Node ${studentId}`);
+            console.log(`[ONLINE] Student ${studentId}`);
         }
     });
 
@@ -258,7 +258,7 @@ io.on('connection', async (socket) => {
         if (activeSockets.has(socket.id)) {
             const studentId = activeSockets.get(socket.id);
             io.emit('student-disconnected', { id: studentId });
-            console.log(`[OFFLINE] Node ${studentId}`);
+            console.log(`[OFFLINE] Student ${studentId}`);
             activeSockets.delete(socket.id);
         }
     });
