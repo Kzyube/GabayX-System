@@ -15,6 +15,7 @@
             --emerald-500: #10b981;
             --emerald-400: #34d399;
             --emerald-600: #059669;
+            --accent-cyan: #00f0ff;
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
         }
@@ -100,23 +101,29 @@
         .brand-logo {
             display: flex;
             align-items: center;
-            gap: 12px;
+            justify-content: center;
+            gap: 16px;
             margin-bottom: 2.5rem;
         }
 
         .logo-mark {
-            width: 36px;
-            height: 36px;
-            background: linear-gradient(135deg, var(--emerald-400), var(--emerald-600));
-            border-radius: 10px;
-            box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            object-fit: cover;
+            box-shadow: 0 0 25px rgba(16, 185, 129, 0.5);
+            border: 1px solid var(--border-highlight);
         }
 
         .brand-text {
-            font-size: 1.75rem;
+            font-size: 2.4rem;
             font-weight: 800;
-            letter-spacing: -0.5px;
-            color: #fff;
+            letter-spacing: 1px;
+            background: linear-gradient(135deg, #ffffff 0%, var(--emerald-400) 50%, var(--accent-cyan) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+            filter: drop-shadow(0 0 12px rgba(52, 211, 153, 0.4));
         }
 
         .header-title {
@@ -124,6 +131,7 @@
             font-weight: 700;
             margin-bottom: 0.5rem;
             letter-spacing: -0.5px;
+            text-align: center;
         }
 
         .header-subtitle {
@@ -131,6 +139,7 @@
             font-size: 1rem;
             font-weight: 400;
             margin-bottom: 2.5rem;
+            text-align: center;
         }
 
         /* --- FORMS & INPUTS --- */
@@ -273,6 +282,7 @@
         @media (max-width: 480px) {
             .auth-card { padding: 2.5rem 1.5rem; }
             .header-title { font-size: 1.5rem; }
+            .brand-text { font-size: 2rem; }
         }
     </style>
 </head>
@@ -286,8 +296,8 @@
 
     <div class="auth-card">
         <div class="brand-logo">
-            <div class="logo-mark"></div>
-            <div class="brand-text">GabayX</div>
+            <img src="GabayXLOGO.jpg" class="logo-mark" alt="GabayX Logo">
+            <div class="brand-text">GABAYX</div>
         </div>
 
         <h2 class="header-title">Welcome back</h2>

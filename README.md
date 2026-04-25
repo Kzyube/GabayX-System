@@ -61,3 +61,21 @@ You can access the fully functional live system here:
 * [Socket.io](https://socket.io/) (WebSockets for real-time messaging)
 * [Supabase](https://supabase.com/) (PostgreSQL Database & Authentication)
 * Web-Push API (Background service worker notifications)
+
+---
+
+## 📂 File Structure
+
+```text
+GabayX-System/
+│
+├── public/               # Frontend public assets
+│   ├── index.html        # The main Login interface
+│   ├── register.html     # The Student Account Creation page
+│   ├── student.html      # The Student App (Live map, SOS buttons, offline routing)
+│   ├── admin.html        # The Admin Command Console (Radar, alerts, messaging)
+│   └── sw.js             # The Service Worker (Handles offline mode & push notifications)
+│
+├── server.js             # The backend server (Express, Socket.io, Supabase connections)
+├── package.json          # Node.js dependencies and start scripts
+└── package-lock.json     # Dependency version lockfile

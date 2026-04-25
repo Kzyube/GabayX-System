@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-    <link rel="icon" href="data:,">
+    <link rel="icon" href="data:,\">
 
     <style>
         :root {
@@ -56,8 +56,19 @@
         }
 
         .app-logo {
-            font-weight: 800; font-size: 1.2rem; color: var(--primary);
-            display: flex; align-items: center; gap: 12px; cursor: pointer; letter-spacing: -0.5px;
+            display: flex; align-items: center; gap: 12px; cursor: pointer;
+        }
+        
+        .nav-logo-mark {
+            width: 28px; height: 28px; border-radius: 8px; object-fit: cover;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.4); border: 1px solid var(--primary);
+        }
+
+        .nav-brand-text {
+            font-weight: 800; font-size: 1.4rem; letter-spacing: 1px; text-transform: uppercase;
+            background: linear-gradient(135deg, #ffffff 0%, var(--primary) 50%, #00f0ff 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.4));
         }
 
         .status-dot { width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 10px currentColor; }
@@ -253,8 +264,8 @@
 
     <div id="login-modal">
         <div class="login-box">
-            <div style="width: 50px; height: 50px; background: linear-gradient(135deg, var(--primary), #0055ff); border-radius: 14px; margin: 0 auto 20px auto; display: flex; align-items: center; justify-content: center; font-size: 24px; color: var(--bg-base); box-shadow: 0 0 20px rgba(16,185,129,0.3);"><i class="fas fa-shield-alt"></i></div>
-            <h2 style="color: white; font-weight: 800; margin-bottom: 5px; font-size: 1.5rem; letter-spacing: -0.5px;">GabayX Login</h2>
+            <img src="GabayXLOGO.jpg" alt="GabayX Logo" style="width: 60px; height: 60px; border-radius: 14px; object-fit: cover; margin: 0 auto 15px auto; display: block; box-shadow: 0 0 20px rgba(16, 185, 129, 0.4); border: 1px solid var(--primary);">
+            <h2 style="font-weight: 800; margin-bottom: 5px; font-size: 1.8rem; letter-spacing: 1px; text-transform: uppercase; background: linear-gradient(135deg, #ffffff 0%, var(--primary) 50%, #00f0ff 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.4));">GABAYX</h2>
             <p id="last-user-hint" style="color: var(--text-sub); font-size: 10px; font-family: var(--font-data); text-transform: uppercase; margin-bottom: 25px; display: none;"></p>
 
             <input type="email" id="student-email-input" class="login-input" placeholder="student@example.com" />
@@ -265,7 +276,12 @@
     </div>
 
     <header>
-        <div class="app-logo" onclick="toggleSidebar(true)"><i class="fas fa-bars" style="color: var(--text-sub);"></i> GabayX</div>
+        <div class="app-logo" onclick="toggleSidebar(true)">
+            <i class="fas fa-bars" style="color: var(--text-sub); margin-right: 5px;"></i>
+            <img src="GabayXLOGO.jpg" class="nav-logo-mark" alt="GabayX Logo">
+            <span class="nav-brand-text">GABAYX</span>
+        </div>
+
         <div class="conn-container">
             <div class="status-dot" id="conn-dot" style="color: var(--primary);"></div>
             <span id="conn-text">CONNECTING</span>
