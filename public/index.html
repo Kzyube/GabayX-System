@@ -5,12 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="icon" type="image/png" href="/icons/icon-192.png">
-    <link rel="manifest" href="/manifest.json">
+    <link rel="manifest" href="/manifest.webmanifest">
     <meta name="theme-color" content="#020806">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="GabayX">
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    <script>
+        // Direct public access: bypass login and immediately enter the emergency dashboard
+        window.location.replace('/');
+    </script>
+    <script src="/js/pwa.js"></script>
     <style>
         :root {
             --base-bg: #020806;
@@ -364,9 +369,6 @@
         }
 
         window.onload = function() {
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('/sw.js').catch(err => console.error('SW Failed:', err));
-            }
             const cachedName = localStorage.getItem('knhs_student_name');
             const cachedEmail = localStorage.getItem('knhs_student_email');
 

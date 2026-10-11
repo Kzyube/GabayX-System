@@ -12,12 +12,13 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="icon" type="image/png" href="/icons/icon-192.png" />
-    <link rel="manifest" href="/manifest.json" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#050505" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="GabayX" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <script src="/js/pwa.js"></script>
 
     <style>
         :root {
@@ -531,9 +532,8 @@
             initSocket();
             fetchStudentRoster();
             loadSavedMessages();
-            if ("serviceWorker" in navigator) {
-                navigator.serviceWorker.register("/sw.js").catch((err) => console.error("SW Failed:", err));
-            }
+            window.addEventListener('online', () => showToast("🟢 Online: Network connected"));
+            window.addEventListener('offline', () => showToast("⚠️ Offline: Network connection lost"));
             setInterval(() => fetchStudentRoster(), 15000);
             setInterval(() => document.getElementById("live-clock").innerText = new Date().toLocaleTimeString(), 1000);
         };
@@ -699,6 +699,25 @@
 
         function initSocket() {
             socket = io();
+
+            socket.on("admin-receive-report", (report) => {
+                showToast(`🚨 Report: [${report.incident_type || report.incidentType || 'EMERGENCY'}] from ${report.student_name || report.student_id}`);
+                const feed = document.getElementById("list-danger");
+                if (feed) {
+                    const card = document.createElement("div");
+                    card.className = "sos-card";
+                    card.innerHTML = `
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span class="sos-tag tag-sos">${report.incident_type || report.incidentType || 'INCIDENT'}</span>
+                            <span style="font-size:9px; color:var(--text-dim);">${new Date(report.timestamp || Date.now()).toLocaleTimeString()}</span>
+                        </div>
+                        <div style="font-weight:700; color:#fff; font-size:12px; margin:4px 0;">${report.student_name || 'Student'} (${report.student_id || 'ID'})</div>
+                        <div style="font-size:11px; color:#cbd5e1;">"${report.description || 'Emergency reported'}"</div>
+                        <div style="font-size:9px; color:var(--accent-cyan); margin-top:4px;"><i class="fas fa-location-dot"></i> ${report.nearest_building || 'Campus'}</div>
+                    `;
+                    feed.prepend(card);
+                }
+            });
 
             socket.on("admin-dashboard-update", async (data) => {
                 const id = data.id.toString(); 

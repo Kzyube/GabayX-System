@@ -5,12 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="icon" type="image/png" href="/icons/icon-192.png">
-    <link rel="manifest" href="/manifest.json">
+    <link rel="manifest" href="/manifest.webmanifest">
     <meta name="theme-color" content="#020806">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="GabayX">
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    <script src="/js/pwa.js"></script>
     <style>
         :root {
             --base-bg: #020806;
@@ -285,7 +286,13 @@
         </div>
 
         <h2 class="header-title">Create your account</h2>
-        <p class="header-subtitle">Sign up to access the safety system.</p>
+        <p class="header-subtitle">Optional roster registration for KNHS students.</p>
+
+        <div style="background: rgba(16, 185, 129, 0.12); border: 1px solid var(--border-highlight); border-radius: 14px; padding: 14px 16px; margin-bottom: 20px; text-align: center;">
+            <div style="font-weight: 800; font-size: 12px; color: var(--emerald-400); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Direct Access Active</div>
+            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.4;">No registration is required to use GabayX. Emergency reporting, campus maps, and safe zones are available to all citizens immediately.</p>
+            <a href="/" style="display: inline-block; background: var(--emerald-500); color: #010a07; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 18px; border-radius: 10px; text-decoration: none;">Enter Emergency Dashboard</a>
+        </div>
 
         <div id="error-msg" class="error"></div>
         
@@ -314,13 +321,13 @@
             </div>
             
             <button type="submit" class="btn-primary">
-                Sign Up
+                Sign Up (Optional)
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
             </button>
         </form>
 
         <div class="auth-link">
-            Already have an account? <a href="/">Log in here</a>
+            <a href="/">&larr; Return to Public Emergency Dashboard</a>
         </div>
 
         <div class="footer">
@@ -354,10 +361,6 @@
                 localStorage.setItem('knhs_student_email', studentEmail);
             }
         });
-
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js').catch(err => console.error('SW Failed:', err));
-        }
     </script>
 </body>
 </html>

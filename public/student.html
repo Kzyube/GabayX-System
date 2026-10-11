@@ -13,12 +13,13 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="icon" type="image/png" href="/icons/icon-192.png" />
-    <link rel="manifest" href="/manifest.json" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#061912" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="GabayX" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <script src="/js/pwa.js"></script>
 
     <style>
         :root {
@@ -139,13 +140,6 @@
 
         .btn-logout { background: rgba(255,42,95,0.1); color: var(--danger); border: 1px solid rgba(255,42,95,0.2); padding: 16px; border-radius: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; width: 100%; cursor: pointer; display: flex; justify-content: center; gap: 10px;}
 
-        /* --- LOGIN MODAL --- */
-        #login-modal { position: fixed; inset: 0; background: var(--bg-base); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 24px; background-image: radial-gradient(circle at 50% 50%, rgba(16,185,129,0.05) 0%, transparent 60%); }
-        .login-box { background: rgba(10,25,20,0.8); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); padding: 40px 30px; border-radius: 24px; width: 100%; max-width: 400px; text-align: center; border: 1px solid var(--glass-border); box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
-        .login-input { width: 100%; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); padding: 16px 20px; border-radius: 14px; color: white; font-family: var(--font-data); font-size: 1rem; margin-bottom: 20px; outline: none; transition: 0.3s; text-align: center; letter-spacing: 2px;}
-        .login-input:focus { border-color: var(--primary); box-shadow: 0 0 15px rgba(16,185,129,0.2); }
-        .btn-login { width: 100%; background: var(--primary); color: var(--bg-base); border: none; padding: 16px; border-radius: 14px; font-weight: 800; font-size: 1rem; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; transition: 0.3s;}
-
         /* --- ACTIONS TRAY (APP SHEET) --- */
         #main-container { flex: 1; position: relative; display: flex; flex-direction: column; }
         #map-container { flex: 1; width: 100%; z-index: 1; background: #000; }
@@ -265,11 +259,12 @@
     <div id="sidebar">
         <div class="sidebar-user-card">
             <div class="user-avatar"><i class="fas fa-user-circle"></i></div>
-            <div style="display: flex; flex-direction: column;">
+            <div style="display: flex; flex-direction: column; min-width: 0;">
                 <span class="welcome-text">Welcome</span>
-                <h2 id="sidebar-name">Student</h2>
-                <p class="mono-stat" id="sidebar-email-display"><i class="fas fa-envelope"></i> Loading...</p>
-                <p class="mono-stat" id="sidebar-phone-display" style="color:var(--text-sub);"><i class="fas fa-phone"></i> Loading...</p>
+                <h2 id="sidebar-name">Citizen</h2>
+                <p class="mono-stat" id="sidebar-email-display"><i class="fas fa-id-badge"></i> Device ID</p>
+                <p class="mono-stat" id="sidebar-phone-display" style="color:var(--text-sub);"><i class="fas fa-phone"></i> Contact: Not set</p>
+                <button type="button" onclick="openProfileModal()" style="margin-top: 6px; background: rgba(16,185,129,0.12); border: 1px solid var(--glass-border); color: var(--primary); font-size: 9px; font-weight: 800; font-family: var(--font-data); text-transform: uppercase; padding: 4px 8px; border-radius: 6px; cursor: pointer; align-self: flex-start; display: inline-flex; align-items: center; gap: 4px;"><i class="fas fa-pen"></i> Edit Contact Info</button>
             </div>
         </div>
 
@@ -310,31 +305,43 @@
             <i class="fas fa-clock-rotate-left"></i> My Reports & Status
         </button>
 
-        <button onclick="GabayXOfflineUI.openInfoModal()" class="btn-voucher" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: #fff; box-shadow: none; margin-bottom: 14px;">
+        <button onclick="GabayXOfflineUI.openInfoModal()" class="btn-voucher" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: #fff; box-shadow: none; margin-bottom: 8px;">
             <i class="fas fa-book-medical"></i> Offline Guides & Hotlines
         </button>
 
-        <button onclick="openVouchersModal()" class="btn-voucher">
+        <button onclick="openVouchersModal()" class="btn-voucher" style="margin-bottom: 8px;">
             <i class="fas fa-ticket-alt"></i> Show GCash Vouchers
         </button>
 
-        <button onclick="window.location.href='/donate.html'" class="btn-donate-sidebar">
+        <button onclick="window.location.href='/donate.html'" class="btn-donate-sidebar" style="margin-bottom: 12px;">
             <i class="fas fa-hand-holding-heart"></i> Donate to Relief
         </button>
 
-        <button onclick="logoutUser()" class="btn-logout"><i class="fas fa-sign-out-alt"></i> Log Out</button>
+        <button onclick="window.location.href='/admin-login'" class="btn-voucher" style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.08); color: var(--text-sub); box-shadow: none; font-size: 10px; margin-bottom: 0;">
+            <i class="fas fa-shield-halved"></i> Admin Command Portal
+        </button>
     </div>
 
-    <div id="login-modal">
-        <div class="login-box">
-            <img src="GabayXLOGO.jpg" alt="GabayX Logo" style="width: 60px; height: 60px; border-radius: 14px; object-fit: cover; margin: 0 auto 15px auto; display: block; box-shadow: 0 0 20px rgba(16, 185, 129, 0.4); border: 1px solid var(--primary);">
-            <h2 style="font-weight: 800; margin-bottom: 5px; font-size: 1.8rem; letter-spacing: 1px; text-transform: uppercase; background: linear-gradient(135deg, #ffffff 0%, var(--primary) 50%, #00f0ff 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.4));">GABAYX</h2>
-            <p id="last-user-hint" style="color: var(--text-sub); font-size: 10px; font-family: var(--font-data); text-transform: uppercase; margin-bottom: 25px; display: none;"></p>
-
-            <input type="email" id="student-email-input" class="login-input" placeholder="student@example.com" />
-            <button class="btn-login" onclick="loginUser()">Log In</button>
-
-            <button id="btn-quick-access" onclick="checkLogin()" style="display: none; width: 100%; margin-top: 15px; background: rgba(255,255,255,0.05); color: var(--text-sub); border: 1px solid rgba(255,255,255,0.1); padding: 14px; border-radius: 12px; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; transition: 0.3s;">Resume Session: <span id="quick-name" style="color: #fff;"></span></button>
+    <!-- OPTIONAL CITIZEN CONTACT PREFERENCES MODAL -->
+    <div id="profile-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:25000; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(8px);">
+        <div style="background:rgba(8,22,16,0.96); border:1px solid var(--glass-border); border-radius:24px; padding:24px; width:100%; max-width:400px; box-shadow:0 25px 60px rgba(0,0,0,0.85);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <h3 style="color:#fff; font-size:1.1rem; margin:0; display:flex; align-items:center; gap:8px;"><i class="fas fa-id-card" style="color:var(--primary);"></i> Contact Info (Optional)</h3>
+                <button onclick="closeProfileModal()" style="background:transparent; border:none; color:var(--text-sub); font-size:24px; cursor:pointer;">&times;</button>
+            </div>
+            <p style="font-size:11px; color:var(--text-sub); margin-bottom:14px; line-height:1.4;">GabayX is public. You do not need an account. You may optionally enter your name and phone number to help first responders identify and contact you during an emergency.</p>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:10px; font-weight:700; color:var(--text-sub); display:block; margin-bottom:4px; text-transform:uppercase;">Your Name / Nickname</label>
+                <input type="text" id="pref-name-input" placeholder="e.g. Juan Dela Cruz" style="width:100%; background:rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:10px; color:#fff; font-size:13px; box-sizing:border-box;">
+            </div>
+            <div style="margin-bottom:16px;">
+                <label style="font-size:10px; font-weight:700; color:var(--text-sub); display:block; margin-bottom:4px; text-transform:uppercase;">Contact Phone Number</label>
+                <input type="tel" id="pref-phone-input" placeholder="e.g. 0912-345-6789" style="width:100%; background:rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:10px; color:#fff; font-size:13px; box-sizing:border-box;">
+            </div>
+            <div style="display:flex; gap:8px;">
+                <button onclick="saveProfilePreferences()" style="flex:1; padding:12px; background:var(--primary); color:#010a07; font-weight:800; font-size:11px; border:none; border-radius:10px; text-transform:uppercase; cursor:pointer;">Save Details</button>
+                <button onclick="closeProfileModal()" style="padding:12px; background:rgba(255,255,255,0.06); color:#fff; font-weight:700; font-size:11px; border:1px solid rgba(255,255,255,0.1); border-radius:10px; text-transform:uppercase; cursor:pointer;">Cancel</button>
+            </div>
         </div>
     </div>
 
@@ -412,8 +419,13 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
-    <script src="/js/db.js"></script>
-    <script src="/js/sync-manager.js"></script>
+    <!-- GabayX Offline Architecture: Storage, Services, PWA, and Offline UI -->
+    <script src="/js/storage/db.js"></script>
+    <script src="/js/services/apiService.js"></script>
+    <script src="/js/services/syncService.js"></script>
+    <script src="/js/services/reportService.js"></script>
+    <script src="/js/pwa/install.js"></script>
+    <script src="/js/pwa/network.js"></script>
     <script src="/js/offline-ui.js"></script>
 
     <script>
@@ -476,19 +488,33 @@
         window.onload = () => {
             initMap();
             initSocket();
+            initUserIdentity();
             checkLogin();
             loadBuildingLabels();
 
-            if ("serviceWorker" in navigator) {
-                navigator.serviceWorker.register("/sw.js").catch(err => console.error("SW Failed:", err));
+            // PWA Phase 1: Native online/offline status detection
+            window.addEventListener('online', () => {
+                updateStatus(true);
+                showToast("🟢 Internet Connection Restored");
+                if (!isOfflineMode && socket && !socket.connected) {
+                    socket.connect();
+                }
+            });
+
+            window.addEventListener('offline', () => {
+                updateStatus(false);
+                showToast("⚠️ Internet Connection Lost (Offline)");
+            });
+
+            if (!navigator.onLine) {
+                updateStatus(false);
             }
+
             subscribeToPush();
 
             const urlParams = new URLSearchParams(window.location.search);
             const emergencyType = urlParams.get('alert'); 
             if (emergencyType) {
-                const loginModal = document.getElementById('login-modal');
-                if (loginModal) loginModal.style.display = 'none';
                 setTimeout(() => {
                     handleAlert({ type: emergencyType, message: "EMERGENCY: Immediate Evacuation Required!" });
                     showToast("🚨 ROUTE STARTED...");
@@ -503,17 +529,7 @@
             }
 
             activateGPS();
-            checkLogin();
             setInterval(() => { if (!isOfflineMode) checkLogin(true); }, 30000);
-
-            const savedName = localStorage.getItem("knhs_student_name");
-            const savedEmail = localStorage.getItem("knhs_student_email");
-            if (savedName && savedEmail) {
-                document.getElementById("last-user-hint").style.display = "block";
-                document.getElementById("last-user-hint").innerText = "Account found on this device";
-                document.getElementById("btn-quick-access").style.display = "block";
-                document.getElementById("quick-name").innerText = savedName.split(" ")[0];
-            }
         };
 
         // --- NEW: VOUCHER MODAL FUNCTIONS ---
@@ -635,42 +651,46 @@
             }
         }
 
-        function markAsDanger() {
+        async function markAsDanger() {
             if (!studentEmail) return;
             const lat = userMarker ? userMarker.getLatLng().lat : null;
             const lng = userMarker ? userMarker.getLatLng().lng : null;
             currentStatus = "DANGER";
+            const nearestBldg = document.getElementById('nearest-bldg-badge')?.innerText || 'Campus';
+
+            try {
+                if (window.GabayXReportService) {
+                    const report = await window.GabayXReportService.createReport({
+                        incidentType: 'SOS_EMERGENCY',
+                        description: 'Immediate SOS triggered by student',
+                        latitude: lat,
+                        longitude: lng,
+                        nearest_building: nearestBldg,
+                        student_id: studentEmail,
+                        student_name: localStorage.getItem('knhs_student_name') || 'Student'
+                    });
+
+                    if (report.status === 'SYNCED') {
+                        if (socket && !isOfflineMode) {
+                            socket.emit("student-status", { id: studentEmail, status: "DANGER", lat: lat, lng: lng });
+                        }
+                        showToast("🚨 SOS Sent & Confirmed");
+                    } else {
+                        showToast("Report saved offline. It will be sent when an internet connection is available.");
+                    }
+                    return;
+                }
+            } catch (err) {
+                console.warn("[SOS] Local-first SOS error:", err);
+            }
 
             if (isOfflineMode || !navigator.onLine) {
                 saveOfflineAction("STATUS", "DANGER", lat, lng);
-                if (window.GabayXDB) {
-                    window.GabayXDB.saveReport({
-                        incident_type: 'SOS_EMERGENCY',
-                        description: 'Immediate SOS triggered by student',
-                        lat: lat,
-                        lng: lng,
-                        nearest_building: document.getElementById('nearest-bldg-badge')?.innerText || 'Campus',
-                        student_id: studentEmail,
-                        student_name: localStorage.getItem('knhs_student_name') || 'Student',
-                        status: 'SAVED_OFFLINE'
-                    }).then(() => {
-                        if (window.GabayXOfflineUI) {
-                            window.GabayXOfflineUI.updateGlobalIndicator({ state: 'OFFLINE' });
-                        }
-                    }).catch(() => {});
-                }
+                showToast("Report saved offline. It will be sent when an internet connection is available.");
             } else {
-                if (userMarker) {
+                if (socket) {
                     socket.emit("student-status", { id: studentEmail, status: "DANGER", lat: lat, lng: lng });
                     showToast("SOS Sent");
-                } else {
-                    showToast("Finding location...");
-                    navigator.geolocation.getCurrentPosition((pos) => {
-                        const curLat = pos.coords.latitude; const curLng = pos.coords.longitude;
-                        if (!userMarker) { userMarker = L.circleMarker([curLat, curLng], { radius: 8, color: "var(--primary)", fillColor: "white", fillOpacity: 1, weight: 3 }).addTo(map); map.setView([curLat, curLng], 19); }
-                        socket.emit("student-status", { id: studentEmail, status: "DANGER", lat: curLat, lng: curLng });
-                        showToast("SOS Sent");
-                    }, (err) => { alert("⚠️ GPS Error"); }, { enableHighAccuracy: true });
                 }
             }
         }
@@ -793,36 +813,90 @@
 
         function closeAdminModal() { document.getElementById("admin-reply-modal").classList.remove("active"); notificationAudio.pause(); notificationAudio.currentTime = 0; }
 
+        function initUserIdentity() {
+            let storedId = localStorage.getItem("gabayx_device_id") || localStorage.getItem("knhs_student_email");
+            if (!storedId) {
+                storedId = "anon-" + (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID().slice(0, 8) : Date.now().toString(36));
+                localStorage.setItem("gabayx_device_id", storedId);
+            }
+            studentEmail = storedId;
+
+            const displayName = localStorage.getItem("knhs_student_name") || "Citizen";
+            const displayPhone = localStorage.getItem("knhs_student_phone") || "Not set";
+
+            const nameEl = document.getElementById("sidebar-name");
+            const emailEl = document.getElementById("sidebar-email-display");
+            const phoneEl = document.getElementById("sidebar-phone-display");
+
+            if (nameEl) nameEl.innerText = displayName;
+            if (emailEl) {
+                const isAnon = storedId.startsWith("anon-");
+                emailEl.innerHTML = `<i class="fas fa-id-badge"></i> ${isAnon ? 'Device ID: ' + storedId : 'Account: ' + storedId}`;
+            }
+            if (phoneEl) {
+                phoneEl.innerHTML = `<i class="fas fa-phone"></i> Contact: ${displayPhone}`;
+            }
+
+            const nameInput = document.getElementById("pref-name-input");
+            const phoneInput = document.getElementById("pref-phone-input");
+            if (nameInput) nameInput.value = localStorage.getItem("knhs_student_name") || "";
+            if (phoneInput) phoneInput.value = localStorage.getItem("knhs_student_phone") || "";
+
+            if (socket && socket.connected) {
+                socket.emit("register-student", studentEmail);
+            }
+        }
+
         async function checkLogin(isHeartbeat = false) {
+            initUserIdentity();
             try {
                 const response = await fetch("/api/me");
                 if (response.ok) {
                     const data = await response.json();
-                    if (data.id) {
-                        localStorage.setItem("knhs_student_email", data.id); localStorage.setItem("knhs_student_name", data.name); localStorage.setItem("knhs_student_phone", data.phone_number || "No Phone");
-                        studentEmail = data.id;
-                        document.getElementById("sidebar-email-display").innerHTML = `<i class="fas fa-envelope"></i> Email: ${data.id}`;
-                        document.getElementById("sidebar-name").innerText = data.name.split(" ")[0];
-                        document.getElementById("sidebar-phone-display").innerHTML = `<i class="fas fa-phone"></i> ${data.phone_number || "N/A"}`;
-                        document.getElementById("conn-text").innerText = "CONNECTED";
-                        document.getElementById("login-modal").style.display = "none";
-                        if (socket && !isHeartbeat) socket.emit("register-student", studentEmail);
+                    if (data.authenticated && data.id) {
+                        localStorage.setItem("knhs_student_email", data.id);
+                        if (data.name) localStorage.setItem("knhs_student_name", data.name);
+                        if (data.phone_number) localStorage.setItem("knhs_student_phone", data.phone_number);
+                        initUserIdentity();
                         return;
                     }
                 }
             } catch (error) {}
-            
-            const cachedEmail = localStorage.getItem("knhs_student_email"); const cachedName = localStorage.getItem("knhs_student_name"); const cachedPhone = localStorage.getItem("knhs_student_phone");
-            if (cachedEmail && cachedName) {
-                document.getElementById("last-user-hint").style.display = "block"; document.getElementById("last-user-hint").innerText = "Account found on this device";
-                const quickAccessBtn = document.getElementById("btn-quick-access"); quickAccessBtn.style.display = "block";
-                document.getElementById("quick-name").innerText = cachedName.split(" ")[0];
-                document.getElementById("student-email-input").value = cachedEmail;
-                studentEmail = cachedEmail;
-                document.getElementById("sidebar-email-display").innerHTML = `<i class="fas fa-envelope"></i> Email: ${cachedEmail} (OFFLINE)`;
-                document.getElementById("sidebar-name").innerText = cachedName.split(" ")[0];
-                document.getElementById("sidebar-phone-display").innerHTML = `<i class="fas fa-phone"></i> ${cachedPhone || "N/A"}`;
+        }
+
+        function openProfileModal() {
+            const modal = document.getElementById("profile-modal");
+            if (modal) {
+                const nameInput = document.getElementById("pref-name-input");
+                const phoneInput = document.getElementById("pref-phone-input");
+                if (nameInput) nameInput.value = localStorage.getItem("knhs_student_name") || "";
+                if (phoneInput) phoneInput.value = localStorage.getItem("knhs_student_phone") || "";
+                modal.style.display = "flex";
             }
+        }
+
+        function closeProfileModal() {
+            const modal = document.getElementById("profile-modal");
+            if (modal) modal.style.display = "none";
+        }
+
+        function saveProfilePreferences() {
+            const nameInput = document.getElementById("pref-name-input");
+            const phoneInput = document.getElementById("pref-phone-input");
+
+            const newName = nameInput ? nameInput.value.trim() : "";
+            const newPhone = phoneInput ? phoneInput.value.trim() : "";
+
+            if (newName) {
+                localStorage.setItem("knhs_student_name", newName);
+            }
+            if (newPhone) {
+                localStorage.setItem("knhs_student_phone", newPhone);
+            }
+
+            initUserIdentity();
+            closeProfileModal();
+            showToast("Profile details saved locally");
         }
 
         function handleAlert(data) {
@@ -978,12 +1052,17 @@
         }
 
         function updateStatus(online) {
-            if (window.GabayXOfflineUI && window.GabayXSync) {
-                const state = online ? 'ONLINE' : 'OFFLINE';
-                window.GabayXOfflineUI.updateGlobalIndicator({ state: state });
-            } else {
-                document.getElementById("conn-dot").style.color = online ? "var(--primary)" : "var(--danger)";
-                document.getElementById("conn-text").innerText = online && studentEmail ? "CONNECTED" : "DISCONNECTED";
+            const connDot = document.getElementById("conn-dot");
+            const connText = document.getElementById("conn-text");
+            if (connDot) {
+                connDot.style.color = online ? "var(--primary)" : "var(--danger)";
+            }
+            if (connText) {
+                if (online) {
+                    connText.innerText = (studentEmail && socket && socket.connected) ? "CONNECTED" : "ONLINE";
+                } else {
+                    connText.innerText = "OFFLINE";
+                }
             }
         }
 
@@ -1003,17 +1082,6 @@
             const tabPanes = document.getElementsByClassName("tab-pane"); for (let i = 0; i < tabPanes.length; i++) { tabPanes[i].classList.remove("active"); }
             const tabBtns = document.getElementsByClassName("tab-btn"); for (let i = 0; i < tabBtns.length; i++) { tabBtns[i].classList.remove("active"); }
             document.getElementById(tabName).classList.add("active"); evt.currentTarget.classList.add("active");
-        }
-
-        async function loginUser(autoID = null) {
-            const idInput = document.getElementById("student-email-input"); const id = autoID || idInput.value.trim();
-            if (!id) return alert("Email Address is required");
-            const form = document.createElement("form"); form.method = "POST"; form.action = "/auth/login";
-            const userField = document.createElement("input"); userField.type = "hidden"; userField.name = "username"; userField.value = id;
-            const passField = document.createElement("input"); passField.type = "hidden"; passField.name = "password"; passField.value = ""; 
-            form.appendChild(userField); form.appendChild(passField); document.body.appendChild(form);
-            localStorage.setItem("knhs_student_email", id);
-            form.submit();
         }
 
         let bldgMarkers = [];

@@ -37,16 +37,38 @@ app.use(session({
     saveUninitialized: true,
     cookie: { secure: false } 
 }));
+// ADMINISTRATIVE ACCESS PROTECTION (Checked before static files)
+app.get(['/admin', '/admin.html'], (req, res) => {
+    if (req.session && req.session.loggedin && req.session.role === 'admin') {
+        res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+    } else {
+        res.redirect('/admin-login');
+    }
+});
+
+app.get('/admin-login', (req, res) => {
+    if (req.session && req.session.loggedin && req.session.role === 'admin') {
+        return res.redirect('/admin');
+    }
+    res.sendFile(path.join(__dirname, 'public', 'admin-login.html'));
+});
+
+// MAIN PUBLIC APPLICATION (DIRECT ACCESS WITHOUT LOGIN)
+app.get(['/', '/student', '/student.html'], (req, res) => {
+    if (req.session && req.session.role === 'admin') {
+        return res.redirect('/admin');
+    }
+    res.sendFile(path.join(__dirname, 'public', 'student.html'));
+});
+
+// LEGACY ENTRY POINT REDIRECTS
+app.get('/index.html', (req, res) => {
+    res.redirect('/');
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 // --- 4. ROUTES ---
-
-// Home Page Logic
-app.get('/', (req, res) => {
-    if (req.session.role === 'admin') return res.redirect('/admin');
-    if (req.session.role === 'student') return res.redirect('/student');
-    res.sendFile(path.join(__dirname, 'public', 'index.html')); 
-});
 
 // PUSH NOTIFICATION: Get Public Key
 app.get('/api/vapid-key', (req, res) => {
@@ -93,10 +115,10 @@ app.post('/auth/login', async (req, res) => {
         req.session.phoneNumber = student.phone_number;
         
         return req.session.save(() => {
-            res.redirect('/student');
+            res.redirect('/');
         });
     } else {
-        return res.redirect('/?error=invalid_credentials');
+        return res.redirect('/admin-login?error=invalid_credentials');
     }
 });
 
@@ -159,14 +181,26 @@ app.post('/api/donate', async (req, res) => {
 });
 
 app.get('/api/me', (req, res) => {
-    if (req.session.loggedin && req.session.role === 'student') {
+    if (req.session && req.session.loggedin && req.session.role === 'student') {
         res.json({ 
+            authenticated: true,
             id: req.session.studentEmail, 
             name: req.session.username,
             phone_number: req.session.phoneNumber
         });
+    } else if (req.session && req.session.loggedin && req.session.role === 'admin') {
+        res.json({
+            authenticated: true,
+            role: 'admin',
+            id: 'admin@gabayx.edu.ph',
+            name: 'Command Center Admin'
+        });
     } else {
-        res.status(401).json({ error: "Not logged in" });
+        res.status(200).json({ 
+            authenticated: false, 
+            anonymous: true,
+            message: 'Direct public access active. No account required.'
+        });
     }
 });
 
@@ -266,24 +300,10 @@ app.post('/api/sync', async (req, res) => {
     res.json({ status: 'success', count: logs.length });
 });
 
-// PROTECTED PAGES
-app.get('/admin', (req, res) => {
-    if (req.session.role === 'admin') res.sendFile(path.join(__dirname, 'public','admin.html'));
-    else res.redirect('/');
-});
-
-app.get('/student', (req, res) => {
-    if (req.session.loggedin && req.session.role === 'student') {
-        res.sendFile(path.join(__dirname, 'public', 'student.html'));
-    } else {
-        console.log("Session Check Failed. Redirecting to login...");
-        res.redirect('/');
-    }
-});
-
 app.get('/logout', (req, res) => {
-    req.session.destroy();
-    res.redirect('/');
+    req.session.destroy(() => {
+        res.redirect('/');
+    });
 });
 
 // --- 5. SOCKET.IO & PUSH LOGIC ---

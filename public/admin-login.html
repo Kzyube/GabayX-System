@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GabayX | Command Center Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="/icons/icon-192.png">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <meta name="theme-color" content="#020806">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    <script src="/js/pwa.js"></script>
+    <style>
+        :root {
+            --base-bg: #020806;
+            --surface: rgba(12, 24, 18, 0.6);
+            --border-subtle: rgba(255, 255, 255, 0.1);
+            --border-highlight: rgba(16, 185, 129, 0.4);
+            --emerald-500: #10b981;
+            --emerald-400: #34d399;
+            --accent-cyan: #00f0ff;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --danger: #ff2a5f;
+            --font-ui: 'Outfit', sans-serif;
+            --font-data: 'Space Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-ui);
+        }
+
+        body {
+            background-color: var(--base-bg);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1.5rem;
+            position: relative;
+        }
+
+        .mesh-bg {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: -1;
+            background: #020806;
+            overflow: hidden;
+        }
+
+        .mesh-blob {
+            position: absolute;
+            filter: blur(120px);
+            border-radius: 50%;
+            opacity: 0.35;
+        }
+
+        .blob-1 {
+            background: #064e3b;
+            width: 60vw; height: 60vw;
+            top: -20%; right: -10%;
+        }
+
+        .blob-2 {
+            background: #022c22;
+            width: 50vw; height: 50vw;
+            bottom: -20%; left: -20%;
+        }
+
+        .auth-card {
+            background: var(--surface);
+            backdrop-filter: blur(32px);
+            -webkit-backdrop-filter: blur(32px);
+            border: 1px solid var(--border-subtle);
+            border-radius: 28px;
+            padding: 3rem 2.5rem;
+            width: 100%;
+            max-width: 440px;
+            box-shadow: 0 40px 80px rgba(0, 0, 0, 0.7);
+            position: relative;
+        }
+
+        .brand-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            margin-bottom: 2rem;
+        }
+
+        .logo-mark {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            object-fit: cover;
+            border: 1px solid var(--emerald-500);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .brand-text {
+            font-size: 1.8rem;
+            font-weight: 800;
+            letter-spacing: 1px;
+            background: linear-gradient(135deg, #ffffff 0%, var(--emerald-400) 60%, var(--accent-cyan) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+        }
+
+        .badge-admin {
+            display: inline-block;
+            background: rgba(255, 42, 95, 0.15);
+            color: var(--danger);
+            border: 1px solid rgba(255, 42, 95, 0.3);
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-size: 10px;
+            font-weight: 800;
+            font-family: var(--font-data);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .header-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+
+        .header-subtitle {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
+            text-align: center;
+            line-height: 1.4;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-family: var(--font-data);
+        }
+
+        input {
+            width: 100%;
+            padding: 14px 16px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            font-size: 0.95rem;
+            color: var(--text-main);
+            outline: none;
+            transition: 0.2s;
+        }
+
+        input:focus {
+            border-color: var(--emerald-500);
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 14px;
+            background: var(--emerald-500);
+            color: #010a07;
+            border: none;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-weight: 800;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: 0.2s;
+            margin-top: 0.5rem;
+        }
+
+        .btn-submit:hover {
+            background: var(--emerald-400);
+            box-shadow: 0 10px 25px rgba(52, 211, 153, 0.3);
+        }
+
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 1.5rem;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            text-decoration: none;
+            transition: 0.2s;
+        }
+
+        .back-link:hover {
+            color: var(--emerald-400);
+        }
+
+        .error-banner {
+            background: rgba(255, 42, 95, 0.15);
+            color: #ff6b8b;
+            border: 1px solid rgba(255, 42, 95, 0.3);
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: 12px;
+            margin-bottom: 1.25rem;
+            display: none;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="mesh-bg">
+        <div class="mesh-blob blob-1"></div>
+        <div class="mesh-blob blob-2"></div>
+    </div>
+
+    <div class="auth-card">
+        <div style="text-align: center;">
+            <span class="badge-admin">Command Portal</span>
+        </div>
+
+        <div class="brand-header">
+            <img src="/GabayXLOGO.jpg" class="logo-mark" alt="GabayX Logo">
+            <span class="brand-text">GABAYX</span>
+        </div>
+
+        <h2 class="header-title">Command Center Login</h2>
+        <p class="header-subtitle">Authorized school and response personnel only. Citizens can access emergency reporting directly.</p>
+
+        <div id="error-box" class="error-banner"></div>
+
+        <form action="/auth/login" method="POST">
+            <div class="form-group">
+                <label for="username">Administrator Username</label>
+                <input type="text" id="username" name="username" placeholder="e.g. admin" required autofocus>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" placeholder="••••••••" required>
+            </div>
+
+            <button type="submit" class="btn-submit">Sign In to Command Center</button>
+        </form>
+
+        <a href="/" class="back-link">&larr; Return to Public Emergency Dashboard</a>
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        if (params.has('error')) {
+            const errBox = document.getElementById('error-box');
+            errBox.style.display = 'block';
+            errBox.innerText = 'Invalid administrator credentials. Please try again.';
+        }
+    </script>
+</body>
+</html>

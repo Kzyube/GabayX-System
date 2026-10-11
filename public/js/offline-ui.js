@@ -1,74 +1,16 @@
-// GabayX Offline UI Components
-// Includes Global Connectivity Indicator, Incident Report Modal, and Report Status Drawer.
+/**
+ * GabayX Offline UI Components
+ * Coordinates Incident Report Modal, Emergency History Drawer, and Sync UI.
+ */
+
 (function (global) {
     'use strict';
 
     let currentPhotoBase64 = null;
 
-    // --- 1. GLOBAL CONNECTIVITY INDICATOR ---
-    function updateGlobalIndicator(stateData) {
-        const connDot = document.getElementById('conn-dot');
-        const connText = document.getElementById('conn-text');
-        if (!connDot || !connText) return;
-
-        const state = stateData.state;
-
-        switch (state) {
-            case 'ONLINE':
-                connDot.style.color = 'var(--primary, #10b981)';
-                connDot.style.backgroundColor = 'var(--primary, #10b981)';
-                connDot.style.boxShadow = '0 0 10px #10b981';
-                connText.innerText = 'ONLINE';
-                connText.style.color = '#10b981';
-                break;
-
-            case 'OFFLINE':
-                connDot.style.color = 'var(--accent-orange, #ff8c00)';
-                connDot.style.backgroundColor = 'var(--accent-orange, #ff8c00)';
-                connDot.style.boxShadow = '0 0 10px #ff8c00';
-                connText.innerText = 'OFFLINE MODE';
-                connText.style.color = '#ff8c00';
-                break;
-
-            case 'SYNCING':
-                connDot.style.color = 'var(--accent-cyan, #00f0ff)';
-                connDot.style.backgroundColor = 'var(--accent-cyan, #00f0ff)';
-                connDot.style.boxShadow = '0 0 12px #00f0ff';
-                connText.innerText = 'SYNCING...';
-                connText.style.color = '#00f0ff';
-                break;
-
-            case 'SYNCED':
-                connDot.style.color = '#38bdf8';
-                connDot.style.backgroundColor = '#38bdf8';
-                connDot.style.boxShadow = '0 0 10px #38bdf8';
-                connText.innerText = 'ALL SYNCED';
-                connText.style.color = '#38bdf8';
-                break;
-
-            default:
-                connDot.style.color = '#94a3b8';
-                connText.innerText = 'CONNECTING';
-                break;
-        }
-
-        // Update badge count of pending reports if available
-        if (global.GabayXDB) {
-            global.GabayXDB.getPendingReports().then((pending) => {
-                const countBadge = document.getElementById('pending-reports-badge');
-                if (countBadge) {
-                    if (pending.length > 0) {
-                        countBadge.style.display = 'inline-flex';
-                        countBadge.innerText = pending.length;
-                    } else {
-                        countBadge.style.display = 'none';
-                    }
-                }
-            }).catch(() => {});
-        }
-    }
-
-    // --- 2. MODAL & UI TEMPLATES INJECTION ---
+    /**
+     * Inject UI modals into the DOM
+     */
     function injectOfflineUI() {
         if (document.getElementById('gabayx-offline-ui-container')) {
             return;
@@ -79,9 +21,8 @@
 
         container.innerHTML = `
         <style>
-            /* Offline UI Modal & Drawer Styles */
             .gx-modal-backdrop {
-                position: fixed; inset: 0; background: rgba(0, 0, 0, 0.8);
+                position: fixed; inset: 0; background: rgba(0, 0, 0, 0.82);
                 backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
                 z-index: 25000; display: none; align-items: center; justify-content: center;
                 padding: 16px;
@@ -89,10 +30,10 @@
             .gx-modal-backdrop.active { display: flex; animation: gxFadeIn 0.25s ease-out; }
 
             .gx-modal-card {
-                background: rgba(8, 22, 16, 0.95);
+                background: rgba(8, 22, 16, 0.96);
                 border: 1px solid var(--glass-border, rgba(16, 185, 129, 0.3));
                 border-radius: 24px; padding: 24px; width: 100%; max-width: 480px;
-                box-shadow: 0 25px 60px rgba(0,0,0,0.8), 0 0 30px rgba(16, 185, 129, 0.1);
+                box-shadow: 0 25px 60px rgba(0,0,0,0.85), 0 0 30px rgba(16, 185, 129, 0.12);
                 max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;
             }
 
@@ -140,7 +81,7 @@
                 width: 100%; background: rgba(0, 0, 0, 0.5);
                 border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px;
                 padding: 12px 14px; color: #fff; font-family: var(--font-ui, sans-serif);
-                font-size: 13px; outline: none; margin-bottom: 14px; transition: 0.2s;
+                font-size: 13px; outline: none; margin-bottom: 14px; transition: 0.2s; box-sizing: border-box;
             }
             .gx-input:focus, .gx-textarea:focus {
                 border-color: var(--primary, #10b981); box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
@@ -174,28 +115,25 @@
                 transition: 0.2s; margin-top: 8px;
             }
 
-            /* Report Item Cards */
             .gx-report-item {
-                background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.08);
+                background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255, 255, 255, 0.08);
                 border-radius: 14px; padding: 14px; margin-bottom: 12px; transition: 0.2s;
             }
-            .gx-report-item:hover { border-color: rgba(255, 255, 255, 0.15); }
+            .gx-report-item:hover { border-color: rgba(255, 255, 255, 0.18); }
 
             .gx-status-pill {
                 padding: 4px 8px; border-radius: 6px; font-size: 9px; font-weight: 800;
-                letter-spacing: 0.5px; text-transform: uppercase; font-family: var(--font-data);
+                letter-spacing: 0.5px; text-transform: uppercase; font-family: var(--font-data, monospace);
             }
-            .gx-pill-draft { background: rgba(148, 163, 184, 0.1); color: #94a3b8; border: 1px solid #94a3b8; }
-            .gx-pill-offline { background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid #f59e0b; }
-            .gx-pill-waiting { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid #38bdf8; }
+            .gx-pill-pending { background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid #f59e0b; }
             .gx-pill-syncing { background: rgba(0, 240, 255, 0.15); color: #00f0ff; border: 1px solid #00f0ff; }
-            .gx-pill-submitted { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid #10b981; }
-            .gx-pill-failed { background: rgba(255, 42, 95, 0.15); color: #ff2a5f; border: 1px solid #ff2a5f; }
+            .gx-pill-synced  { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid #10b981; }
+            .gx-pill-failed  { background: rgba(255, 42, 95, 0.15); color: #ff2a5f; border: 1px solid #ff2a5f; }
 
             @keyframes gxFadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
         </style>
 
-        <!-- A. FILE INCIDENT REPORT MODAL -->
+        <!-- A. FILE EMERGENCY REPORT MODAL -->
         <div id="gx-report-modal" class="gx-modal-backdrop">
             <div class="gx-modal-card">
                 <div class="gx-modal-header">
@@ -225,19 +163,19 @@
                         </button>
                     </div>
 
-                    <span class="gx-form-label">Current Location</span>
+                    <span class="gx-form-label">Location Telemetry</span>
                     <div class="gx-loc-card">
                         <div>
                             <span id="gx-loc-coords" style="color:#fff;">Acquiring GPS...</span>
                             <div id="gx-loc-building" style="font-size:10px; color:var(--primary); margin-top:2px;">Scanning zone...</div>
                         </div>
-                        <button type="button" onclick="GabayXOfflineUI.refreshLocation()" style="background:transparent; border:none; color:var(--text-sub); cursor:pointer;">
+                        <button type="button" onclick="GabayXOfflineUI.refreshLocation()" style="background:transparent; border:none; color:var(--text-sub); cursor:pointer;" title="Refresh GPS">
                             <i class="fas fa-rotate"></i>
                         </button>
                     </div>
 
-                    <span class="gx-form-label">Incident Details / Needs</span>
-                    <textarea id="gx-report-desc" class="gx-textarea" rows="3" placeholder="Describe the situation, exact room/floor, number of people needing assistance..."></textarea>
+                    <span class="gx-form-label">Emergency Description</span>
+                    <textarea id="gx-report-desc" class="gx-textarea" rows="3" placeholder="Describe situation, room/floor, injured persons, or immediate hazards..."></textarea>
 
                     <span class="gx-form-label">Photo Attachment (Optional)</span>
                     <input type="file" id="gx-photo-input" accept="image/*" capture="environment" style="display:none;" onchange="GabayXOfflineUI.handlePhotoUpload(event)">
@@ -253,36 +191,20 @@
             </div>
         </div>
 
-        <!-- B. REPORT HISTORY & STATUS DRAWER -->
+        <!-- B. REPORT HISTORY & SYNC DRAWER -->
         <div id="gx-history-modal" class="gx-modal-backdrop">
             <div class="gx-modal-card">
                 <div class="gx-modal-header">
-                    <h3 class="gx-modal-title"><i class="fas fa-clock-rotate-left" style="color:var(--primary);"></i> My Emergency Reports</h3>
+                    <h3 class="gx-modal-title"><i class="fas fa-clock-rotate-left" style="color:var(--primary);"></i> Emergency Reports</h3>
                     <button class="gx-modal-close" onclick="GabayXOfflineUI.closeHistoryModal()">&times;</button>
                 </div>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                    <span style="font-size:11px; color:var(--text-sub);">Saved on this device</span>
-                    <button type="button" onclick="GabayXSync.triggerSync(true)" style="background:rgba(16,185,129,0.1); border:1px solid var(--glass-border); color:var(--primary); padding:6px 12px; border-radius:8px; font-size:10px; font-weight:800; cursor:pointer; text-transform:uppercase;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding:0 2px;">
+                    <span id="gx-sync-status-hint" style="font-size:11px; color:var(--text-sub);">Saved in local database</span>
+                    <button type="button" id="gx-btn-sync-now" onclick="GabayXOfflineUI.handleManualSync()" style="background:rgba(16,185,129,0.12); border:1px solid var(--glass-border); color:var(--primary); padding:6px 12px; border-radius:8px; font-size:10px; font-weight:800; cursor:pointer; text-transform:uppercase;">
                         <i class="fas fa-sync"></i> Sync Now
                     </button>
                 </div>
                 <div class="gx-modal-body" id="gx-history-list">
-                    <!-- Populated dynamically -->
-                </div>
-            </div>
-        </div>
-
-        <!-- C. OFFLINE CRITICAL INFO MODAL -->
-        <div id="gx-info-modal" class="gx-modal-backdrop">
-            <div class="gx-modal-card">
-                <div class="gx-modal-header">
-                    <h3 class="gx-modal-title"><i class="fas fa-book-medical" style="color:var(--primary);"></i> Offline Emergency Guides</h3>
-                    <button class="gx-modal-close" onclick="GabayXOfflineUI.closeInfoModal()">&times;</button>
-                </div>
-                <div style="font-size:10px; font-family:var(--font-data); color:var(--primary); margin-bottom:12px; background:rgba(16,185,129,0.08); padding:6px 10px; border-radius:8px; border:1px dashed var(--glass-border);">
-                    <i class="fas fa-download"></i> Cached Locally: Accessible with zero internet connection.
-                </div>
-                <div class="gx-modal-body" id="gx-info-content">
                     <!-- Populated dynamically -->
                 </div>
             </div>
@@ -292,7 +214,6 @@
         document.body.appendChild(container);
     }
 
-    // Modal Controls
     function openReportModal() {
         injectOfflineUI();
         refreshLocation();
@@ -320,18 +241,6 @@
         if (modal) modal.classList.remove('active');
     }
 
-    function openInfoModal() {
-        injectOfflineUI();
-        loadCriticalInfo();
-        document.getElementById('gx-info-modal').classList.add('active');
-    }
-
-    function closeInfoModal() {
-        const modal = document.getElementById('gx-info-modal');
-        if (modal) modal.classList.remove('active');
-    }
-
-    // Form selection
     function selectType(button) {
         document.querySelectorAll('#gx-type-selector .gx-type-btn').forEach((btn) => btn.classList.remove('selected'));
         button.classList.add('selected');
@@ -342,7 +251,6 @@
         return selected ? selected.getAttribute('data-type') : 'GENERAL';
     }
 
-    // Geolocation retrieval
     function refreshLocation() {
         const locCoords = document.getElementById('gx-loc-coords');
         const locBldg = document.getElementById('gx-loc-building');
@@ -357,7 +265,6 @@
                     const lng = pos.coords.longitude;
                     locCoords.innerText = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
 
-                    // Try to match nearest building from window.BUILDINGS if available
                     if (window.BUILDINGS && window.map) {
                         let nearest = null;
                         let minDist = Infinity;
@@ -372,19 +279,18 @@
                             locBldg.innerText = 'Campus Perimeter Zone';
                         }
                     } else {
-                        locBldg.innerText = 'High Accuracy GPS Locked';
+                        locBldg.innerText = 'GPS Signal Acquired';
                     }
                 },
-                (err) => {
-                    locCoords.innerText = 'GPS Unavailable (Offline/Blocked)';
-                    locBldg.innerText = 'Manual location will be inferred';
+                () => {
+                    locCoords.innerText = 'GPS Locked (Manual Infer)';
+                    locBldg.innerText = 'Location will be determined by network';
                 },
                 { enableHighAccuracy: true, timeout: 8000 }
             );
         }
     }
 
-    // Photo compression and handling
     function handlePhotoUpload(event) {
         const file = event.target.files[0];
         if (!file) return;
@@ -393,7 +299,6 @@
         reader.onload = (e) => {
             const img = new Image();
             img.onload = () => {
-                // Compress image to max width 1024 to save storage
                 const canvas = document.createElement('canvas');
                 let width = img.width;
                 let height = img.height;
@@ -426,7 +331,9 @@
         reader.readAsDataURL(file);
     }
 
-    // Report Submission Flow
+    /**
+     * Submit an emergency incident report through ReportService
+     */
     async function submitReport() {
         const descInput = document.getElementById('gx-report-desc');
         const description = (descInput.value || '').trim();
@@ -444,164 +351,139 @@
         }
 
         const nearestBuilding = locBldgEl ? locBldgEl.innerText : 'Campus Zone';
-
-        const studentEmail = localStorage.getItem('knhs_student_email') || 'student@gabayx.local';
-        const studentName = localStorage.getItem('knhs_student_name') || 'Student';
-
-        const report = {
-            id: 'REP-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7).toUpperCase(),
-            incident_type: incidentType,
-            description: description || `Reported ${incidentType} emergency in area`,
-            lat: lat,
-            lng: lng,
-            nearest_building: nearestBuilding,
-            attachment: currentPhotoBase64,
-            timestamp: new Date().toISOString(),
-            student_id: studentEmail,
-            student_name: studentName,
-            status: 'SAVED_OFFLINE',
-            sync_attempts: 0
-        };
-
         const submitBtn = document.getElementById('gx-btn-submit-report');
+
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving report...';
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving locally...';
 
         try {
-            // Save immediately to IndexedDB
-            await global.GabayXDB.saveReport(report);
-
-            // Check if online to perform instant submission
-            const isOnline = await global.GabayXSync.checkBackendReachable();
-
-            if (isOnline) {
-                submitBtn.innerHTML = '<i class="fas fa-satellite-dish"></i> Uploading to command center...';
-                try {
-                    const response = await fetch('/api/reports/submit', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(report)
-                    });
-
-                    if (response.ok) {
-                        await global.GabayXDB.updateReportStatus(report.id, 'SUBMITTED', {
-                            synced_at: new Date().toISOString()
-                        });
-                        showToast('✅ Report Submitted & Confirmed');
-                    } else {
-                        await global.GabayXDB.updateReportStatus(report.id, 'WAITING_FOR_CONNECTION');
-                        showToast('🟠 Saved Offline (Will Sync Automatically)');
-                    }
-                } catch (netErr) {
-                    await global.GabayXDB.updateReportStatus(report.id, 'SAVED_OFFLINE');
-                    showToast('🟠 Saved Offline (Will Sync Automatically)');
-                }
-            } else {
-                await global.GabayXDB.updateReportStatus(report.id, 'SAVED_OFFLINE');
-                showToast('🟠 Report Safely Saved Offline');
+            if (!global.GabayXReportService) {
+                throw new Error('ReportService is not loaded');
             }
 
-            // Reset and close
+            // Save locally first via ReportService
+            const report = await global.GabayXReportService.createReport({
+                incidentType,
+                description: description || `Reported ${incidentType} emergency in area`,
+                latitude: lat,
+                longitude: lng,
+                nearest_building: nearestBuilding,
+                photo: currentPhotoBase64
+            });
+
+            // Online vs Offline feedback
+            if (report.status === 'SYNCED') {
+                showToast('✅ Report submitted and confirmed by command center');
+            } else {
+                // Offline or pending sync
+                showToast('Report saved offline. It will be sent when an internet connection is available.');
+            }
+
+            // Reset and close modal
             descInput.value = '';
             closeReportModal();
 
-            // Refresh indicator
-            updateGlobalIndicator({ state: global.GabayXSync.getState() });
-
+            // Refresh UI indicators
+            if (global.GabayXNetwork) {
+                global.GabayXNetwork.updateIndicators(navigator.onLine ? 'ONLINE' : 'OFFLINE');
+            }
         } catch (err) {
             console.error('[OfflineUI] Submission error:', err);
-            alert('Could not save report: ' + err.message);
+            alert('Failed to record emergency report: ' + err.message);
         } finally {
             submitBtn.disabled = false;
             submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Emergency Report';
         }
     }
 
-    // Populate Report History
+    /**
+     * Populate the report history drawer
+     */
     async function loadHistoryData() {
         const listContainer = document.getElementById('gx-history-list');
-        if (!listContainer || !global.GabayXDB) return;
+        const syncHint = document.getElementById('gx-sync-status-hint');
+        const syncNowBtn = document.getElementById('gx-btn-sync-now');
+        if (!listContainer || !global.GabayXReportService) return;
 
         listContainer.innerHTML = '<div style="text-align:center; color:var(--text-sub); padding:20px;"><i class="fas fa-spinner fa-spin"></i> Loading reports...</div>';
 
-        const reports = await global.GabayXDB.getAllReports();
+        const reports = await global.GabayXReportService.getReports();
+        const pendingReports = reports.filter(r => r.status === 'PENDING' || r.status === 'FAILED');
+
+        if (syncHint) {
+            if (pendingReports.length > 0) {
+                syncHint.innerText = `${pendingReports.length} report(s) waiting to sync`;
+                syncHint.style.color = '#f59e0b';
+            } else {
+                syncHint.innerText = 'All reports confirmed synced';
+                syncHint.style.color = 'var(--text-sub)';
+            }
+        }
+
+        if (syncNowBtn) {
+            syncNowBtn.style.display = pendingReports.length > 0 ? 'inline-block' : 'none';
+        }
 
         if (reports.length === 0) {
-            listContainer.innerHTML = '<div style="text-align:center; color:var(--text-sub); padding:30px; font-size:12px;">No emergency reports filed yet.</div>';
+            listContainer.innerHTML = '<div style="text-align:center; color:var(--text-sub); padding:30px; font-size:12px;">No emergency reports recorded yet.</div>';
             return;
         }
 
         const getPill = (status) => {
             switch (status) {
-                case 'DRAFT': return '<span class="gx-status-pill gx-pill-draft">Draft</span>';
-                case 'SAVED_OFFLINE': return '<span class="gx-status-pill gx-pill-offline">Saved Offline (On Device)</span>';
-                case 'WAITING_FOR_CONNECTION': return '<span class="gx-status-pill gx-pill-waiting">Waiting for Connection</span>';
-                case 'SYNCING': return '<span class="gx-status-pill gx-pill-syncing">Syncing...</span>';
-                case 'SUBMITTED': return '<span class="gx-status-pill gx-pill-submitted">Submitted & Confirmed</span>';
-                case 'SYNC_FAILED': return '<span class="gx-status-pill gx-pill-failed">Sync Failed (Retrying)</span>';
-                default: return `<span class="gx-status-pill gx-pill-offline">${status}</span>`;
+                case 'PENDING':
+                    return '<span class="gx-status-pill gx-pill-pending">Pending Sync</span>';
+                case 'SYNCING':
+                    return '<span class="gx-status-pill gx-pill-syncing">Syncing...</span>';
+                case 'SYNCED':
+                    return '<span class="gx-status-pill gx-pill-synced">Synced & Confirmed</span>';
+                case 'FAILED':
+                    return '<span class="gx-status-pill gx-pill-failed">Sync Failed (Will Retry)</span>';
+                default:
+                    return `<span class="gx-status-pill gx-pill-pending">${status}</span>`;
             }
         };
 
         listContainer.innerHTML = reports.map((r) => {
-            const timeStr = new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' });
+            const timeStr = new Date(r.createdAt || r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' });
             return `
             <div class="gx-report-item">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
                     <div>
-                        <strong style="color:#fff; font-size:13px; text-transform:uppercase;">${r.incident_type || 'INCIDENT'}</strong>
-                        <div style="font-family:var(--font-data); font-size:9px; color:var(--text-sub); margin-top:2px;">${r.id} • ${timeStr}</div>
+                        <strong style="color:#fff; font-size:13px; text-transform:uppercase;">${r.incidentType || r.incident_type || 'INCIDENT'}</strong>
+                        <div style="font-family:var(--font-data, monospace); font-size:9px; color:var(--text-sub); margin-top:2px;">ID: ${r.id.substring(0, 16)}... • ${timeStr}</div>
                     </div>
                     ${getPill(r.status)}
                 </div>
                 <div style="font-size:12px; color:#cbd5e1; line-height:1.4; margin-bottom:8px;">"${r.description}"</div>
-                <div style="display:flex; justify-content:space-between; align-items:center; font-family:var(--font-data); font-size:10px; color:var(--text-sub); border-top:1px solid rgba(255,255,255,0.05); padding-top:6px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; font-family:var(--font-data, monospace); font-size:10px; color:var(--text-sub); border-top:1px solid rgba(255,255,255,0.05); padding-top:6px;">
                     <span><i class="fas fa-location-dot" style="color:var(--primary);"></i> ${r.nearest_building || 'Campus'}</span>
-                    ${r.attachment ? `<span style="color:var(--accent-cyan);"><i class="fas fa-camera"></i> Photo Included</span>` : ''}
+                    ${r.syncedAt ? `<span style="color:#10b981;"><i class="fas fa-check-double"></i> Synced</span>` : (r.retryCount > 0 ? `<span style="color:#f59e0b;">Retried: ${r.retryCount}x</span>` : '')}
                 </div>
             </div>`;
         }).join('');
     }
 
-    // Populate Critical Info
-    async function loadCriticalInfo() {
-        const contentContainer = document.getElementById('gx-info-content');
-        if (!contentContainer || !global.GabayXDB) return;
+    /**
+     * Handle Manual Sync Action
+     */
+    async function handleManualSync() {
+        const syncNowBtn = document.getElementById('gx-btn-sync-now');
+        if (syncNowBtn) {
+            syncNowBtn.disabled = true;
+            syncNowBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
+        }
 
-        const guides = await global.GabayXDB.getEmergencyInfo();
-        const contacts = await global.GabayXDB.getContacts();
+        if (global.GabayXSync) {
+            await global.GabayXSync.triggerSync(true);
+        }
 
-        let html = '';
+        await loadHistoryData();
 
-        // Contacts Section
-        html += `<div style="font-size:11px; font-weight:800; color:var(--text-sub); text-transform:uppercase; margin-bottom:8px; letter-spacing:1px;">Campus & Emergency Hotlines</div>`;
-        contacts.forEach((c) => {
-            html += `
-            <div style="background:rgba(0,0,0,0.5); padding:10px 14px; border-radius:12px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center; border:1px solid rgba(255,255,255,0.05);">
-                <div>
-                    <div style="font-weight:700; font-size:12px; color:#fff;">${c.name}</div>
-                    <div style="font-size:10px; color:var(--text-sub);">${c.role}</div>
-                </div>
-                <a href="tel:${c.number.replace(/[^0-9]/g, '')}" style="background:rgba(16,185,129,0.15); border:1px solid var(--glass-border); color:var(--primary); padding:6px 12px; border-radius:8px; font-family:var(--font-data); font-size:11px; text-decoration:none; font-weight:700;">
-                    <i class="fas fa-phone"></i> ${c.number}
-                </a>
-            </div>`;
-        });
-
-        // Guides Section
-        html += `<div style="font-size:11px; font-weight:800; color:var(--text-sub); text-transform:uppercase; margin-top:16px; margin-bottom:8px; letter-spacing:1px;">Standard Survival Procedures</div>`;
-        guides.forEach((g) => {
-            html += `
-            <div style="background:rgba(0,0,0,0.5); padding:12px; border-radius:12px; margin-bottom:8px; border:1px solid rgba(255,255,255,0.05);">
-                <div style="font-weight:800; font-size:12px; color:var(--primary); text-transform:uppercase; margin-bottom:4px;">${g.title}</div>
-                <div style="font-size:11px; color:#fff; font-weight:600; margin-bottom:6px;">${g.summary}</div>
-                <ul style="padding-left:18px; margin:0; font-size:11px; color:#cbd5e1; line-height:1.5;">
-                    ${g.steps.map((s) => `<li>${s}</li>`).join('')}
-                </ul>
-            </div>`;
-        });
-
-        contentContainer.innerHTML = html;
+        if (syncNowBtn) {
+            syncNowBtn.disabled = false;
+            syncNowBtn.innerHTML = '<i class="fas fa-sync"></i> Sync Now';
+        }
     }
 
     function showToast(text) {
@@ -619,12 +501,7 @@
     }
 
     // Auto-setup listeners
-    document.addEventListener('DOMContentLoaded', () => {
-        injectOfflineUI();
-        if (global.GabayXSync) {
-            global.GabayXSync.onStateChange(updateGlobalIndicator);
-        }
-    });
+    document.addEventListener('DOMContentLoaded', injectOfflineUI);
 
     // Export interface
     global.GabayXOfflineUI = {
@@ -632,13 +509,12 @@
         closeReportModal,
         openHistoryModal,
         closeHistoryModal,
-        openInfoModal,
-        closeInfoModal,
         selectType,
         refreshLocation,
         handlePhotoUpload,
         submitReport,
-        updateGlobalIndicator
+        handleManualSync,
+        loadHistoryData
     };
 
 })(typeof window !== 'undefined' ? window : this);

@@ -1,8 +1,13 @@
-// GabayX Service Worker - Offline PWA Layer & Emergency Push Handler
+// ==============================================================================
+// GABAYX SERVICE WORKER
+// Progressive Web App (PWA) Foundation & Emergency Alert Service
+// ==============================================================================
+
 const CACHE_NAME = 'gabayx-shell-v1';
 const RUNTIME_CACHE = 'gabayx-runtime-v1';
 const TILE_CACHE = 'gabayx-tiles-v1';
 
+// Application Shell & Critical Static Resources (Pre-cached on Install)
 const STATIC_ASSETS = [
     '/',
     '/student.html',
@@ -10,41 +15,54 @@ const STATIC_ASSETS = [
     '/register.html',
     '/donate.html',
     '/admin.html',
+    '/admin-login.html',
+    '/manifest.webmanifest',
     '/manifest.json',
     '/GabayXLOGO.jpg',
     '/icons/icon-192.png',
     '/icons/icon-512.png',
     '/icons/icon-maskable.png',
     '/icons/apple-touch-icon.png',
-    '/js/db.js',
-    '/js/sync-manager.js',
+    '/js/pwa.js',
+    '/js/storage/db.js',
+    '/js/services/apiService.js',
+    '/js/services/syncService.js',
+    '/js/services/reportService.js',
+    '/js/pwa/install.js',
+    '/js/pwa/network.js',
+    '/js/pwa/sw-register.js',
     '/js/offline-ui.js'
 ];
 
+// Critical External CDN Dependencies
 const EXTERNAL_CRITICAL_ASSETS = [
     'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
     'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
     'https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css',
     'https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js',
     'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
-    'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap',
-    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'
+    'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap'
 ];
 
-// --- 1. INSTALLATION: Cache App Shell & Static Assets ---
+// ------------------------------------------------------------------------------
+// 1. INSTALLATION: Pre-cache Application Shell
+// Strategy: Precache essential assets so the app shell is available offline immediately.
+// ------------------------------------------------------------------------------
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then(async (cache) => {
-            console.log('[SW] Pre-caching application shell...');
+            console.log('[SW] Pre-caching GabayX application shell...');
+
             // Pre-cache local static assets
             for (const asset of STATIC_ASSETS) {
                 try {
                     await cache.add(asset);
                 } catch (err) {
-                    console.warn('[SW] Could not pre-cache asset:', asset, err);
+                    console.warn('[SW] Could not pre-cache local asset:', asset, err);
                 }
             }
-            // Pre-cache critical external assets gracefully
+
+            // Pre-cache critical external CDN assets
             for (const ext of EXTERNAL_CRITICAL_ASSETS) {
                 try {
                     await cache.add(new Request(ext, { mode: 'cors' }));
@@ -56,7 +74,10 @@ self.addEventListener('install', (event) => {
     );
 });
 
-// --- 2. ACTIVATION: Clean old caches and claim clients ---
+// ------------------------------------------------------------------------------
+// 2. ACTIVATION: Cache Cleanup & Client Takeover
+// Purges outdated caches from previous versions and takes immediate control.
+// ------------------------------------------------------------------------------
 self.addEventListener('activate', (event) => {
     const currentCaches = [CACHE_NAME, RUNTIME_CACHE, TILE_CACHE];
     event.waitUntil(
@@ -73,32 +94,40 @@ self.addEventListener('activate', (event) => {
     );
 });
 
-// --- 3. FETCH: Smart caching strategy ---
+// ------------------------------------------------------------------------------
+// 3. FETCH: Targeted Request Interception & Caching Strategy
+// - Navigation requests -> Network-First with Cache Fallback
+// - Static assets       -> Stale-While-Revalidate
+// - Non-GET requests    -> Network only (never cached)
+// - Dynamic APIs / Auth -> Network only (never cached, no blind caching)
+// - WebSockets          -> Bypassed
+// ------------------------------------------------------------------------------
 self.addEventListener('fetch', (event) => {
     const request = event.request;
     const url = new URL(request.url);
 
-    // Bypass non-GET requests (e.g. POST /api/sync, /auth/login)
+    // Rule 1: Non-GET requests (POST, PUT, PATCH, DELETE) bypass cache entirely
     if (request.method !== 'GET') {
         return;
     }
 
-    // Bypass websocket and socket.io connections
+    // Rule 2: WebSocket and Socket.io endpoints bypass cache
     if (url.pathname.startsWith('/socket.io/')) {
         return;
     }
 
-    // Bypass browser extensions and chrome-specific schemes
+    // Rule 3: Only handle standard HTTP/HTTPS protocols (ignore extensions/schemes)
     if (!url.protocol.startsWith('http')) {
         return;
     }
 
-    // Dynamic API endpoints should never be blindly cached
+    // Rule 4: Dynamic APIs, authentication, and session endpoints must NEVER be blindly cached
     if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/auth/')) {
         return;
     }
 
-    // A. HTML Navigation Requests: Network-First with Offline Fallback
+    // Strategy A: HTML Navigation Requests (Network-First with Cache Fallback)
+    // Tries to fetch latest version from server; if offline, serves cached application shell.
     if (request.mode === 'navigate' || request.destination === 'document') {
         event.respondWith(
             fetch(request)
@@ -110,12 +139,13 @@ self.addEventListener('fetch', (event) => {
                     return networkResponse;
                 })
                 .catch(async () => {
-                    console.log('[SW] Network navigation failed, serving cached fallback for:', request.url);
+                    console.log('[SW] Network offline, serving cached fallback for:', request.url);
                     const cachedResponse = await caches.match(request);
                     if (cachedResponse) {
                         return cachedResponse;
                     }
-                    // If specific page not found, fallback to student.html or index.html
+
+                    // Fallback routing if exact path not in cache
                     if (url.pathname.includes('student')) {
                         return caches.match('/student.html');
                     }
@@ -128,8 +158,9 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // B. Map Tile Imagery (ArcGIS Tiles) -> Cache-First with update
-    if (url.hostname.includes('arcgisonline.com') && url.pathname.includes('/tile/')) {
+    // Strategy B: Map Tile Imagery (Esri & OpenStreetMap tiles)
+    // Cache-First with network fallback. During Phase 1, tiles are cached if fetched online.
+    if (url.hostname.includes('tile.openstreetmap.org') || (url.hostname.includes('arcgisonline.com') && url.pathname.includes('/tile/'))) {
         event.respondWith(
             caches.open(TILE_CACHE).then((cache) => {
                 return cache.match(request).then((cachedResponse) => {
@@ -142,7 +173,7 @@ self.addEventListener('fetch', (event) => {
                         }
                         return networkResponse;
                     }).catch(() => {
-                        // Return empty transparent tile fallback if offline and not cached
+                        // Clean empty response fallback if tile is unreachable offline
                         return new Response('', { status: 503, statusText: 'Offline Tile Unavailable' });
                     });
                 });
@@ -151,7 +182,8 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // C. Static Resources (CSS, JS, Fonts, Images) -> Stale-While-Revalidate
+    // Strategy C: Static Resources (CSS, JS, Fonts, Images)
+    // Stale-While-Revalidate: Return cached version immediately for speed, refresh in background.
     event.respondWith(
         caches.match(request).then((cachedResponse) => {
             const fetchPromise = fetch(request)
@@ -164,17 +196,17 @@ self.addEventListener('fetch', (event) => {
                     }
                     return networkResponse;
                 })
-                .catch((err) => {
-                    // Network failed, if no cache available, let it fail gracefully
-                    return null;
-                });
+                .catch(() => null);
 
             return cachedResponse || fetchPromise;
         })
     );
 });
 
-// --- 4. PUSH NOTIFICATIONS: Emergency Alerts & Alarms ---
+// ------------------------------------------------------------------------------
+// 4. PUSH NOTIFICATIONS: Emergency Alerts & Alarms
+// Handles background emergency broadcasts from school administration.
+// ------------------------------------------------------------------------------
 self.addEventListener('push', (event) => {
     console.log('[SW] Emergency Push Received');
 
@@ -185,7 +217,6 @@ self.addEventListener('push', (event) => {
         data = { body: event.data ? event.data.text() : 'Emergency Alert' };
     }
 
-    // 1. Determine Disaster Type
     let alertType = 'DEFAULT';
     if (data.type) {
         alertType = data.type;
@@ -196,18 +227,16 @@ self.addEventListener('push', (event) => {
         else if (bodyText.includes('FLOOD')) alertType = 'FLOOD';
     }
 
-    // 2. Build the Full URL
     const baseUrl = self.location.origin;
     const targetUrl = `${baseUrl}/student.html?alert=${alertType}`;
 
-    // 3. Vibration Pattern
     const aggressiveVibration = [
         1000, 200, 1000, 200, 1000, 200, 1000, 200, 
         1000, 200, 1000, 200, 1000, 200, 1000, 200
     ];
 
     event.waitUntil(
-        self.registration.showNotification(data.title || "🚨 EMERGENCY ALERT", {
+        self.registration.showNotification(data.title || '🚨 EMERGENCY ALERT', {
             body: data.body,
             icon: '/icons/icon-192.png',
             badge: '/icons/icon-192.png',
@@ -220,21 +249,20 @@ self.addEventListener('push', (event) => {
     );
 });
 
-// --- 5. NOTIFICATION CLICK: Route user to student app ---
+// ------------------------------------------------------------------------------
+// 5. NOTIFICATION CLICK: Focus or Open Application
+// ------------------------------------------------------------------------------
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
-
     const targetUrl = event.notification.data ? event.notification.data.url : '/student.html';
 
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-            // Check if tab is already open
             for (let client of windowClients) {
                 if (client.url.includes('student.html') && 'focus' in client) {
                     return client.navigate(targetUrl).then((c) => c.focus());
                 }
             }
-            // If not open, open new window
             if (clients.openWindow) {
                 return clients.openWindow(targetUrl);
             }
