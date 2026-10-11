@@ -21,20 +21,106 @@
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <script src="/js/pwa.js"></script>
 
+    <script>
+        (function() {
+            try {
+                var saved = localStorage.getItem('gabayx_theme');
+                var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                var theme = saved || (prefersDark ? 'dark' : 'light');
+                document.documentElement.setAttribute('data-theme', theme);
+            } catch (e) {}
+        })();
+    </script>
+
     <style>
-        :root {
+        :root, [data-theme="dark"] {
             --bg-base: #010a07;
-            --bg-surface: rgba(6, 25, 18, 0.7);
-            --glass-border: rgba(16, 185, 129, 0.2);
+            --bg-surface: rgba(6, 25, 18, 0.85);
+            --bg-surface-elevated: #091a13;
+            --bg-card: rgba(8, 24, 18, 0.92);
+            --bg-input: rgba(0, 0, 0, 0.55);
+            --bg-glass: rgba(6, 25, 18, 0.7);
+            --glass-border: rgba(16, 185, 129, 0.25);
+            --border-subtle: rgba(255, 255, 255, 0.08);
+            --border-medium: rgba(255, 255, 255, 0.16);
+            --border-strong: rgba(16, 185, 129, 0.35);
             --primary: #10b981;
+            --primary-hover: #34d399;
+            --primary-light: rgba(16, 185, 129, 0.15);
             --accent-cyan: #34d399;
             --danger: #ff2a5f;
+            --danger-bg: rgba(255, 42, 95, 0.15);
             --warning: #f59e0b;
+            --warning-bg: rgba(245, 158, 11, 0.15);
             --accent-orange: #ff8c00;
             --text-main: #f8fafc;
             --text-sub: #94a3b8;
+            --text-muted: #64748b;
             --font-ui: 'Outfit', sans-serif;
             --font-data: 'Space Mono', monospace;
+            --tray-bg: rgba(5, 12, 9, 0.88);
+            --modal-bg: rgba(8, 22, 16, 0.96);
+            --sidebar-bg: rgba(3, 15, 10, 0.96);
+            --shadow-card: 0 10px 40px rgba(0, 0, 0, 0.7);
+            --shadow-modal: 0 25px 60px rgba(0, 0, 0, 0.85);
+            --map-controls-bg: rgba(6, 20, 14, 0.92);
+            --map-controls-btn-hover: rgba(16, 185, 129, 0.18);
+            --bldg-badge-bg: rgba(0, 0, 0, 0.85);
+            --bldg-badge-color: var(--accent-cyan);
+            --bldg-badge-border: var(--accent-cyan);
+            --emerald-400: #34d399;
+            --emerald-500: #10b981;
+            --surface: rgba(8, 22, 16, 0.96);
+        }
+
+        [data-theme="light"], body.light-mode {
+            --bg-base: #f8fafc;
+            --bg-surface: rgba(255, 255, 255, 0.92);
+            --bg-surface-elevated: #ffffff;
+            --bg-card: #ffffff;
+            --bg-input: #ffffff;
+            --bg-glass: rgba(255, 255, 255, 0.85);
+            --glass-border: rgba(5, 150, 105, 0.28);
+            --border-subtle: rgba(15, 23, 42, 0.08);
+            --border-medium: rgba(15, 23, 42, 0.16);
+            --border-strong: rgba(5, 150, 105, 0.4);
+            --primary: #059669;
+            --primary-hover: #047857;
+            --primary-light: rgba(5, 150, 105, 0.12);
+            --accent-cyan: #0284c7;
+            --danger: #dc2626;
+            --danger-bg: rgba(220, 38, 38, 0.12);
+            --warning: #d97706;
+            --warning-bg: rgba(217, 119, 6, 0.14);
+            --accent-orange: #ea580c;
+            --text-main: #0f172a;
+            --text-sub: #475569;
+            --text-muted: #64748b;
+            --tray-bg: rgba(255, 255, 255, 0.94);
+            --modal-bg: rgba(255, 255, 255, 0.98);
+            --sidebar-bg: rgba(248, 250, 252, 0.98);
+            --shadow-card: 0 8px 30px rgba(0, 0, 0, 0.08);
+            --shadow-modal: 0 25px 60px rgba(0, 0, 0, 0.18);
+            --map-controls-bg: rgba(255, 255, 255, 0.94);
+            --map-controls-btn-hover: rgba(5, 150, 105, 0.12);
+            --bldg-badge-bg: rgba(255, 255, 255, 0.94);
+            --bldg-badge-color: #0369a1;
+            --bldg-badge-border: #0284c7;
+            --emerald-400: #059669;
+            --emerald-500: #047857;
+            --surface: rgba(255, 255, 255, 0.98);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                --bg-base: #010a07;
+                --bg-surface: rgba(6, 25, 18, 0.85);
+                --bg-surface-elevated: #091a13;
+                --bg-card: rgba(8, 24, 18, 0.92);
+                --bg-input: rgba(0, 0, 0, 0.55);
+                --text-main: #f8fafc;
+                --text-sub: #94a3b8;
+            }
         }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -48,17 +134,19 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            transition: background-color 0.25s ease, color 0.25s ease;
         }
 
         /* --- HEADER --- */
         header {
             background: var(--bg-surface);
             backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            padding: 16px 20px;
+            padding: 14px 20px;
             display: flex; align-items: center; justify-content: space-between;
-            border-bottom: 1px solid var(--glass-border);
+            border-bottom: 1px solid var(--border-subtle);
             z-index: 1001;
-            box-shadow: 0 4px 30px rgba(0,0,0,0.5);
+            box-shadow: var(--shadow-card);
+            transition: background 0.25s ease, border-color 0.25s ease;
         }
 
         .app-logo {
@@ -77,16 +165,49 @@
             filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.4));
         }
 
+        [data-theme="light"] .nav-brand-text {
+            background: linear-gradient(135deg, #0f172a 0%, var(--primary) 65%, #0284c7 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            filter: none;
+        }
+
         .status-dot { width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 10px currentColor; }
         .conn-container { display: flex; align-items: center; gap: 8px; font-family: var(--font-data); font-size: 10px; font-weight: 700; letter-spacing: 1px; color: var(--text-sub); }
+
+        /* THEME TOGGLE HEADER BUTTON */
+        .theme-toggle-header-btn {
+            background: var(--primary-light);
+            border: 1px solid var(--glass-border);
+            color: var(--primary);
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            transition: all 0.2s ease;
+            margin-left: 6px;
+        }
+        .theme-toggle-header-btn:hover {
+            background: var(--primary);
+            color: #ffffff;
+            transform: scale(1.05);
+        }
+        .theme-toggle-header-btn:focus-visible {
+            outline: 2px solid var(--primary);
+            outline-offset: 2px;
+        }
 
         /* --- ENHANCED SIDEBAR --- */
         #sidebar {
             position: fixed; left: -300px; top: 0; bottom: 0; width: 300px;
-            background: rgba(3, 15, 10, 0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            background: var(--sidebar-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
             z-index: 11000; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             padding: 30px 24px; display: flex; flex-direction: column;
             border-right: 1px solid var(--glass-border);
+            color: var(--text-main);
         }
         #sidebar.active { left: 0; box-shadow: 20px 0 50px rgba(0,0,0,0.8); }
 
@@ -94,40 +215,46 @@
         .sidebar-overlay.active { display: block; opacity: 1; }
 
         .sidebar-user-card {
-            background: rgba(16, 185, 129, 0.05); border: 1px solid var(--glass-border);
-            border-radius: 20px; padding: 24px 20px; margin-bottom: 25px;
+            background: var(--primary-light); border: 1px solid var(--glass-border);
+            border-radius: 20px; padding: 22px 18px; margin-bottom: 20px;
             display: flex; align-items: center; gap: 16px;
         }
         .user-avatar { font-size: 42px; color: var(--primary); text-shadow: 0 0 15px rgba(16,185,129,0.4); }
         .welcome-text { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-sub); }
-        #sidebar-name { font-weight: 800; margin: 0; font-size: 20px; color: #fff; line-height: 1.2; }
+        #sidebar-name { font-weight: 800; margin: 0; font-size: 20px; color: var(--text-main); line-height: 1.2; }
         .mono-stat { font-family: var(--font-data); font-size: 10px; color: var(--primary); margin-top: 4px; display: flex; align-items: center; gap: 5px; }
 
         .sidebar-label { font-size: 10px; font-weight: 800; text-transform: uppercase; color: var(--text-sub); letter-spacing: 1.5px; margin-bottom: 12px; display: block; }
         
-        .guidelines-container { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 12px; margin-bottom: 20px; }
+        .guidelines-container { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 16px; padding: 12px; margin-bottom: 20px; }
         .tabs-header { display: flex; gap: 8px; margin-bottom: 15px; }
         .tab-btn {
-            flex: 1; border: 1px solid transparent; background: rgba(255,255,255,0.05); color: var(--text-sub);
+            flex: 1; border: 1px solid transparent; background: var(--bg-input); color: var(--text-sub);
             padding: 12px 5px; border-radius: 10px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; transition: 0.3s;
         }
         .tab-btn span { font-family: var(--font-ui); font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;}
-        .tab-btn.active { background: rgba(16,185,129,0.1); border-color: var(--glass-border); color: var(--primary); }
+        .tab-btn.active { background: var(--primary-light); border-color: var(--glass-border); color: var(--primary); }
 
         .tab-pane { display: none; animation: fadeIn 0.4s ease; }
         .tab-pane.active { display: block; }
-        .guide-content { background: rgba(0,0,0,0.5); padding: 16px; border-radius: 12px; font-size: 12px; color: #cbd5e1; line-height: 1.6; }
+        .guide-content { background: var(--bg-input); padding: 16px; border-radius: 12px; font-size: 12px; color: var(--text-sub); line-height: 1.6; }
         .guide-content b { color: var(--danger); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 8px;}
 
-        .contact-item { background: rgba(0,0,0,0.4); padding: 14px; border-radius: 12px; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 12px; font-size: 13px; font-weight: 600;}
+        .contact-item { background: var(--bg-card); padding: 14px; border-radius: 12px; margin-bottom: 8px; border: 1px solid var(--border-subtle); display: flex; align-items: center; gap: 12px; font-size: 13px; font-weight: 600; color: var(--text-main);}
+
+        /* Appearance Card in Sidebar */
+        .theme-sidebar-card { background: var(--bg-card); border: 1px solid var(--border-medium); border-radius: 16px; padding: 14px 16px; margin-bottom: 15px; }
+        .theme-switch-pills { display: flex; background: var(--bg-input); border: 1px solid var(--border-subtle); border-radius: 20px; padding: 3px; gap: 4px; }
+        .theme-pill-btn { background: transparent; border: none; color: var(--text-sub); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 13px; transition: 0.2s; }
+        .theme-pill-btn.active { background: var(--primary); color: #fff; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4); }
 
         /* Offline Toggle Area */
-        .offline-box { background: rgba(0,0,0,0.6); border: 1px solid var(--glass-border); border-radius: 16px; padding: 16px; margin-bottom: 15px; }
+        .offline-box { background: var(--bg-card); border: 1px solid var(--glass-border); border-radius: 16px; padding: 16px; margin-bottom: 15px; }
         .switch { position: relative; display: inline-block; width: 46px; height: 26px; }
         .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.1); transition: .4s; border-radius: 34px; border: 1px solid rgba(255,255,255,0.2); }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-medium); transition: .4s; border-radius: 34px; border: 1px solid var(--border-subtle); }
         .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: var(--text-sub); transition: .4s; border-radius: 50%; }
-        input:checked + .slider { background-color: rgba(245,158,11,0.2); border-color: var(--warning); }
+        input:checked + .slider { background-color: var(--warning-bg); border-color: var(--warning); }
         input:checked + .slider:before { transform: translateX(20px); background-color: var(--warning); box-shadow: 0 0 10px var(--warning); }
 
         /* BUTTONS */
@@ -135,57 +262,179 @@
         .btn-voucher:active { transform: scale(0.96); }
 
         .btn-donate-sidebar { width: 100%; padding: 14px; background: transparent; color: var(--emerald-400); border: 1px solid var(--emerald-500); border-radius: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; margin-bottom: 10px; display: flex; justify-content: center; align-items: center; gap: 8px; transition: 0.3s; }
-        .btn-donate-sidebar:hover { background: rgba(16, 185, 129, 0.1); box-shadow: 0 0 15px rgba(16, 185, 129, 0.2); }
+        .btn-donate-sidebar:hover { background: var(--primary-light); box-shadow: 0 0 15px rgba(16, 185, 129, 0.2); }
         .btn-donate-sidebar:active { transform: scale(0.96); }
 
-        .btn-logout { background: rgba(255,42,95,0.1); color: var(--danger); border: 1px solid rgba(255,42,95,0.2); padding: 16px; border-radius: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; width: 100%; cursor: pointer; display: flex; justify-content: center; gap: 10px;}
-
-        /* --- ACTIONS TRAY (APP SHEET) --- */
+        /* --- MAIN APP LAYOUT & ACTIONS TRAY --- */
         #main-container { flex: 1; position: relative; display: flex; flex-direction: column; }
-        #map-container { flex: 1; width: 100%; z-index: 1; background: #000; }
+        #map-container { flex: 1; width: 100%; z-index: 1; background: var(--bg-base); }
         #map { height: 100%; width: 100%; }
+
+        /* Map Tiles Theming (Standard OpenStreetMap: Zero API key required) */
+        .map-tiles-street {
+            transition: filter 0.3s ease;
+        }
+        [data-theme="dark"] .map-tiles-street {
+            filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+        }
+        [data-theme="light"] .map-tiles-street {
+            filter: none;
+        }
+        /* Satellite Imagery: NEVER apply darkening or color inversion */
+        .map-tiles-satellite {
+            filter: none !important;
+        }
 
         .actions-tray {
             position: absolute; bottom: 0; left: 0; right: 0;
-            background: rgba(5,10,8,0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            background: var(--tray-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
             border-top: 1px solid var(--glass-border); border-radius: 30px 30px 0 0;
-            padding: 24px 24px 35px 24px; z-index: 1002; box-shadow: 0 -10px 40px rgba(0,0,0,0.8);
+            padding: 22px 22px max(24px, env(safe-area-inset-bottom, 24px)) 22px;
+            z-index: 1002; box-shadow: var(--shadow-card);
+            transition: all 0.3s ease;
         }
 
-        .location-badge { background: rgba(255,255,255,0.05); color: var(--text-main); padding: 6px 12px; border-radius: 8px; font-family: var(--font-data); font-size: 10px; font-weight: 700; border: 1px solid rgba(255,255,255,0.1); }
+        .location-badge { background: var(--bg-card); color: var(--text-main); padding: 6px 12px; border-radius: 8px; font-family: var(--font-data); font-size: 10px; font-weight: 700; border: 1px solid var(--border-medium); }
         
         .quick-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px; }
-        .btn-quick { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.05); color: var(--text-sub); border-radius: 12px; padding: 12px; font-size: 11px; font-weight: 700; cursor: pointer; transition: 0.2s;}
-        .btn-quick:active { background: rgba(255,255,255,0.1); color: #fff; }
+        .btn-quick { background: var(--bg-card); border: 1px solid var(--border-subtle); color: var(--text-sub); border-radius: 12px; padding: 12px; font-size: 11px; font-weight: 700; cursor: pointer; transition: 0.2s;}
+        .btn-quick:active { background: var(--primary-light); color: var(--primary); }
 
-        .button-group { display: grid; grid-template-columns: 1fr 1.5fr; gap: 12px; margin-top: 20px; }
+        .button-group { display: grid; grid-template-columns: 1fr 1.5fr; gap: 12px; margin-top: 16px; }
         .btn-action { border: none; border-radius: 16px; font-weight: 800; padding: 16px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 1px; font-size: 11px; transition: 0.2s;}
-        .btn-safe { background: rgba(16,185,129,0.1); color: var(--primary); border: 1px solid rgba(16,185,129,0.3); }
+        .btn-safe { background: var(--primary-light); color: var(--primary); border: 1px solid var(--glass-border); }
         .btn-danger { background: var(--danger); color: white; box-shadow: 0 0 20px rgba(255,42,95,0.4); }
         .btn-action:active { transform: scale(0.96); }
 
-        .msg-bar { margin-top: 20px; background: rgba(0,0,0,0.5); border: 1px solid var(--glass-border); border-radius: 14px; display: flex; align-items: center; padding: 4px; }
-        .msg-bar input { flex: 1; border: none; background: transparent; padding: 12px 16px; color: white; outline: none; font-size: 13px; font-family: var(--font-ui);}
-        .btn-send { background: var(--primary); color: var(--bg-base); border: none; width: 38px; height: 38px; border-radius: 10px; cursor: pointer; font-size: 14px; }
+        .msg-bar { margin-top: 16px; background: var(--bg-input); border: 1px solid var(--border-medium); border-radius: 14px; display: flex; align-items: center; padding: 4px; }
+        .msg-bar input { flex: 1; border: none; background: transparent; padding: 12px 16px; color: var(--text-main); outline: none; font-size: 13px; font-family: var(--font-ui);}
+        .btn-send { background: var(--primary); color: #ffffff; border: none; width: 38px; height: 38px; border-radius: 10px; cursor: pointer; font-size: 14px; }
 
         /* --- NOTIFICATIONS & ROUTING --- */
-        .alert-banner { background: rgba(255,42,95,0.15); border: 1px solid var(--danger); backdrop-filter: blur(10px); padding: 16px; border-radius: 16px; margin: 15px; position: absolute; top: 0; left: 0; right: 0; display: none; z-index: 1003; text-align: center; box-shadow: 0 10px 30px rgba(255,42,95,0.3);}
+        .alert-banner { background: var(--danger-bg); border: 1px solid var(--danger); backdrop-filter: blur(10px); padding: 16px; border-radius: 16px; margin: 15px; position: absolute; top: 0; left: 0; right: 0; display: none; z-index: 1003; text-align: center; box-shadow: 0 10px 30px rgba(255,42,95,0.3);}
         
-        #route-info { position: absolute; top: 100px; left: 50%; transform: translateX(-50%); background: rgba(6,25,18,0.9); border: 1px solid var(--glass-border); backdrop-filter: blur(10px); color: white; padding: 12px 24px; border-radius: 30px; display: none; align-items: center; gap: 15px; z-index: 1005; box-shadow: 0 10px 30px rgba(0,0,0,0.5); font-family: var(--font-data); font-size: 12px; width: max-content; }
+        #route-info { position: absolute; top: 100px; left: 50%; transform: translateX(-50%); background: var(--bg-surface); border: 1px solid var(--glass-border); backdrop-filter: blur(10px); color: var(--text-main); padding: 12px 24px; border-radius: 30px; display: none; align-items: center; gap: 15px; z-index: 1005; box-shadow: var(--shadow-card); font-family: var(--font-data); font-size: 12px; width: max-content; }
 
-        #toast-notification { position: fixed; top: -100px; left: 50%; transform: translateX(-50%); background: var(--primary); color: var(--bg-base); padding: 12px 24px; border-radius: 99px; font-weight: 800; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; z-index: 20000; transition: 0.5s; box-shadow: 0 10px 20px rgba(16,185,129,0.3);}
+        #toast-notification { position: fixed; top: -100px; left: 50%; transform: translateX(-50%); background: var(--primary); color: #ffffff; padding: 12px 24px; border-radius: 99px; font-weight: 800; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; z-index: 20000; transition: 0.5s; box-shadow: 0 10px 20px rgba(16,185,129,0.3);}
 
-        #admin-reply-modal { position: fixed; top: -400px; left: 50%; transform: translateX(-50%); background: rgba(10,25,20,0.95); backdrop-filter: blur(15px); color: white; width: 90%; max-width: 400px; padding: 24px; border-radius: 20px; z-index: 20001; box-shadow: 0 20px 50px rgba(0,0,0,0.6); border: 1px solid var(--primary); transition: top 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        #admin-reply-modal { position: fixed; top: -400px; left: 50%; transform: translateX(-50%); background: var(--modal-bg); backdrop-filter: blur(15px); color: var(--text-main); width: 90%; max-width: 400px; padding: 24px; border-radius: 20px; z-index: 20001; box-shadow: var(--shadow-modal); border: 1px solid var(--primary); transition: top 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
         #admin-reply-modal.active { top: 20px; }
+
+        /* --- GOOGLE MAPS STYLE MAP CONTROLS --- */
+        .map-controls-cluster {
+            position: absolute;
+            right: 16px;
+            bottom: 270px;
+            z-index: 1004;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: var(--map-controls-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            padding: 6px;
+            border-radius: 16px;
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--shadow-card);
+            transition: bottom 0.3s ease, background 0.25s ease;
+        }
+
+        .map-ctrl-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            border: 1px solid var(--border-subtle);
+            background: transparent;
+            color: var(--text-main);
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+        .map-ctrl-btn:hover {
+            background: var(--map-controls-btn-hover);
+            color: var(--primary);
+            border-color: var(--glass-border);
+            transform: scale(1.05);
+        }
+        .map-ctrl-btn:active {
+            transform: scale(0.95);
+        }
+        .map-ctrl-btn:focus-visible {
+            outline: 2px solid var(--primary);
+            outline-offset: 2px;
+        }
+        .map-ctrl-btn.active {
+            background: var(--primary-light);
+            color: var(--primary);
+            border-color: var(--primary);
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
+        }
+        .map-ctrl-btn.locating {
+            color: var(--primary);
+            animation: pulse-ring 1s infinite;
+        }
+        .map-ctrl-btn.tracking-active {
+            background: #2563eb;
+            color: #ffffff;
+            border-color: #3b82f6;
+            box-shadow: 0 0 14px rgba(37, 99, 235, 0.5);
+        }
+
+        .map-ctrl-divider {
+            height: 1px;
+            background: var(--border-subtle);
+            margin: 2px 4px;
+        }
+
+        /* --- GOOGLE MAPS STYLE USER LOCATION MARKER --- */
+        .user-location-pin-container {
+            background: transparent !important;
+            border: none !important;
+        }
+        .user-location-pin {
+            position: relative;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .user-location-pulse {
+            position: absolute;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(37, 99, 235, 0.35);
+            animation: user-loc-pulse 2s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+            pointer-events: none;
+        }
+        .user-location-dot {
+            position: relative;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #2563eb;
+            border: 3px solid #ffffff;
+            box-shadow: 0 0 8px rgba(37, 99, 235, 0.7), 0 2px 6px rgba(0, 0, 0, 0.3);
+            z-index: 2;
+        }
+        @keyframes user-loc-pulse {
+            0% { transform: scale(0.6); opacity: 0.9; }
+            70% { transform: scale(1.6); opacity: 0.15; }
+            100% { transform: scale(2.0); opacity: 0; }
+        }
 
         /* --- TACTICAL PINS & TOOLS --- */
         .dest-pin { display: flex; justify-content: center; align-items: center; }
-        .pin-circle { width: 45px; height: 45px; background: rgba(0,0,0,0.8); border-radius: 50%; border: 2px solid var(--primary); box-shadow: 0 0 20px rgba(16,185,129,0.6); display: flex; align-items: center; justify-content: center; color: var(--primary); font-size: 18px; animation: pulse-pin 1.5s infinite; }
+        .pin-circle { width: 45px; height: 45px; background: var(--bg-surface); border-radius: 50%; border: 2px solid var(--primary); box-shadow: 0 0 20px rgba(16,185,129,0.6); display: flex; align-items: center; justify-content: center; color: var(--primary); font-size: 18px; animation: pulse-pin 1.5s infinite; }
         @keyframes pulse-pin { 0% { box-shadow: 0 0 0 0 rgba(16,185,129,0.6); } 70% { box-shadow: 0 0 0 15px rgba(16,185,129,0); } 100% { box-shadow: 0 0 0 0 transparent; } }
 
-        .offline-toolbelt { position: fixed; bottom: 280px; right: 20px; display: none; flex-direction: column; gap: 15px; z-index: 2000; align-items: center; background: rgba(0,0,0,0.6); padding: 12px; border-radius: 40px; backdrop-filter: blur(10px); border: 1px solid var(--glass-border); touch-action: none; }
-        .drag-handle { width: 30px; height: 5px; background: rgba(255,255,255,0.3); border-radius: 10px; cursor: grab; margin-bottom: 5px; }
-        .tool-btn { width: 50px; height: 50px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); color: white; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.05); transition: 0.2s;}
+        .offline-toolbelt { position: fixed; bottom: 280px; right: 20px; display: none; flex-direction: column; gap: 15px; z-index: 2000; align-items: center; background: var(--tray-bg); padding: 12px; border-radius: 40px; backdrop-filter: blur(10px); border: 1px solid var(--glass-border); touch-action: none; }
+        .drag-handle { width: 30px; height: 5px; background: var(--border-medium); border-radius: 10px; cursor: grab; margin-bottom: 5px; }
+        .tool-btn { width: 50px; height: 50px; border-radius: 50%; border: 1px solid var(--border-subtle); color: var(--text-main); font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; background: var(--bg-card); transition: 0.2s;}
         .tool-btn:active { transform: scale(0.9); }
         .tool-flashlight { color: #facc15; border-color: rgba(250,204,21,0.3); }
         .tool-flashlight.flash-on { background: #facc15; color: #000; box-shadow: 0 0 30px rgba(250,204,21,0.6); }
@@ -198,38 +447,115 @@
         @keyframes strobe { from { background: #000; } to { background: #fff; } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-        .bldg-dot, .bldg-text { opacity: 0; transition: 0.2s; pointer-events: auto; color: var(--accent-cyan); font-family: var(--font-data); font-weight: 700; text-shadow: 0 2px 5px #000; }
-        .bldg-dot { background: rgba(0,0,0,0.8); border: 1px solid var(--accent-cyan); border-radius: 6px; padding: 2px 6px; white-space: nowrap; font-size: 10px;}
+        .bldg-dot, .bldg-text { opacity: 0; transition: 0.2s; pointer-events: auto; color: var(--bldg-badge-color); font-family: var(--font-data); font-weight: 700; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+        .bldg-dot { background: var(--bldg-badge-bg); border: 1px solid var(--bldg-badge-border); border-radius: 6px; padding: 2px 6px; white-space: nowrap; font-size: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
         .label-visible { opacity: 1 !important; }
+
+        /* RESPONSIVE LAYOUTS & MEDIA QUERIES */
+        @media (max-width: 480px) {
+            header {
+                padding: 12px 14px;
+            }
+            .nav-brand-text {
+                font-size: 1.15rem;
+            }
+            .conn-container {
+                font-size: 9px;
+                gap: 6px;
+            }
+            .actions-tray {
+                padding: 16px 14px max(18px, env(safe-area-inset-bottom, 18px)) 14px;
+                border-radius: 24px 24px 0 0;
+            }
+            .button-group {
+                grid-template-columns: 1fr 1.3fr;
+                gap: 8px;
+                margin-top: 12px;
+            }
+            .btn-action {
+                padding: 12px 8px;
+                font-size: 10px;
+                border-radius: 12px;
+            }
+            .map-controls-cluster {
+                right: 12px;
+                bottom: 275px;
+            }
+            .map-ctrl-btn {
+                width: 40px;
+                height: 40px;
+                font-size: 15px;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .actions-tray {
+                position: absolute;
+                left: 20px;
+                bottom: 20px;
+                right: auto;
+                width: 380px;
+                max-width: 90vw;
+                border-radius: 24px;
+                border: 1px solid var(--border-medium);
+                box-shadow: var(--shadow-card);
+                padding: 20px;
+            }
+            .map-controls-cluster {
+                right: 20px;
+                bottom: 24px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .actions-tray {
+                left: 28px;
+                bottom: 28px;
+                width: 420px;
+                padding: 24px;
+            }
+            .map-controls-cluster {
+                right: 28px;
+                bottom: 28px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, ::before, ::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
     </style>
 </head>
 
 <body>
     
-    <div id="donation-alert-modal" style="display:none; position:fixed; inset:0; background:rgba(255, 255, 255, 0.8); z-index:30000; justify-content:center; align-items:center; padding:20px; backdrop-filter:blur(5px);">
-        <div style="background:var(--surface); border:1px solid #00f0ff; border-radius:24px; padding:30px; text-align:center; max-width:400px; width:100%; box-shadow:0 0 40px rgba(0,240,255,0.3);">
-            <i class="fas fa-hand-holding-heart" style="font-size:45px; color:#00f0ff; margin-bottom:15px; filter: drop-shadow(0 0 10px rgba(0,240,255,0.5));"></i>
-            <h2 style="color:rgb(34, 32, 32); font-size:1.5rem; margin-bottom:10px;">Financial Aid Arrived!</h2>
+    <div id="donation-alert-modal" style="display:none; position:fixed; inset:0; background:rgba(0, 0, 0, 0.75); z-index:30000; justify-content:center; align-items:center; padding:20px; backdrop-filter:blur(5px);">
+        <div style="background:var(--modal-bg); border:1px solid var(--accent-cyan); border-radius:24px; padding:30px; text-align:center; max-width:400px; width:100%; box-shadow:var(--shadow-modal);">
+            <i class="fas fa-hand-holding-heart" style="font-size:45px; color:var(--accent-cyan); margin-bottom:15px; filter: drop-shadow(0 0 10px rgba(0,240,255,0.5));"></i>
+            <h2 style="color:var(--text-main); font-size:1.5rem; margin-bottom:10px;">Financial Aid Arrived!</h2>
             <p style="color:var(--text-sub); font-size:0.95rem; margin-bottom:20px; line-height:1.5;">A generous donor has just sent financial aid directly to your area. We have secured your voucher.</p>
             
-            <div style="background:rgba(255, 255, 255, 0.1); padding:15px; border-radius:12px; margin-bottom:20px; border:1px dashed #00f0ff; color: white; font-size: 0.9rem;">
-                Open your <b>Sidebar Menu</b> and click <br><b style="color: #00f0ff;">"Show GCash Vouchers"</b> to view and claim your code!
+            <div style="background:var(--bg-card); padding:15px; border-radius:12px; margin-bottom:20px; border:1px dashed var(--accent-cyan); color: var(--text-main); font-size: 0.9rem;">
+                Open your <b>Sidebar Menu</b> and click <br><b style="color: var(--accent-cyan);">"Show GCash Vouchers"</b> to view and claim your code!
             </div>
 
-            <button onclick="closeDonationAlert()" style="width:100%; padding:14px; background:linear-gradient(135deg, var(--primary), #00f0ff); color:#ffffff; border:none; border-radius:12px; font-weight:800; text-transform:uppercase; cursor:pointer; box-shadow: 0 0 15px rgba(0,240,255,0.4);">I Understand</button>
+            <button onclick="closeDonationAlert()" style="width:100%; padding:14px; background:linear-gradient(135deg, var(--primary), var(--accent-cyan)); color:#ffffff; border:none; border-radius:12px; font-weight:800; text-transform:uppercase; cursor:pointer; box-shadow: 0 0 15px rgba(0,240,255,0.4);">I Understand</button>
         </div>
     </div>
 
-    <div id="vouchers-list-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:30000; justify-content:center; align-items:center; padding:20px; backdrop-filter:blur(5px);">
-        <div style="background:var(--surface); border:1px solid #00f0ff; border-radius:24px; padding:25px; max-width:400px; width:100%; box-shadow:0 0 40px rgba(0,240,255,0.3); max-height: 85vh; display: flex; flex-direction: column;">
+    <div id="vouchers-list-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:30000; justify-content:center; align-items:center; padding:20px; backdrop-filter:blur(5px);">
+        <div style="background:var(--modal-bg); border:1px solid var(--accent-cyan); border-radius:24px; padding:25px; max-width:400px; width:100%; box-shadow:var(--shadow-modal); max-height: 85vh; display: flex; flex-direction: column;">
             
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px;">
-                <h2 style="color:white; font-size:1.4rem; margin:0;"><i class="fas fa-gift" style="color:#00f0ff; margin-right: 8px;"></i> My GCash Vouchers</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 15px;">
+                <h2 style="color:var(--text-main); font-size:1.4rem; margin:0;"><i class="fas fa-gift" style="color:var(--accent-cyan); margin-right: 8px;"></i> My GCash Vouchers</h2>
                 <button onclick="closeVouchersModal()" style="background:transparent; border:none; color:var(--text-sub); font-size:24px; cursor:pointer; transition: 0.2s;">&times;</button>
             </div>
             
             <div id="vouchers-container" style="overflow-y: auto; flex: 1; padding-right: 5px;">
-                </div>
+            </div>
             
         </div>
     </div>
@@ -247,8 +573,8 @@
             <span style="background: rgba(0,240,255,0.1); color: var(--accent-cyan); border: 1px solid rgba(0,240,255,0.2); padding: 4px 8px; border-radius: 6px; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Admin Message</span>
             <button style="background: transparent; border: none; color: var(--text-sub); font-size: 20px; cursor: pointer;" onclick="closeAdminModal()">×</button>
         </div>
-        <div style="font-size: 14px; line-height: 1.6; color: white; font-style: italic;" id="admin-msg-content"></div>
-        <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); font-family: var(--font-data); font-size: 10px; color: var(--text-sub); display: flex; justify-content: space-between;">
+        <div style="font-size: 14px; line-height: 1.6; color: var(--text-main); font-style: italic;" id="admin-msg-content"></div>
+        <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--border-subtle); font-family: var(--font-data); font-size: 10px; color: var(--text-sub); display: flex; justify-content: space-between;">
             <span>TIME:</span>
             <span id="admin-msg-time">--</span>
         </div>
@@ -286,11 +612,25 @@
             <div class="contact-item"><i class="fas fa-truck-medical" style="color: var(--danger);"></i> Public Emergency: 911</div>
         </div>
 
+        <div class="theme-sidebar-card">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-circle-half-stroke" style="color: var(--primary);"></i>
+                    <span style="font-size: 11px; font-weight: 800; color: var(--text-main); text-transform: uppercase;">Theme Mode</span>
+                </div>
+                <div class="theme-switch-pills">
+                    <button type="button" class="theme-pill-btn active" id="theme-pill-dark" onclick="setTheme('dark')" title="Dark Mode" aria-label="Dark Mode"><i class="fas fa-moon"></i></button>
+                    <button type="button" class="theme-pill-btn" id="theme-pill-light" onclick="setTheme('light')" title="Light Mode" aria-label="Light Mode"><i class="fas fa-sun"></i></button>
+                </div>
+            </div>
+            <div style="font-size: 10px; color: var(--text-sub); margin-top: 6px;" id="theme-status-text">Dark Mode active</div>
+        </div>
+
         <div class="offline-box">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <i class="fas fa-wifi-slash" style="color: var(--warning);"></i>
-                    <span style="font-size: 11px; font-weight: 800; color: white; text-transform: uppercase;">Offline Mode</span>
+                    <span style="font-size: 11px; font-weight: 800; color: var(--text-main); text-transform: uppercase;">Offline Mode</span>
                 </div>
                 <label class="switch"><input type="checkbox" id="offline-toggle" onchange="toggleOfflineMode()"><span class="slider"></span></label>
             </div>
@@ -324,23 +664,23 @@
 
     <!-- OPTIONAL CITIZEN CONTACT PREFERENCES MODAL -->
     <div id="profile-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:25000; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(8px);">
-        <div style="background:rgba(8,22,16,0.96); border:1px solid var(--glass-border); border-radius:24px; padding:24px; width:100%; max-width:400px; box-shadow:0 25px 60px rgba(0,0,0,0.85);">
+        <div style="background:var(--modal-bg); border:1px solid var(--glass-border); border-radius:24px; padding:24px; width:100%; max-width:400px; box-shadow:var(--shadow-modal);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                <h3 style="color:#fff; font-size:1.1rem; margin:0; display:flex; align-items:center; gap:8px;"><i class="fas fa-id-card" style="color:var(--primary);"></i> Contact Info (Optional)</h3>
+                <h3 style="color:var(--text-main); font-size:1.1rem; margin:0; display:flex; align-items:center; gap:8px;"><i class="fas fa-id-card" style="color:var(--primary);"></i> Contact Info (Optional)</h3>
                 <button onclick="closeProfileModal()" style="background:transparent; border:none; color:var(--text-sub); font-size:24px; cursor:pointer;">&times;</button>
             </div>
             <p style="font-size:11px; color:var(--text-sub); margin-bottom:14px; line-height:1.4;">GabayX is public. You do not need an account. You may optionally enter your name and phone number to help first responders identify and contact you during an emergency.</p>
             <div style="margin-bottom:12px;">
                 <label style="font-size:10px; font-weight:700; color:var(--text-sub); display:block; margin-bottom:4px; text-transform:uppercase;">Your Name / Nickname</label>
-                <input type="text" id="pref-name-input" placeholder="e.g. Juan Dela Cruz" style="width:100%; background:rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:10px; color:#fff; font-size:13px; box-sizing:border-box;">
+                <input type="text" id="pref-name-input" placeholder="e.g. Juan Dela Cruz" style="width:100%; background:var(--bg-input); border:1px solid var(--border-medium); border-radius:10px; padding:10px; color:var(--text-main); font-size:13px; box-sizing:border-box;">
             </div>
             <div style="margin-bottom:16px;">
                 <label style="font-size:10px; font-weight:700; color:var(--text-sub); display:block; margin-bottom:4px; text-transform:uppercase;">Contact Phone Number</label>
-                <input type="tel" id="pref-phone-input" placeholder="e.g. 0912-345-6789" style="width:100%; background:rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:10px; color:#fff; font-size:13px; box-sizing:border-box;">
+                <input type="tel" id="pref-phone-input" placeholder="e.g. 0912-345-6789" style="width:100%; background:var(--bg-input); border:1px solid var(--border-medium); border-radius:10px; padding:10px; color:var(--text-main); font-size:13px; box-sizing:border-box;">
             </div>
             <div style="display:flex; gap:8px;">
-                <button onclick="saveProfilePreferences()" style="flex:1; padding:12px; background:var(--primary); color:#010a07; font-weight:800; font-size:11px; border:none; border-radius:10px; text-transform:uppercase; cursor:pointer;">Save Details</button>
-                <button onclick="closeProfileModal()" style="padding:12px; background:rgba(255,255,255,0.06); color:#fff; font-weight:700; font-size:11px; border:1px solid rgba(255,255,255,0.1); border-radius:10px; text-transform:uppercase; cursor:pointer;">Cancel</button>
+                <button onclick="saveProfilePreferences()" style="flex:1; padding:12px; background:var(--primary); color:#ffffff; font-weight:800; font-size:11px; border:none; border-radius:10px; text-transform:uppercase; cursor:pointer;">Save Details</button>
+                <button onclick="closeProfileModal()" style="padding:12px; background:var(--bg-card); color:var(--text-main); font-weight:700; font-size:11px; border:1px solid var(--border-subtle); border-radius:10px; text-transform:uppercase; cursor:pointer;">Cancel</button>
             </div>
         </div>
     </div>
@@ -356,6 +696,10 @@
             <div class="status-dot" id="conn-dot" style="color: var(--primary);"></div>
             <span id="conn-text">CONNECTING</span>
             <span id="pending-reports-badge" style="display:none; background:var(--accent-orange); color:#000; font-size:9px; font-weight:800; border-radius:10px; padding:1px 6px; margin-left:4px;">0</span>
+            <button id="theme-toggle-header" class="theme-toggle-header-btn" onclick="toggleTheme()" aria-label="Toggle Light and Dark Mode" title="Toggle Theme">
+                <i class="fas fa-sun" id="theme-icon-sun" style="display:none;"></i>
+                <i class="fas fa-moon" id="theme-icon-moon"></i>
+            </button>
         </div>
     </header>
 
@@ -370,11 +714,34 @@
             <i class="fas fa-location-arrow" style="color: var(--primary); font-size: 18px;"></i>
             <div style="display: flex; flex-direction: column; line-height: 1.3;">
                 <div style="font-size: 9px; color: var(--text-sub); text-transform: uppercase; letter-spacing: 1px;">Navigating To Safety</div>
-                <div><span id="route-dist" style="color: white; font-weight: 700;">0m</span><span style="color: var(--text-sub); margin: 0 6px;">•</span><span id="route-time" style="color: var(--accent-cyan);">0 min</span></div>
+                <div><span id="route-dist" style="color: var(--text-main); font-weight: 700;">0m</span><span style="color: var(--text-sub); margin: 0 6px;">•</span><span id="route-time" style="color: var(--accent-cyan);">0 min</span></div>
             </div>
         </div>
 
         <div id="map-container"><div id="map"></div></div>
+
+        <!-- GOOGLE MAPS STYLE MAP CONTROLS -->
+        <div class="map-controls-cluster" role="toolbar" aria-label="Map Navigation Controls">
+            <button class="map-ctrl-btn" id="btn-recenter" onclick="centerOnCampus()" title="Center Campus" aria-label="Center Campus">
+                <i class="fas fa-school"></i>
+            </button>
+            <button class="map-ctrl-btn" id="btn-my-location" onclick="handleMyLocationClick()" title="Find My Location" aria-label="Find My Location">
+                <i class="fas fa-crosshairs" id="icon-my-location"></i>
+            </button>
+            <button class="map-ctrl-btn" id="btn-toggle-tracking" onclick="toggleLocationTracking()" title="Toggle Live Tracking" aria-label="Toggle Live Tracking">
+                <i class="fas fa-location-arrow"></i>
+            </button>
+            <button class="map-ctrl-btn" id="btn-map-layer" onclick="toggleMapLayerStyle()" title="Toggle Map Layer (Street/Dark/Satellite)" aria-label="Toggle Map Layer">
+                <i class="fas fa-layer-group"></i>
+            </button>
+            <div class="map-ctrl-divider"></div>
+            <button class="map-ctrl-btn" id="btn-zoom-in" onclick="if(map) map.zoomIn()" title="Zoom In" aria-label="Zoom In">
+                <i class="fas fa-plus"></i>
+            </button>
+            <button class="map-ctrl-btn" id="btn-zoom-out" onclick="if(map) map.zoomOut()" title="Zoom Out" aria-label="Zoom Out">
+                <i class="fas fa-minus"></i>
+            </button>
+        </div>
 
         <div id="offline-floating-tools" class="offline-toolbelt">
             <div id="tool-grip" class="drag-handle"></div>
@@ -486,11 +853,20 @@
         }
 
         window.onload = () => {
+            initTheme();
             initMap();
             initSocket();
             initUserIdentity();
             checkLogin();
             loadBuildingLabels();
+
+            // Responsive map recalculation
+            window.addEventListener('resize', () => {
+                if (map) map.invalidateSize();
+            });
+            window.addEventListener('orientationchange', () => {
+                setTimeout(() => { if (map) map.invalidateSize(); }, 200);
+            });
 
             // PWA Phase 1: Native online/offline status detection
             window.addEventListener('online', () => {
@@ -528,7 +904,15 @@
                 toggleOfflineMode(true); 
             }
 
-            activateGPS();
+            // Passive first-location resolution: updates position without forcing camera relocation
+            if ('geolocation' in navigator) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => { onLocationSuccess(pos, false); },
+                    () => {},
+                    { enableHighAccuracy: false, timeout: 6000, maximumAge: 60000 }
+                );
+            }
+
             setInterval(() => { if (!isOfflineMode) checkLogin(true); }, 30000);
         };
 
@@ -759,10 +1143,335 @@
             }
         }
 
+        // =====================================================================
+        // THEME SYSTEM (LIGHT & DARK MODE)
+        // =====================================================================
+        function initTheme() {
+            const saved = localStorage.getItem('gabayx_theme');
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const theme = saved || (prefersDark ? 'dark' : 'light');
+            setTheme(theme, false);
+
+            if (window.matchMedia) {
+                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+                    if (!localStorage.getItem('gabayx_theme')) {
+                        setTheme(e.matches ? 'dark' : 'light', false);
+                    }
+                });
+            }
+        }
+
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme') || 'dark';
+            const next = current === 'dark' ? 'light' : 'dark';
+            setTheme(next, true);
+        }
+
+        function setTheme(theme, save = true) {
+            document.documentElement.setAttribute('data-theme', theme);
+            if (theme === 'light') {
+                document.body.classList.add('light-mode');
+            } else {
+                document.body.classList.remove('light-mode');
+            }
+            if (save) {
+                localStorage.setItem('gabayx_theme', theme);
+            }
+            updateThemeUI(theme);
+            applyMapLayer(theme);
+        }
+
+        function updateThemeUI(theme) {
+            const isDark = theme === 'dark';
+            const sunIcon = document.getElementById('theme-icon-sun');
+            const moonIcon = document.getElementById('theme-icon-moon');
+            const statusText = document.getElementById('theme-status-text');
+            const pillDark = document.getElementById('theme-pill-dark');
+            const pillLight = document.getElementById('theme-pill-light');
+
+            if (sunIcon && moonIcon) {
+                sunIcon.style.display = isDark ? 'inline-block' : 'none';
+                moonIcon.style.display = isDark ? 'none' : 'inline-block';
+            }
+            if (statusText) {
+                statusText.innerText = isDark ? 'Dark Mode active' : 'Light Mode active';
+            }
+            if (pillDark && pillLight) {
+                pillDark.classList.toggle('active', isDark);
+                pillLight.classList.toggle('active', !isDark);
+            }
+        }
+
+        // =====================================================================
+        // MAP TILE LAYERS (LIGHT, DARK, SATELLITE)
+        // ===================================        const MAP_LAYERS = {
+            street: {
+                url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                options: {
+                    maxZoom: 19,
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
+                    className: 'map-tiles-street'
+                }
+            },
+            light: {
+                url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                options: {
+                    maxZoom: 19,
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
+                    className: 'map-tiles-street'
+                }
+            },
+            dark: {
+                url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                options: {
+                    maxZoom: 19,
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
+                    className: 'map-tiles-street'
+                }
+            },
+            satellite: {
+                url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                options: {
+                    maxZoom: 19,
+                    attribution: 'Tiles &copy; Esri',
+                    className: 'map-tiles-satellite'
+                }
+            }
+        };
+
+        let currentMapTileLayer = null;
+        let currentLayerMode = 'street'; // 'street' (auto adapts via CSS) or 'satellite'
+
+        function applyMapLayer(theme) {
+            if (!map) return;
+            const targetTheme = theme || document.documentElement.getAttribute('data-theme') || 'dark';
+            const layerKey = (currentLayerMode === 'satellite') ? 'satellite' : 'street';
+            const config = MAP_LAYERS[layerKey];
+
+            if (!currentMapTileLayer || currentMapTileLayer._layerKey !== layerKey) {
+                if (currentMapTileLayer) {
+                    map.removeLayer(currentMapTileLayer);
+                }
+                currentMapTileLayer = L.tileLayer(config.url, config.options).addTo(map);
+                currentMapTileLayer._layerKey = layerKey;
+                if (currentMapTileLayer.bringToBack) {
+                    currentMapTileLayer.bringToBack();
+                }
+            }
+
+            const layerBtn = document.getElementById('btn-map-layer');
+            if (layerBtn) {
+                layerBtn.title = (currentLayerMode === 'satellite') ? "Map Layer: Satellite (Click for Street Map)" : `Map Layer: Street Map (${targetTheme === 'light' ? 'Light' : 'Dark'} Mode, Click for Satellite)`;
+            }
+        }
+
+        function toggleMapLayerStyle() {
+            if (currentLayerMode === 'satellite') {
+                currentLayerMode = 'street';
+                const theme = document.documentElement.getAttribute('data-theme') || 'dark';
+                showToast(theme === 'light' ? "🗺️ Street Map Enabled (Light)" : "🗺️ Street Map Enabled (Dark)");
+            } else {
+                currentLayerMode = 'satellite';
+                showToast("🛰️ Satellite Imagery Enabled");
+            }
+            applyMapLayer();
+        }         }
+            applyMapLayer();
+        }
+
         function initMap() {
             map = L.map("map", { zoomControl: false, attributionControl: false }).setView([7.1002, 124.824], 19);
-            L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}").addTo(map);
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+            applyMapLayer(currentTheme);
             map.on("zoomend", function () { if (typeof updateLabels === "function") { updateLabels(); } });
+        }
+
+        // =====================================================================
+        // GOOGLE MAPS STYLE GEOLOCATION & USER LOCATION MARKER
+        // =====================================================================
+        let userLocationMarker = null;
+        let userAccuracyCircle = null;
+        let isLocating = false;
+        let locationWatchId = null;
+
+        function createGoogleMapsLocationIcon() {
+            return L.divIcon({
+                className: 'user-location-pin-container',
+                html: `
+                    <div class="user-location-pin" title="Your Location">
+                        <div class="user-location-pulse"></div>
+                        <div class="user-location-dot"></div>
+                    </div>
+                `,
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
+        }
+
+        function handleMyLocationClick() {
+            if (isLocating) return;
+
+            if (!('geolocation' in navigator)) {
+                showToast("⚠️ Geolocation is not supported by your browser");
+                return;
+            }
+
+            isLocating = true;
+            const locBtn = document.getElementById('btn-my-location');
+            const locIcon = document.getElementById('icon-my-location');
+            if (locIcon) locIcon.className = 'fas fa-spinner fa-spin';
+            if (locBtn) locBtn.classList.add('locating');
+
+            showToast("📍 Finding your location...");
+
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    isLocating = false;
+                    if (locIcon) locIcon.className = 'fas fa-crosshairs';
+                    if (locBtn) {
+                        locBtn.classList.remove('locating');
+                        locBtn.classList.add('active');
+                        setTimeout(() => locBtn.classList.remove('active'), 2500);
+                    }
+                    onLocationSuccess(pos, true);
+                },
+                (err) => {
+                    isLocating = false;
+                    if (locIcon) locIcon.className = 'fas fa-crosshairs';
+                    if (locBtn) locBtn.classList.remove('locating');
+                    onLocationError(err);
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 30000
+                }
+            );
+        }
+
+        function onLocationSuccess(position, centerMap = false) {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            const accuracy = position.coords.accuracy || 15;
+            const latlng = new L.LatLng(lat, lng);
+
+            // 1. Circular Accuracy Indicator
+            if (userAccuracyCircle) {
+                userAccuracyCircle.setLatLng(latlng);
+                userAccuracyCircle.setRadius(accuracy);
+            } else {
+                userAccuracyCircle = L.circle(latlng, {
+                    radius: accuracy,
+                    color: '#2563eb',
+                    weight: 1.5,
+                    fillColor: '#3b82f6',
+                    fillOpacity: 0.12
+                }).addTo(map);
+            }
+
+            // 2. Google Maps Style Marker
+            if (userLocationMarker) {
+                userLocationMarker.setLatLng(latlng);
+            } else {
+                userLocationMarker = L.marker(latlng, {
+                    icon: createGoogleMapsLocationIcon(),
+                    zIndexOffset: 1000
+                }).addTo(map);
+
+                userLocationMarker.bindPopup(`
+                    <div style="font-family:var(--font-ui); font-size:12px; padding:4px;">
+                        <strong style="color:#2563eb; display:flex; align-items:center; gap:6px;">
+                            <i class="fas fa-crosshairs"></i> Your Current Location
+                        </strong>
+                        <div style="font-family:var(--font-data); font-size:10px; margin-top:4px; color:var(--text-sub);">
+                            ${lat.toFixed(5)}, ${lng.toFixed(5)}
+                        </div>
+                        <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">
+                            Accuracy: ±${Math.round(accuracy)}m
+                        </div>
+                    </div>
+                `);
+            }
+
+            // Keep userMarker aligned for existing GabayX dependencies
+            userMarker = userLocationMarker;
+
+            // 3. Update nearest campus zone
+            findNearestBuilding(latlng);
+
+            // 4. Update route if currently navigating
+            if (activeDestination) {
+                drawPath(latlng, activeDestination);
+            }
+
+            // 5. Center map if requested
+            if (centerMap) {
+                const currentZoom = map.getZoom();
+                const targetZoom = Math.max(currentZoom, 17);
+                map.flyTo(latlng, targetZoom, { duration: 1.2 });
+
+                const isOffline = !navigator.onLine || isOfflineMode;
+                if (isOffline) {
+                    showToast(`📍 Offline GPS position acquired (±${Math.round(accuracy)}m)`);
+                } else {
+                    showToast(`📍 Centered on your location (±${Math.round(accuracy)}m)`);
+                }
+            }
+        }
+
+        function onLocationError(error) {
+            let msg = "Could not retrieve location.";
+            switch (error.code) {
+                case 1: // PERMISSION_DENIED
+                    msg = "Location permission denied. Please allow location access in your browser or device settings.";
+                    break;
+                case 2: // POSITION_UNAVAILABLE
+                    msg = "Position unavailable. Device GPS could not determine your position. (If offline, ensure GPS is enabled with a clear sky view).";
+                    break;
+                case 3: // TIMEOUT
+                    msg = "Location request timed out. Please check signal and try again.";
+                    break;
+                default:
+                    msg = error.message ? `Location error: ${error.message}` : "Device location could not be determined.";
+            }
+            showToast("⚠️ " + msg);
+        }
+
+        function centerOnCampus() {
+            if (!map) return;
+            map.flyTo([7.1002, 124.824], 19, { duration: 1 });
+            showToast("🏫 Centered on Campus");
+        }
+
+        function toggleLocationTracking() {
+            const btn = document.getElementById("btn-toggle-tracking");
+            if (locationWatchId !== null) {
+                navigator.geolocation.clearWatch(locationWatchId);
+                locationWatchId = null;
+                if (btn) btn.classList.remove("tracking-active");
+                showToast("📍 Live Tracking Stopped");
+            } else {
+                if (!('geolocation' in navigator)) {
+                    showToast("⚠️ Geolocation is not supported by your browser");
+                    return;
+                }
+                showToast("📍 Live Tracking Active");
+                if (btn) btn.classList.add("tracking-active");
+                locationWatchId = navigator.geolocation.watchPosition(
+                    (pos) => {
+                        onLocationSuccess(pos, false);
+                    },
+                    (err) => {
+                        onLocationError(err);
+                        if (btn) btn.classList.remove("tracking-active");
+                        if (locationWatchId !== null) {
+                            navigator.geolocation.clearWatch(locationWatchId);
+                            locationWatchId = null;
+                        }
+                    },
+                    { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
+                );
+            }
         }
 
         function initSocket() {
@@ -1039,16 +1748,7 @@
         function logoutUser() { window.location.href = "/logout"; }
 
         function activateGPS() {
-            if (navigator.geolocation) {
-                navigator.geolocation.watchPosition((pos) => {
-                    const lat = pos.coords.latitude, lng = pos.coords.longitude; const newLatLng = new L.LatLng(lat, lng);
-                    if (!userMarker) { userMarker = L.circleMarker(newLatLng, { radius: 7, color: "var(--primary)", fillColor: "var(--bg-base)", fillOpacity: 1, weight: 3 }).addTo(map); map.setView(newLatLng, 19); } 
-                    else { userMarker.setLatLng(newLatLng); }
-                    findNearestBuilding(newLatLng);
-                    if (activeDestination) { drawPath(newLatLng, activeDestination); }
-                    if (socket && studentEmail && !isOfflineMode) { socket.emit("student-status", { id: studentEmail, lat: lat, lng: lng, status: currentStatus }); }
-                }, null, { enableHighAccuracy: true });
-            }
+            toggleLocationTracking();
         }
 
         function updateStatus(online) {

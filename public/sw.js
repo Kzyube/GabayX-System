@@ -3,9 +3,9 @@
 // Progressive Web App (PWA) Foundation & Emergency Alert Service
 // ==============================================================================
 
-const CACHE_NAME = 'gabayx-shell-v1';
-const RUNTIME_CACHE = 'gabayx-runtime-v1';
-const TILE_CACHE = 'gabayx-tiles-v1';
+const CACHE_NAME = 'gabayx-shell-v2';
+const RUNTIME_CACHE = 'gabayx-runtime-v2';
+const TILE_CACHE = 'gabayx-tiles-v3';
 
 // Application Shell & Critical Static Resources (Pre-cached on Install)
 const STATIC_ASSETS = [
@@ -158,8 +158,8 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Strategy B: Map Tile Imagery (Esri & OpenStreetMap tiles)
-    // Cache-First with network fallback. During Phase 1, tiles are cached if fetched online.
+    // Strategy B: Map Tile Imagery (OpenStreetMap & Esri Satellite tiles)
+    // Cache-First with network fallback. Tiles are cached if fetched online.
     if (url.hostname.includes('tile.openstreetmap.org') || (url.hostname.includes('arcgisonline.com') && url.pathname.includes('/tile/'))) {
         event.respondWith(
             caches.open(TILE_CACHE).then((cache) => {

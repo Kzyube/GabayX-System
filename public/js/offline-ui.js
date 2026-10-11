@@ -22,7 +22,7 @@
         container.innerHTML = `
         <style>
             .gx-modal-backdrop {
-                position: fixed; inset: 0; background: rgba(0, 0, 0, 0.82);
+                position: fixed; inset: 0; background: rgba(0, 0, 0, 0.75);
                 backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
                 z-index: 25000; display: none; align-items: center; justify-content: center;
                 padding: 16px;
@@ -30,28 +30,29 @@
             .gx-modal-backdrop.active { display: flex; animation: gxFadeIn 0.25s ease-out; }
 
             .gx-modal-card {
-                background: rgba(8, 22, 16, 0.96);
+                background: var(--modal-bg, rgba(8, 22, 16, 0.96));
                 border: 1px solid var(--glass-border, rgba(16, 185, 129, 0.3));
                 border-radius: 24px; padding: 24px; width: 100%; max-width: 480px;
-                box-shadow: 0 25px 60px rgba(0,0,0,0.85), 0 0 30px rgba(16, 185, 129, 0.12);
+                box-shadow: var(--shadow-modal, 0 25px 60px rgba(0,0,0,0.85));
                 max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;
+                color: var(--text-main, #fff);
             }
 
             .gx-modal-header {
                 display: flex; justify-content: space-between; align-items: center;
-                padding-bottom: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+                padding-bottom: 14px; border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
                 margin-bottom: 16px; flex-shrink: 0;
             }
             .gx-modal-title {
                 font-size: 1.25rem; font-weight: 800; text-transform: uppercase;
                 letter-spacing: 0.5px; margin: 0; display: flex; align-items: center; gap: 10px;
-                color: #fff;
+                color: var(--text-main, #fff);
             }
             .gx-modal-close {
                 background: transparent; border: none; color: var(--text-sub, #94a3b8);
                 font-size: 24px; cursor: pointer; padding: 4px; line-height: 1; transition: 0.2s;
             }
-            .gx-modal-close:hover { color: #fff; }
+            .gx-modal-close:hover { color: var(--primary, #10b981); }
 
             .gx-modal-body {
                 overflow-y: auto; flex: 1; padding-right: 4px;
@@ -66,21 +67,24 @@
                 display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px;
             }
             .gx-type-btn {
-                background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08);
+                background: var(--bg-input, rgba(255, 255, 255, 0.04));
+                border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
                 color: var(--text-sub, #94a3b8); border-radius: 12px; padding: 10px 4px;
                 font-size: 11px; font-weight: 700; cursor: pointer; display: flex;
                 flex-direction: column; align-items: center; gap: 6px; transition: 0.2s;
             }
             .gx-type-btn i { font-size: 16px; }
             .gx-type-btn.selected {
-                background: rgba(16, 185, 129, 0.15); border-color: var(--primary, #10b981);
-                color: #fff; box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+                background: var(--primary-light, rgba(16, 185, 129, 0.15));
+                border-color: var(--primary, #10b981);
+                color: var(--primary, #10b981);
+                box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
             }
 
             .gx-input, .gx-textarea {
-                width: 100%; background: rgba(0, 0, 0, 0.5);
-                border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px;
-                padding: 12px 14px; color: #fff; font-family: var(--font-ui, sans-serif);
+                width: 100%; background: var(--bg-input, rgba(0, 0, 0, 0.5));
+                border: 1px solid var(--border-medium, rgba(255, 255, 255, 0.1)); border-radius: 12px;
+                padding: 12px 14px; color: var(--text-main, #fff); font-family: var(--font-ui, sans-serif);
                 font-size: 13px; outline: none; margin-bottom: 14px; transition: 0.2s; box-sizing: border-box;
             }
             .gx-input:focus, .gx-textarea:focus {
@@ -88,10 +92,12 @@
             }
 
             .gx-loc-card {
-                background: rgba(16, 185, 129, 0.05); border: 1px solid var(--glass-border, rgba(16, 185, 129, 0.2));
+                background: var(--primary-light, rgba(16, 185, 129, 0.05));
+                border: 1px solid var(--glass-border, rgba(16, 185, 129, 0.2));
                 border-radius: 12px; padding: 10px 14px; margin-bottom: 14px;
                 display: flex; align-items: center; justify-content: space-between;
                 font-family: var(--font-data, monospace); font-size: 11px;
+                color: var(--text-main, #fff);
             }
 
             .gx-photo-preview {
@@ -102,33 +108,35 @@
 
             .gx-btn-primary {
                 width: 100%; padding: 14px; background: var(--primary, #10b981);
-                color: #010a07; border: none; border-radius: 12px; font-weight: 800;
+                color: #ffffff; border: none; border-radius: 12px; font-weight: 800;
                 font-size: 12px; text-transform: uppercase; letter-spacing: 1px;
                 cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
             }
             .gx-btn-primary:active { transform: scale(0.98); }
 
             .gx-btn-secondary {
-                width: 100%; padding: 12px; background: rgba(255, 255, 255, 0.05);
-                color: #fff; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px;
+                width: 100%; padding: 12px; background: var(--bg-card, rgba(255, 255, 255, 0.05));
+                color: var(--text-main, #fff); border: 1px solid var(--border-medium, rgba(255, 255, 255, 0.1)); border-radius: 12px;
                 font-weight: 700; font-size: 11px; text-transform: uppercase; cursor: pointer;
                 transition: 0.2s; margin-top: 8px;
             }
 
             .gx-report-item {
-                background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255, 255, 255, 0.08);
+                background: var(--bg-card, rgba(0, 0, 0, 0.45));
+                border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
                 border-radius: 14px; padding: 14px; margin-bottom: 12px; transition: 0.2s;
+                color: var(--text-main, #fff);
             }
-            .gx-report-item:hover { border-color: rgba(255, 255, 255, 0.18); }
+            .gx-report-item:hover { border-color: var(--primary, #10b981); }
 
             .gx-status-pill {
                 padding: 4px 8px; border-radius: 6px; font-size: 9px; font-weight: 800;
                 letter-spacing: 0.5px; text-transform: uppercase; font-family: var(--font-data, monospace);
             }
-            .gx-pill-pending { background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid #f59e0b; }
-            .gx-pill-syncing { background: rgba(0, 240, 255, 0.15); color: #00f0ff; border: 1px solid #00f0ff; }
-            .gx-pill-synced  { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid #10b981; }
-            .gx-pill-failed  { background: rgba(255, 42, 95, 0.15); color: #ff2a5f; border: 1px solid #ff2a5f; }
+            .gx-pill-pending { background: rgba(245, 158, 11, 0.15); color: #d97706; border: 1px solid #d97706; }
+            .gx-pill-syncing { background: rgba(0, 240, 255, 0.15); color: #0284c7; border: 1px solid #0284c7; }
+            .gx-pill-synced  { background: rgba(16, 185, 129, 0.15); color: #059669; border: 1px solid #059669; }
+            .gx-pill-failed  { background: rgba(255, 42, 95, 0.15); color: #dc2626; border: 1px solid #dc2626; }
 
             @keyframes gxFadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
         </style>
@@ -166,7 +174,7 @@
                     <span class="gx-form-label">Location Telemetry</span>
                     <div class="gx-loc-card">
                         <div>
-                            <span id="gx-loc-coords" style="color:#fff;">Acquiring GPS...</span>
+                            <span id="gx-loc-coords" style="color:var(--text-main, #fff);">Acquiring GPS...</span>
                             <div id="gx-loc-building" style="font-size:10px; color:var(--primary); margin-top:2px;">Scanning zone...</div>
                         </div>
                         <button type="button" onclick="GabayXOfflineUI.refreshLocation()" style="background:transparent; border:none; color:var(--text-sub); cursor:pointer;" title="Refresh GPS">
@@ -450,13 +458,13 @@
             <div class="gx-report-item">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
                     <div>
-                        <strong style="color:#fff; font-size:13px; text-transform:uppercase;">${r.incidentType || r.incident_type || 'INCIDENT'}</strong>
-                        <div style="font-family:var(--font-data, monospace); font-size:9px; color:var(--text-sub); margin-top:2px;">ID: ${r.id.substring(0, 16)}... • ${timeStr}</div>
+                        <strong style="color:var(--text-main, #fff); font-size:13px; text-transform:uppercase;">${r.incidentType || r.incident_type || 'INCIDENT'}</strong>
+                        <div style="font-family:var(--font-data, monospace); font-size:9px; color:var(--text-sub, #94a3b8); margin-top:2px;">ID: ${r.id.substring(0, 16)}... • ${timeStr}</div>
                     </div>
                     ${getPill(r.status)}
                 </div>
-                <div style="font-size:12px; color:#cbd5e1; line-height:1.4; margin-bottom:8px;">"${r.description}"</div>
-                <div style="display:flex; justify-content:space-between; align-items:center; font-family:var(--font-data, monospace); font-size:10px; color:var(--text-sub); border-top:1px solid rgba(255,255,255,0.05); padding-top:6px;">
+                <div style="font-size:12px; color:var(--text-sub, #cbd5e1); line-height:1.4; margin-bottom:8px;">"${r.description}"</div>
+                <div style="display:flex; justify-content:space-between; align-items:center; font-family:var(--font-data, monospace); font-size:10px; color:var(--text-sub, #94a3b8); border-top:1px solid var(--border-subtle, rgba(255,255,255,0.05)); padding-top:6px;">
                     <span><i class="fas fa-location-dot" style="color:var(--primary);"></i> ${r.nearest_building || 'Campus'}</span>
                     ${r.syncedAt ? `<span style="color:#10b981;"><i class="fas fa-check-double"></i> Synced</span>` : (r.retryCount > 0 ? `<span style="color:#f59e0b;">Retried: ${r.retryCount}x</span>` : '')}
                 </div>

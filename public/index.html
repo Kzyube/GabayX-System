@@ -17,7 +17,7 @@
     </script>
     <script src="/js/pwa.js"></script>
     <style>
-        :root {
+        :root, [data-theme="dark"] {
             --base-bg: #020806;
             --surface: rgba(12, 24, 18, 0.45);
             --surface-hover: rgba(20, 35, 27, 0.6);
@@ -29,6 +29,20 @@
             --accent-cyan: #00f0ff;
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
+        }
+
+        [data-theme="light"], body.light-mode {
+            --base-bg: #f8fafc;
+            --surface: rgba(255, 255, 255, 0.94);
+            --surface-hover: rgba(255, 255, 255, 1);
+            --border-subtle: rgba(15, 23, 42, 0.1);
+            --border-highlight: rgba(5, 150, 105, 0.4);
+            --emerald-500: #059669;
+            --emerald-400: #047857;
+            --emerald-600: #065f46;
+            --accent-cyan: #0284c7;
+            --text-main: #0f172a;
+            --text-muted: #475569;
         }
 
         * {

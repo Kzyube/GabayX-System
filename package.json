@@ -5,6 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start": "node server.js",
+    "dev": "node server.js",
+    "build": "node -e \"console.log('GabayX uses native web standards (HTML/CSS/JS). No build step required.')\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

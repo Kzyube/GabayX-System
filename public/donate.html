@@ -13,8 +13,18 @@
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
     <script src="/js/pwa.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+    <script>
+        (function() {
+            try {
+                var saved = localStorage.getItem('gabayx_theme');
+                var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                var theme = saved || (prefersDark ? 'dark' : 'light');
+                document.documentElement.setAttribute('data-theme', theme);
+            } catch (e) {}
+        })();
+    </script>
     <style>
-        :root {
+        :root, [data-theme="dark"] {
             --base-bg: #020504;
             --surface: rgba(10, 20, 16, 0.6);
             --surface-light: rgba(16, 185, 129, 0.05);
@@ -28,6 +38,27 @@
             --text-muted: #94a3b8;
             --font-ui: 'Outfit', sans-serif;
             --font-data: 'Space Mono', monospace;
+        }
+
+        [data-theme="light"], body.light-mode {
+            --base-bg: #f8fafc;
+            --surface: rgba(255, 255, 255, 0.92);
+            --surface-light: rgba(5, 150, 105, 0.08);
+            --border-subtle: rgba(15, 23, 42, 0.12);
+            --border-highlight: rgba(2, 132, 199, 0.5);
+            --emerald-400: #059669;
+            --emerald-500: #047857;
+            --emerald-600: #065f46;
+            --accent-cyan: #0284c7;
+            --text-main: #0f172a;
+            --text-muted: #475569;
+        }
+
+        [data-theme="light"] .mesh-bg {
+            background: #f1f5f9;
+        }
+        [data-theme="light"] .mesh-blob {
+            opacity: 0.18;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--font-ui); }

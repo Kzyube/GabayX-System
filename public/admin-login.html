@@ -10,8 +10,18 @@
     <meta name="theme-color" content="#020806">
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
     <script src="/js/pwa.js"></script>
+    <script>
+        (function() {
+            try {
+                var saved = localStorage.getItem('gabayx_theme');
+                var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                var theme = saved || (prefersDark ? 'dark' : 'light');
+                document.documentElement.setAttribute('data-theme', theme);
+            } catch (e) {}
+        })();
+    </script>
     <style>
-        :root {
+        :root, [data-theme="dark"] {
             --base-bg: #020806;
             --surface: rgba(12, 24, 18, 0.6);
             --border-subtle: rgba(255, 255, 255, 0.1);
@@ -24,6 +34,25 @@
             --danger: #ff2a5f;
             --font-ui: 'Outfit', sans-serif;
             --font-data: 'Space Mono', monospace;
+        }
+
+        [data-theme="light"], body.light-mode {
+            --base-bg: #f8fafc;
+            --surface: rgba(255, 255, 255, 0.94);
+            --border-subtle: rgba(15, 23, 42, 0.1);
+            --border-highlight: rgba(5, 150, 105, 0.4);
+            --emerald-500: #059669;
+            --emerald-400: #047857;
+            --accent-cyan: #0284c7;
+            --text-main: #0f172a;
+            --text-muted: #475569;
+        }
+
+        [data-theme="light"] .mesh-bg {
+            background: #f1f5f9;
+        }
+        [data-theme="light"] .mesh-blob {
+            opacity: 0.15;
         }
 
         * {
