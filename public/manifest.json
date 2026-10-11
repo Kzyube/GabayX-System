@@ -1,0 +1,32 @@
+{
+  "name": "GabayX | Campus Emergency Response",
+  "short_name": "GabayX",
+  "description": "Offline-first campus emergency response, incident reporting, and evacuation routing platform.",
+  "start_url": "/student.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#010a07",
+  "theme_color": "#061912",
+  "categories": ["utilities", "safety", "emergency"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

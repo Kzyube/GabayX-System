@@ -170,6 +170,66 @@ app.get('/api/me', (req, res) => {
     }
 });
 
+// Deduplication sets for offline reports and sync events
+const processedReportIds = new Set();
+const processedSyncHashes = new Set();
+
+// HEALTH CHECK ENDPOINT (Active connectivity verification for PWA)
+app.get('/api/health', (req, res) => {
+    res.status(200).json({ ok: true, status: 'operational', timestamp: new Date().toISOString() });
+});
+
+// EMERGENCY INCIDENT REPORT SUBMISSION (Offline-first & Online reports)
+app.post('/api/reports/submit', async (req, res) => {
+    const report = req.body;
+    if (!report || !report.id) {
+        return res.status(400).json({ error: "Missing report id" });
+    }
+
+    // Deduplication: prevent duplicate processing on retries
+    if (processedReportIds.has(report.id)) {
+        console.log(`[DEDUP] Report ${report.id} already processed. Acknowledging client.`);
+        return res.status(200).json({ status: 'success', duplicate: true, id: report.id });
+    }
+    processedReportIds.add(report.id);
+    if (processedReportIds.size > 2000) {
+        const oldest = processedReportIds.values().next().value;
+        processedReportIds.delete(oldest);
+    }
+
+    console.log(`[REPORT] Received emergency report ${report.id} (${report.incident_type}) from ${report.student_id}`);
+
+    // Broadcast rich incident report to admin dashboard via Socket.io
+    io.emit('admin-receive-report', report);
+
+    // If location exists, update telemetry and pin on map
+    if (report.lat && report.lng) {
+        io.emit('admin-dashboard-update', {
+            id: report.student_id,
+            status: 'DANGER',
+            lat: report.lat,
+            lng: report.lng,
+            incidentType: report.incident_type
+        });
+    }
+
+    // Persist to Supabase sos_messages
+    try {
+        const formattedMsg = `[${report.incident_type}]: ${report.description || 'Emergency reported'} (${report.nearest_building || 'Campus'})`;
+        await supabase.from('sos_messages').insert([{
+            student_id: report.student_id || 'anonymous',
+            message: formattedMsg,
+            is_critical: true,
+            replied: false,
+            created_at: report.timestamp || new Date().toISOString()
+        }]);
+    } catch (dbErr) {
+        console.error('[REPORT DB ERROR]:', dbErr);
+    }
+
+    res.status(200).json({ status: 'success', id: report.id, receivedAt: new Date().toISOString() });
+});
+
 app.post('/api/sync', async (req, res) => {
     const { id, logs } = req.body;
     
@@ -180,12 +240,22 @@ app.post('/api/sync', async (req, res) => {
     console.log(`[SYNC] Receiving ${logs.length} offline logs from ${id}`);
 
     for (const log of logs) {
-        if (log.type === 'NOTE') {
-            io.emit('admin-receive-note', { id: id, message: `[OFFLINE]: ${log.content}` });
-        } else if (log.type === 'STATUS') {
-            io.emit('admin-dashboard-update', { id: id, status: log.content, lat: log.lat, lng: log.lng });
+        const logHash = `${id}-${log.type}-${log.timestamp || ''}-${log.content}`;
+        if (!processedSyncHashes.has(logHash)) {
+            processedSyncHashes.add(logHash);
+            if (processedSyncHashes.size > 3000) {
+                const oldest = processedSyncHashes.values().next().value;
+                processedSyncHashes.delete(oldest);
+            }
+
+            if (log.type === 'NOTE') {
+                io.emit('admin-receive-note', { id: id, message: `[OFFLINE]: ${log.content}` });
+            } else if (log.type === 'STATUS') {
+                io.emit('admin-dashboard-update', { id: id, status: log.content, lat: log.lat, lng: log.lng });
+            }
         }
     }
+
     io.emit('admin-sync-report', {
         id: id,
         logs: logs,

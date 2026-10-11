@@ -11,7 +11,13 @@
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="/icons/icon-192.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#050505" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="GabayX" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
 
     <style>
         :root {
@@ -525,6 +531,9 @@
             initSocket();
             fetchStudentRoster();
             loadSavedMessages();
+            if ("serviceWorker" in navigator) {
+                navigator.serviceWorker.register("/sw.js").catch((err) => console.error("SW Failed:", err));
+            }
             setInterval(() => fetchStudentRoster(), 15000);
             setInterval(() => document.getElementById("live-clock").innerText = new Date().toLocaleTimeString(), 1000);
         };
@@ -793,6 +802,44 @@
                     </div>`;
                 feed.insertAdjacentHTML("afterbegin", reportHTML);
                 if (data.logs.length > 1) drawGhostPath(data.logs);
+            });
+
+            socket.on("admin-receive-report", (report) => {
+                const list = document.getElementById("list-danger");
+                if (!list) return;
+
+                const item = document.createElement("div");
+                const tempId = `rep-${Date.now()}`;
+                item.className = "intercept-card urgent-card";
+                item.id = tempId;
+
+                const photoHTML = report.attachment ? `
+                    <div style="margin: 8px 0;">
+                        <img src="${report.attachment}" alt="Incident attachment" style="width: 100%; max-height: 140px; object-fit: cover; border-radius: 8px; border: 1px solid var(--glass-border); cursor: pointer;" onclick="window.open(this.src)">
+                    </div>` : '';
+
+                const locText = report.lat && report.lng ? `${report.lat.toFixed(5)}, ${report.lng.toFixed(5)} (${report.nearest_building || 'Campus'})` : (report.nearest_building || 'Location unknown');
+
+                item.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
+                        <div>
+                            <span class="sos-badge">${report.incident_type || 'EMERGENCY'}</span>
+                            <span style="font-family:var(--font-data); font-size:0.8rem; color:var(--accent-cyan); margin-left:6px;">${report.student_name || 'Student'} (${report.student_id || 'ID'})</span>
+                        </div>
+                        <small class="data-mono" style="font-size:9px;">${report.id ? report.id.substring(0, 10) : 'JUST NOW'}</small>
+                    </div>
+                    <div style="color:var(--text-main); font-size: 0.85rem; line-height: 1.4; margin-bottom: 6px; font-weight:600;">"${report.description || 'Emergency incident reported'}"</div>
+                    <div style="font-size:10px; color:var(--text-dim); margin-bottom:6px;"><i class="fas fa-location-dot" style="color:var(--accent-red);"></i> ${locText}</div>
+                    ${photoHTML}
+                    <button id="btn-${tempId}" onclick="replyTo('${report.student_id}', '${tempId}')" style="background: var(--btn-glass); border: 1px solid var(--glass-border); color: var(--text-main); font-size:9px; font-weight:800; font-family:var(--font-ui); padding:6px 10px; border-radius:6px; cursor:pointer; transition: 0.3s; width:100%; text-transform:uppercase; letter-spacing:1px;">Reply to Student</button>`;
+
+                list.prepend(item);
+
+                if (report.lat && report.lng && map) {
+                    map.flyTo([report.lat, report.lng], 18, { animate: true, duration: 1.5 });
+                }
+
+                new Audio("https://image2url.com/r2/default/audio/1770035478181-9daca647-30be-478d-bef0-2700b5dfcbdd.mp3").play().catch(() => {});
             });
         }
 
