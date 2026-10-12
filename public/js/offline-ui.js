@@ -226,6 +226,28 @@
                     </button>
                     <img id="gx-photo-preview" class="gx-photo-preview" alt="Attachment preview">
 
+                    <div class="gx-reporter-section" style="margin-top:12px; margin-bottom:12px; background:var(--bg-input, rgba(0,0,0,0.3)); border:1px solid var(--border-medium, rgba(255,255,255,0.1)); border-radius:8px; padding:10px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                            <span class="gx-form-label" style="margin:0; font-size:10px; font-weight:800; color:var(--text-main); display:flex; align-items:center; gap:5px;">
+                                <i class="fas fa-id-card-clip" style="color:var(--primary);"></i> Reporter Details (Optional)
+                            </span>
+                            <span style="font-size:9px; color:var(--text-sub); font-family:var(--font-data);">Prefilled from My Info</span>
+                        </div>
+                        <p style="font-size:10px; color:var(--text-sub); margin-bottom:8px; line-height:1.35;">
+                            Review or edit your contact details below. You can leave fields empty to submit anonymously.
+                        </p>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                            <div>
+                                <label for="gx-report-name" style="display:block; font-size:8.5px; font-weight:700; color:var(--text-sub); text-transform:uppercase; margin-bottom:3px;">Your Name</label>
+                                <input type="text" id="gx-report-name" class="gx-input" placeholder="e.g. Juan Dela Cruz" style="width:100%; box-sizing:border-box; padding:7px 9px; font-size:11px; background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:6px; color:var(--text-main);">
+                            </div>
+                            <div>
+                                <label for="gx-report-phone" style="display:block; font-size:8.5px; font-weight:700; color:var(--text-sub); text-transform:uppercase; margin-bottom:3px;">Contact Number</label>
+                                <input type="tel" id="gx-report-phone" class="gx-input" placeholder="e.g. 0912-345-6789" style="width:100%; box-sizing:border-box; padding:7px 9px; font-size:11px; background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:6px; color:var(--text-main);">
+                            </div>
+                        </div>
+                    </div>
+
                     <button type="button" id="gx-btn-submit-report" class="gx-btn-primary" onclick="GabayXOfflineUI.submitReport()">
                         <i class="fas fa-paper-plane"></i> Submit Emergency Report
                     </button>
@@ -354,6 +376,24 @@
     function openReportModal() {
         injectOfflineUI();
         refreshLocation();
+
+        // Prefill contact details from My Information (or local identity)
+        let reporterName = '';
+        let contactPhone = '';
+        if (global.GabayXMyInfo && typeof global.GabayXMyInfo.getProfile === 'function') {
+            const p = global.GabayXMyInfo.getProfile();
+            reporterName = p.fullName || '';
+            contactPhone = p.contactNumber || '';
+        } else {
+            reporterName = localStorage.getItem('knhs_student_name') || '';
+            contactPhone = localStorage.getItem('knhs_student_phone') || '';
+        }
+
+        const nameInput = document.getElementById('gx-report-name');
+        const phoneInput = document.getElementById('gx-report-phone');
+        if (nameInput) nameInput.value = reporterName;
+        if (phoneInput) phoneInput.value = contactPhone;
+
         document.getElementById('gx-report-modal').classList.add('active');
     }
 
@@ -500,6 +540,20 @@
         const nearestBuilding = locBldgEl ? locBldgEl.innerText : 'Campus Zone';
         const submitBtn = document.getElementById('gx-btn-submit-report');
 
+        const nameInput = document.getElementById('gx-report-name');
+        const phoneInput = document.getElementById('gx-report-phone');
+        const reporterName = (nameInput ? nameInput.value : '').trim();
+        const contactPhone = (phoneInput ? phoneInput.value : '').trim();
+
+        // Validate contact phone if user provided one
+        if (contactPhone && global.GabayXMyInfo && typeof global.GabayXMyInfo.validatePhone === 'function') {
+            const valResult = global.GabayXMyInfo.validatePhone(contactPhone);
+            if (!valResult.valid) {
+                alert(valResult.error || 'Please enter a valid contact phone number, or leave it blank to report anonymously.');
+                return;
+            }
+        }
+
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving locally...';
 
@@ -515,7 +569,10 @@
                 latitude: lat,
                 longitude: lng,
                 nearest_building: nearestBuilding,
-                photo: currentPhotoBase64
+                photo: currentPhotoBase64,
+                student_name: reporterName || 'Guest Citizen',
+                contact_phone: contactPhone || null,
+                phone_number: contactPhone || null
             });
 
             // Online vs Offline feedback
@@ -528,6 +585,8 @@
 
             // Reset and close modal
             descInput.value = '';
+            if (nameInput) nameInput.value = '';
+            if (phoneInput) phoneInput.value = '';
             closeReportModal();
 
             // Refresh UI indicators

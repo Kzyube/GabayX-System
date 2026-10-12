@@ -13,7 +13,6 @@ const STATIC_ASSETS = [
     '/student.html',
     '/index.html',
     '/register.html',
-    '/donate.html',
     '/admin.html',
     '/admin-login.html',
     '/manifest.webmanifest',
@@ -32,7 +31,10 @@ const STATIC_ASSETS = [
     '/js/pwa/network.js',
     '/js/pwa/sw-register.js',
     '/js/offline-ui.js',
-    '/js/services/nearbyPlacesService.js'
+    '/js/services/nearbyPlacesService.js',
+    '/js/services/offlineMapsService.js',
+    '/js/offline-maps-ui.js',
+    '/js/my-info.js'
 ];
 
 // Critical External CDN Dependencies

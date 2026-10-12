@@ -457,35 +457,40 @@
         /* --- GOOGLE MAPS STYLE MAP CONTROLS --- */
         .map-controls-cluster {
             position: absolute;
-            right: 16px;
-            bottom: 270px;
+            top: 12px;
+            left: 50%;
+            transform: translateX(-50%);
             z-index: 1004;
             display: flex;
-            flex-direction: column;
-            gap: 8px;
+            flex-direction: row;
+            align-items: center;
+            gap: 6px;
             background: var(--map-controls-bg);
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
-            padding: 6px;
-            border-radius: 16px;
+            padding: 5px 8px;
+            border-radius: 14px;
             border: 1px solid var(--glass-border);
             box-shadow: var(--shadow-card);
-            transition: bottom 0.3s ease, background 0.25s ease;
+            transition: all 0.25s ease;
+            max-width: calc(100vw - 20px);
+            box-sizing: border-box;
         }
 
         .map-ctrl-btn {
             width: 44px;
             height: 44px;
-            border-radius: 12px;
+            border-radius: 10px;
             border: 1px solid var(--border-subtle);
             background: transparent;
             color: var(--text-main);
-            font-size: 16px;
+            font-size: 15px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: all 0.2s ease;
+            flex-shrink: 0;
         }
         .map-ctrl-btn:hover {
             background: var(--map-controls-btn-hover);
@@ -518,9 +523,12 @@
         }
 
         .map-ctrl-divider {
-            height: 1px;
+            width: 1px;
+            height: 22px;
             background: var(--border-subtle);
-            margin: 2px 4px;
+            margin: 0 3px;
+            flex-shrink: 0;
+            align-self: center;
         }
 
         /* --- GOOGLE MAPS STYLE USER LOCATION MARKER --- */
@@ -612,16 +620,26 @@
                 border-radius: 12px;
             }
             .map-controls-cluster {
-                right: 12px;
-                bottom: 275px;
+                top: 8px;
+                left: 50%;
+                transform: translateX(-50%);
+                padding: 4px 6px;
+                gap: 4px;
+                max-width: calc(100vw - 16px);
             }
             body.tray-collapsed .map-controls-cluster {
-                bottom: max(75px, calc(env(safe-area-inset-bottom, 15px) + 65px));
+                top: 8px;
             }
             .map-ctrl-btn {
-                width: 40px;
-                height: 40px;
-                font-size: 15px;
+                width: 34px;
+                height: 34px;
+                font-size: 13px;
+                border-radius: 8px;
+            }
+            .map-ctrl-divider {
+                height: 18px;
+                width: 1px;
+                margin: 0 2px;
             }
         }
 
@@ -630,7 +648,7 @@
                 padding: 14px 18px max(16px, env(safe-area-inset-bottom, 16px)) 18px;
             }
             body.tray-collapsed .map-controls-cluster {
-                bottom: max(75px, calc(env(safe-area-inset-bottom, 15px) + 65px));
+                top: 10px;
             }
         }
 
@@ -652,8 +670,11 @@
                 padding: 12px 16px;
             }
             .map-controls-cluster {
+                top: 14px;
                 right: 20px;
-                bottom: 24px;
+                left: auto;
+                transform: none;
+                gap: 6px;
             }
         }
 
@@ -669,8 +690,10 @@
                 padding: 14px 18px;
             }
             .map-controls-cluster {
-                right: 28px;
-                bottom: 28px;
+                top: 16px;
+                right: 24px;
+                left: auto;
+                transform: none;
             }
         }
 
@@ -685,41 +708,6 @@
         /* =====================================================================
            NEARBY PLACES FEATURE STYLING
            ===================================================================== */
-        .btn-find-nearby {
-            position: absolute;
-            top: 70px;
-            left: 16px;
-            z-index: 1000;
-            background: var(--bg-card);
-            color: var(--text-main);
-            border: 1px solid var(--border-medium);
-            border-radius: 9999px;
-            padding: 8px 14px;
-            font-size: 11px;
-            font-weight: 700;
-            font-family: var(--font-ui);
-            letter-spacing: 0.3px;
-            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 7px;
-            backdrop-filter: blur(8px);
-            transition: all 0.2s ease;
-        }
-        .btn-find-nearby:hover {
-            border-color: var(--primary);
-            color: var(--primary);
-            transform: translateY(-1px);
-        }
-        .btn-find-nearby i {
-            color: var(--primary);
-            font-size: 13px;
-        }
-        .btn-find-nearby.loading i {
-            animation: fa-spin 1s infinite linear;
-        }
-
         /* Nearby Places Panel */
         #nearby-places-panel {
             position: fixed;
@@ -757,12 +745,6 @@
                 max-height: 78vh;
                 border-radius: 20px 20px 0 0;
                 border-bottom: none;
-            }
-            .btn-find-nearby {
-                top: 66px;
-                left: 12px;
-                padding: 7px 12px;
-                font-size: 10.5px;
             }
         }
 
@@ -1097,38 +1079,237 @@
         .status-submitted { background: rgba(16, 185, 129, 0.15); color: var(--primary); border: 1px solid var(--primary); }
         .status-pending { background: rgba(245, 158, 11, 0.15); color: var(--accent-orange); border: 1px solid var(--accent-orange); }
         .status-failed { background: rgba(239, 68, 68, 0.15); color: var(--danger); border: 1px solid var(--danger); }
+
+        /* =========================================================================
+           OFFLINE MAPS & ROUTES MODAL & UI COMPONENTS
+           ========================================================================= */
+        .gx-offline-maps-backdrop {
+            position: fixed; inset: 0; background: rgba(0, 0, 0, 0.78);
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            z-index: 25000; display: none; align-items: center; justify-content: center;
+            padding: 16px;
+        }
+        .gx-offline-maps-backdrop.active { display: flex; animation: gxFadeIn 0.2s ease-out; }
+
+        .gx-offline-maps-card {
+            background: var(--bg-surface-elevated, #091a13);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px; padding: 20px; width: 100%; max-width: 520px;
+            box-shadow: 0 12px 35px rgba(0,0,0,0.5);
+            max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;
+            color: var(--text-main);
+        }
+
+        .gx-offline-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding-bottom: 12px; border-bottom: 1px solid var(--border-subtle);
+            flex-shrink: 0;
+        }
+        .gx-offline-icon-box {
+            background: rgba(16, 185, 129, 0.15); border: 1px solid var(--primary);
+            color: var(--primary); width: 36px; height: 36px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center; font-size: 16px;
+        }
+        .gx-offline-title {
+            font-size: 1.1rem; font-weight: 800; color: var(--text-main); margin: 0;
+            letter-spacing: 0.3px;
+        }
+        .gx-offline-subtitle {
+            font-size: 10px; color: var(--text-sub); margin: 2px 0 0 0;
+        }
+        .gx-offline-close-btn {
+            background: transparent; border: none; color: var(--text-sub);
+            font-size: 18px; cursor: pointer; padding: 4px; transition: 0.15s;
+        }
+        .gx-offline-close-btn:hover { color: var(--text-main); }
+
+        .gx-offline-tabs {
+            display: flex; gap: 6px; padding: 12px 0; border-bottom: 1px solid var(--border-subtle);
+            flex-shrink: 0;
+        }
+        .gx-offline-tab-btn {
+            flex: 1; padding: 7px 10px; font-size: 11px; font-weight: 700;
+            background: var(--bg-input); border: 1px solid var(--border-subtle);
+            color: var(--text-sub); border-radius: 8px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            transition: all 0.15s;
+        }
+        .gx-offline-tab-btn.active {
+            background: var(--primary-light); border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .gx-offline-body {
+            overflow-y: auto; flex: 1; padding: 12px 2px 12px 0;
+        }
+
+        .gx-offline-banner-notice {
+            background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25);
+            border-radius: 10px; padding: 10px 12px; display: flex; gap: 10px;
+            align-items: center; margin-bottom: 12px;
+        }
+        .gx-provider-policy-box {
+            background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 10px; padding: 10px 12px; margin-bottom: 14px;
+        }
+        .gx-safety-disclaimer-box {
+            background: rgba(255, 140, 0, 0.09); border: 1px solid rgba(255, 140, 0, 0.35);
+            border-radius: 10px; padding: 12px; margin-top: 14px;
+        }
+
+        .gx-offline-cards-list {
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .gx-route-card {
+            background: var(--bg-card); border: 1px solid var(--border-subtle);
+            border-radius: 10px; padding: 12px; transition: border-color 0.15s;
+        }
+        .gx-route-card.downloaded {
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .gx-badge-official {
+            background: rgba(16, 185, 129, 0.15); color: var(--primary);
+            border: 1px solid var(--primary); font-size: 8.5px; font-weight: 800;
+            padding: 2px 6px; border-radius: 4px; text-transform: uppercase;
+        }
+        .gx-badge-saved {
+            background: rgba(16, 185, 129, 0.2); color: var(--primary);
+            border: 1px solid var(--primary); font-size: 8.5px; font-weight: 800;
+            padding: 2px 6px; border-radius: 4px; text-transform: uppercase;
+        }
+        .gx-badge-not-saved {
+            background: rgba(100, 116, 139, 0.15); color: var(--text-sub);
+            border: 1px solid var(--border-subtle); font-size: 8.5px; font-weight: 700;
+            padding: 2px 6px; border-radius: 4px; text-transform: uppercase;
+        }
+        .gx-badge-stale {
+            background: rgba(245, 158, 11, 0.15); color: var(--warning);
+            border: 1px solid var(--warning); font-size: 8.5px; font-weight: 800;
+            padding: 2px 6px; border-radius: 4px; text-transform: uppercase;
+        }
+        .gx-info-badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 2px 7px; border-radius: 4px; font-size: 8.5px;
+            font-weight: 800; text-transform: uppercase; font-family: var(--font-data);
+        }
+        .val-muted {
+            color: var(--text-sub, #64748b) !important; font-style: italic; opacity: 0.75;
+        }
+
+        .gx-package-card {
+            background: var(--bg-card); border: 1px solid var(--border-subtle);
+            border-radius: 10px; padding: 14px;
+        }
+        .gx-pill-provider {
+            background: var(--bg-input); border: 1px solid var(--border-medium);
+            color: var(--text-sub); font-size: 9px; font-weight: 700;
+            padding: 2px 6px; border-radius: 4px;
+        }
+
+        .gx-meta-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;
+        }
+        .gx-meta-item {
+            background: var(--bg-input); border: 1px solid var(--border-subtle);
+            padding: 8px 10px; border-radius: 6px;
+        }
+        .gx-meta-label {
+            display: block; font-size: 8.5px; font-weight: 800; color: var(--text-sub);
+            text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;
+        }
+        .gx-meta-val {
+            font-size: 11px; font-weight: 700; color: var(--text-main); font-family: var(--font-data);
+        }
+
+        .gx-status-hero-card {
+            background: var(--bg-card); border: 1px solid var(--border-subtle);
+            border-radius: 10px; padding: 14px;
+        }
+
+        .gx-progress-box {
+            background: var(--bg-input); border: 1px solid var(--border-medium);
+            padding: 12px; border-radius: 8px;
+        }
+        .gx-progress-bar-bg {
+            background: rgba(255,255,255,0.08); border-radius: 10px; height: 8px;
+            overflow: hidden; margin-top: 4px;
+        }
+        .gx-progress-bar-fill {
+            height: 100%; background: var(--primary); border-radius: 10px;
+            transition: width 0.2s ease;
+        }
+
+        .gx-btn-primary-sm {
+            background: var(--primary); color: #000; border: none; font-size: 10px;
+            font-weight: 800; padding: 6px 12px; border-radius: 6px; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 6px; text-transform: uppercase;
+            transition: opacity 0.15s;
+        }
+        .gx-btn-primary-sm:hover { opacity: 0.9; }
+        .gx-btn-secondary-sm {
+            background: var(--bg-input); border: 1px solid var(--border-medium);
+            color: var(--text-main); font-size: 10px; font-weight: 700;
+            padding: 6px 10px; border-radius: 6px; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 5px;
+        }
+        .gx-btn-secondary-sm:hover { border-color: var(--primary); color: var(--primary); }
+        .gx-btn-danger-sm {
+            background: rgba(255, 42, 95, 0.15); border: 1px solid var(--danger);
+            color: var(--danger); font-size: 10px; font-weight: 700;
+            padding: 6px 10px; border-radius: 6px; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 5px;
+        }
+
+        .gx-offline-footer {
+            display: flex; justify-content: space-between; align-items: center;
+            padding-top: 10px; border-top: 1px solid var(--border-subtle);
+            flex-shrink: 0;
+        }
+
+        /* Floating Active Offline Route Card */
+        .active-offline-route-floating {
+            position: fixed; top: 75px; left: 50%; transform: translateX(-50%);
+            background: var(--bg-surface-elevated, #091a13);
+            border: 1px solid var(--primary);
+            border-radius: 10px; padding: 8px 12px; z-index: 1000;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 12px; width: 92%; max-width: 420px;
+            animation: gxFadeIn 0.25s ease-out;
+        }
+        .gx-pill-offline {
+            background: rgba(16, 185, 129, 0.2); color: var(--primary);
+            border: 1px solid var(--primary); font-size: 8px; font-weight: 800;
+            padding: 2px 5px; border-radius: 4px; text-transform: uppercase;
+        }
+        .gx-pill-stale {
+            background: rgba(245, 158, 11, 0.2); color: var(--warning);
+            border: 1px solid var(--warning); font-size: 8px; font-weight: 800;
+            padding: 2px 5px; border-radius: 4px; text-transform: uppercase;
+        }
+
+        /* Tactical offline grid background for Leaflet when tiles are unavailable */
+        .leaflet-container.offline-tactical-grid {
+            background-color: #061710 !important;
+            background-image: 
+                linear-gradient(rgba(16, 185, 129, 0.08) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(16, 185, 129, 0.08) 1px, transparent 1px) !important;
+            background-size: 40px 40px !important;
+        }
+        [data-theme="light"] .leaflet-container.offline-tactical-grid {
+            background-color: #f1f5f9 !important;
+            background-image: 
+                linear-gradient(rgba(5, 150, 105, 0.08) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(5, 150, 105, 0.08) 1px, transparent 1px) !important;
+            background-size: 40px 40px !important;
+        }
     </style>
 </head>
 
 <body>
     
-    <div id="donation-alert-modal" style="display:none; position:fixed; inset:0; background:rgba(0, 0, 0, 0.7); z-index:30000; justify-content:center; align-items:center; padding:20px; backdrop-filter:blur(4px);">
-        <div style="background:var(--modal-bg); border:1px solid var(--border-strong); border-radius:12px; padding:24px; text-align:center; max-width:400px; width:100%; box-shadow:var(--shadow-modal);">
-            <i class="fas fa-hand-holding-heart" style="font-size:40px; color:var(--primary); margin-bottom:12px;"></i>
-            <h2 style="color:var(--text-main); font-size:1.3rem; margin-bottom:8px; font-weight:700;">Financial Aid Arrived</h2>
-            <p style="color:var(--text-sub); font-size:0.9rem; margin-bottom:16px; line-height:1.5;">A donor has sent financial aid to your area. Your relief voucher is available.</p>
-            
-            <div style="background:var(--bg-card); padding:14px; border-radius:8px; margin-bottom:18px; border:1px solid var(--border-subtle); color: var(--text-main); font-size: 0.85rem;">
-                Open your <b>Sidebar Menu</b> and click <br><strong style="color: var(--primary);">"Show GCash Vouchers"</strong> to view your claim code.
-            </div>
 
-            <button onclick="closeDonationAlert()" style="width:100%; padding:12px; background:var(--primary); color:#ffffff; border:none; border-radius:8px; font-weight:700; text-transform:uppercase; font-size:12px; cursor:pointer;">I Understand</button>
-        </div>
-    </div>
-
-    <div id="vouchers-list-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:30000; justify-content:center; align-items:center; padding:20px; backdrop-filter:blur(4px);">
-        <div style="background:var(--modal-bg); border:1px solid var(--border-strong); border-radius:12px; padding:20px; max-width:420px; width:100%; box-shadow:var(--shadow-modal); max-height: 85vh; display: flex; flex-direction: column;">
-            
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px;">
-                <h2 style="color:var(--text-main); font-size:1.2rem; margin:0; font-weight:700;"><i class="fas fa-ticket-alt" style="color:var(--primary); margin-right: 8px;"></i> GCash Vouchers</h2>
-                <button onclick="closeVouchersModal()" style="background:transparent; border:none; color:var(--text-sub); font-size:20px; cursor:pointer;" aria-label="Close vouchers">&times;</button>
-            </div>
-            
-            <div id="vouchers-container" style="overflow-y: auto; flex: 1; padding-right: 5px;">
-            </div>
-            
-        </div>
-    </div>
 
     <div id="sos-overlay" onclick="toggleFlashlight(false)">
         <i class="fas fa-satellite-dish" style="font-size: 60px; color: var(--danger); margin-bottom: 20px;"></i>
@@ -1160,7 +1341,7 @@
                 <h2 id="sidebar-name">Citizen</h2>
                 <p class="mono-stat" id="sidebar-email-display"><i class="fas fa-id-badge"></i> Device ID</p>
                 <p class="mono-stat" id="sidebar-phone-display" style="color:var(--text-sub);"><i class="fas fa-phone"></i> Contact: Not set</p>
-                <button type="button" onclick="openProfileModal()" style="margin-top: 6px; background: rgba(16,185,129,0.12); border: 1px solid var(--glass-border); color: var(--primary); font-size: 9px; font-weight: 800; font-family: var(--font-data); text-transform: uppercase; padding: 4px 8px; border-radius: 6px; cursor: pointer; align-self: flex-start; display: inline-flex; align-items: center; gap: 4px;"><i class="fas fa-pen"></i> Edit Contact Info</button>
+                <button type="button" onclick="GabayXMyInfo.openModal(); toggleSidebar(false);" id="user-card-my-info-btn" style="margin-top: 6px; background: rgba(16,185,129,0.12); border: 1px solid var(--glass-border); color: var(--primary); font-size: 9px; font-weight: 800; font-family: var(--font-data); text-transform: uppercase; padding: 4px 8px; border-radius: 6px; cursor: pointer; align-self: flex-start; display: inline-flex; align-items: center; gap: 4px;"><i class="fas fa-address-card"></i> My Information</button>
             </div>
         </div>
 
@@ -1223,6 +1404,10 @@
         </div>
 
         <div style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border-subtle); display: flex; flex-direction: column;">
+            <button onclick="GabayXMyInfo.openModal(); toggleSidebar(false);" class="btn-sidebar-nav" id="sidebar-my-info-btn">
+                <i class="fas fa-address-card"></i> My Information
+            </button>
+
             <button onclick="GabayXInstall.promptInstall(); toggleSidebar(false);" class="btn-sidebar-nav" id="sidebar-install-btn" style="border-color: rgba(16,185,129,0.4); color: var(--primary);">
                 <i class="fas fa-download"></i> Install GabayX App
             </button>
@@ -1235,12 +1420,8 @@
                 <i class="fas fa-compass"></i> Find Nearby Places
             </button>
 
-            <button onclick="openVouchersModal()" class="btn-sidebar-nav">
-                <i class="fas fa-ticket-alt"></i> Show GCash Vouchers
-            </button>
-
-            <button onclick="window.location.href='/donate.html'" class="btn-sidebar-nav" style="border-color: rgba(239,68,68,0.3); color: var(--danger);">
-                <i class="fas fa-hand-holding-heart"></i> Donate to Relief
+            <button onclick="GabayXOfflineMapsUI.openModal(); toggleSidebar(false);" class="btn-sidebar-nav" id="sidebar-offline-maps-btn">
+                <i class="fas fa-map-location-dot"></i> Offline Maps & Routes
             </button>
 
             <button onclick="window.location.href='/admin-login'" class="btn-sidebar-nav btn-sidebar-subtle">
@@ -1249,27 +1430,202 @@
         </div>
     </div>
 
-    <!-- OPTIONAL CITIZEN CONTACT PREFERENCES MODAL -->
-    <div id="profile-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:25000; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(4px);">
-        <div style="background:var(--modal-bg); border:1px solid var(--border-strong); border-radius:12px; padding:20px; width:100%; max-width:400px; box-shadow:var(--shadow-modal);">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-                <h3 style="color:var(--text-main); font-size:1.05rem; margin:0; display:flex; align-items:center; gap:8px;"><i class="fas fa-id-card" style="color:var(--primary);"></i> Contact Info (Optional)</h3>
-                <button onclick="closeProfileModal()" style="background:transparent; border:none; color:var(--text-sub); font-size:20px; cursor:pointer;" aria-label="Close dialog">&times;</button>
+    <!-- GABAYX "MY INFORMATION" MODAL DIALOG -->
+    <div id="my-information-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:25000; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(6px);">
+        <div style="background:var(--modal-bg); border:1px solid var(--border-strong); border-radius:14px; width:100%; max-width:440px; box-shadow:var(--shadow-modal); max-height:90vh; display:flex; flex-direction:column; overflow:hidden;">
+            
+            <!-- MODAL HEADER -->
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 18px; border-bottom:1px solid var(--border-subtle); background:var(--bg-card);">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <i class="fas fa-address-card" style="color:var(--primary); font-size:16px;"></i>
+                    <h3 style="color:var(--text-main); font-size:1.05rem; margin:0; font-weight:800; letter-spacing:0.3px;">My Information</h3>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span id="my-info-status-badge" class="gx-info-badge gx-badge-not-saved"><i class="fas fa-circle-info"></i> No Details Saved</span>
+                    <button onclick="GabayXMyInfo.closeModal()" style="background:transparent; border:none; color:var(--text-sub); font-size:20px; cursor:pointer; line-height:1; padding:2px 6px;" aria-label="Close dialog">&times;</button>
+                </div>
             </div>
-            <p style="font-size:11px; color:var(--text-sub); margin-bottom:14px; line-height:1.4;">GabayX is public. You do not need an account. You may optionally enter your name and phone number to help first responders identify and contact you during an emergency.</p>
-            <div style="margin-bottom:12px;">
-                <label style="font-size:10px; font-weight:700; color:var(--text-sub); display:block; margin-bottom:4px; text-transform:uppercase;">Your Name / Nickname</label>
-                <input type="text" id="pref-name-input" placeholder="e.g. Juan Dela Cruz" style="width:100%; background:var(--bg-input); border:1px solid var(--border-medium); border-radius:8px; padding:10px; color:var(--text-main); font-size:13px; box-sizing:border-box;">
-            </div>
-            <div style="margin-bottom:16px;">
-                <label style="font-size:10px; font-weight:700; color:var(--text-sub); display:block; margin-bottom:4px; text-transform:uppercase;">Contact Phone Number</label>
-                <input type="tel" id="pref-phone-input" placeholder="e.g. 0912-345-6789" style="width:100%; background:var(--bg-input); border:1px solid var(--border-medium); border-radius:8px; padding:10px; color:var(--text-main); font-size:13px; box-sizing:border-box;">
-            </div>
-            <div style="display:flex; gap:8px;">
-                <button onclick="saveProfilePreferences()" style="flex:1; padding:10px; background:var(--primary); color:#ffffff; font-weight:700; font-size:11px; border:none; border-radius:8px; text-transform:uppercase; cursor:pointer;">Save Details</button>
-                <button onclick="closeProfileModal()" style="padding:10px 14px; background:var(--bg-card); color:var(--text-main); font-weight:700; font-size:11px; border:1px solid var(--border-subtle); border-radius:8px; text-transform:uppercase; cursor:pointer;">Cancel</button>
+
+            <!-- MODAL BODY CONTAINER (SCROLLABLE) -->
+            <div style="padding:16px 18px; overflow-y:auto; flex:1;">
+
+                <!-- 1. VIEW / SUMMARY PANE -->
+                <div id="my-info-view-pane" style="display:block;">
+                    <p style="font-size:11px; color:var(--text-sub); margin-bottom:14px; line-height:1.45;">
+                        GabayX is public. You do not need an account or student ID. Manage your optional contact details below to help emergency teams identify and reach you.
+                    </p>
+
+                    <div style="display:grid; grid-template-columns:1fr; gap:8px; margin-bottom:14px;">
+                        <div class="gx-meta-item">
+                            <span class="gx-meta-label"><i class="fas fa-user"></i> Full Name</span>
+                            <div id="my-info-disp-name" class="gx-meta-val val-muted">Not provided</div>
+                        </div>
+
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                            <div class="gx-meta-item">
+                                <span class="gx-meta-label"><i class="fas fa-phone"></i> Contact Phone</span>
+                                <div id="my-info-disp-phone" class="gx-meta-val val-muted">Not provided</div>
+                            </div>
+                            <div class="gx-meta-item">
+                                <span class="gx-meta-label"><i class="fas fa-envelope"></i> Email Address</span>
+                                <div id="my-info-disp-email" class="gx-meta-val val-muted">Not provided</div>
+                            </div>
+                        </div>
+
+                        <div style="background:var(--bg-input); border:1px solid var(--border-subtle); border-radius:8px; padding:10px;">
+                            <div style="font-size:9.5px; font-weight:800; color:var(--primary); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; display:flex; align-items:center; gap:5px;">
+                                <i class="fas fa-kit-medical"></i> Emergency Contact (Next of Kin)
+                            </div>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                                <div>
+                                    <span class="gx-meta-label">Contact Name</span>
+                                    <div id="my-info-disp-emg-name" class="gx-meta-val val-muted" style="font-size:11px;">Not provided</div>
+                                </div>
+                                <div>
+                                    <span class="gx-meta-label">Emergency Phone</span>
+                                    <div id="my-info-disp-emg-phone" class="gx-meta-val val-muted" style="font-size:11px;">Not provided</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="background:rgba(16,185,129,0.08); border:1px solid var(--border-subtle); border-radius:8px; padding:10px 12px; margin-bottom:16px;">
+                        <div style="display:flex; align-items:center; gap:6px; font-size:10px; font-weight:800; color:var(--text-main); margin-bottom:3px;">
+                            <i class="fas fa-shield-halved" style="color:var(--primary);"></i> Local Device Storage Notice
+                        </div>
+                        <p style="font-size:10px; color:var(--text-sub); line-height:1.4; margin:0;" id="my-info-disp-updated">
+                            Stored locally on this device only. Clearing browser data or using another phone/device will remove this information.
+                        </p>
+                    </div>
+
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        <button type="button" onclick="GabayXMyInfo.startEditing()" class="gx-btn-primary" style="padding:10px 14px; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; justify-content:center;">
+                            <i class="fas fa-pen-to-square"></i> Edit Information
+                        </button>
+                        <div style="display:flex; gap:8px;">
+                            <button type="button" id="my-info-btn-clear" onclick="GabayXMyInfo.confirmClear()" style="flex:1; padding:9px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); color:var(--danger); border-radius:8px; font-size:10px; font-weight:800; text-transform:uppercase; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:6px;">
+                                <i class="fas fa-trash-can"></i> Clear Information
+                            </button>
+                            <button type="button" onclick="GabayXMyInfo.closeModal()" style="flex:1; padding:9px; background:var(--bg-card); border:1px solid var(--border-medium); color:var(--text-main); border-radius:8px; font-size:10px; font-weight:800; text-transform:uppercase; cursor:pointer;">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. EDIT / FORM PANE -->
+                <div id="my-info-edit-pane" style="display:none;">
+                    <p style="font-size:11px; color:var(--text-sub); margin-bottom:12px; line-height:1.4;">
+                        Enter your optional details below. No account, student ID, or university email is required.
+                    </p>
+
+                    <div id="my-info-edit-error" style="display:none; background:rgba(239,68,68,0.12); border:1px solid var(--danger); color:var(--danger); font-size:11px; padding:8px 10px; border-radius:6px; margin-bottom:12px;"></div>
+
+                    <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:16px;">
+                        <div>
+                            <label for="my-info-input-name" style="font-size:10px; font-weight:700; color:var(--text-sub); display:block; margin-bottom:4px; text-transform:uppercase;">Full Name / Nickname</label>
+                            <input type="text" id="my-info-input-name" placeholder="e.g. Juan Dela Cruz" style="width:100%; background:var(--bg-input); border:1px solid var(--border-medium); border-radius:8px; padding:10px; color:var(--text-main); font-size:12px; box-sizing:border-box;">
+                        </div>
+
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                            <div>
+                                <label for="my-info-input-phone" style="font-size:10px; font-weight:700; color:var(--text-sub); display:block; margin-bottom:4px; text-transform:uppercase;">Contact Phone</label>
+                                <input type="tel" id="my-info-input-phone" placeholder="0912-345-6789" style="width:100%; background:var(--bg-input); border:1px solid var(--border-medium); border-radius:8px; padding:10px; color:var(--text-main); font-size:12px; box-sizing:border-box;">
+                            </div>
+                            <div>
+                                <label for="my-info-input-email" style="font-size:10px; font-weight:700; color:var(--text-sub); display:block; margin-bottom:4px; text-transform:uppercase;">Email Address</label>
+                                <input type="email" id="my-info-input-email" placeholder="Optional email" style="width:100%; background:var(--bg-input); border:1px solid var(--border-medium); border-radius:8px; padding:10px; color:var(--text-main); font-size:12px; box-sizing:border-box;">
+                            </div>
+                        </div>
+
+                        <div style="background:var(--bg-input); border:1px solid var(--border-subtle); border-radius:8px; padding:10px;">
+                            <span style="font-size:9.5px; font-weight:800; color:var(--primary); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:8px;">
+                                <i class="fas fa-kit-medical"></i> Emergency Contact (Optional)
+                            </span>
+                            <div style="display:flex; flex-direction:column; gap:8px;">
+                                <div>
+                                    <label for="my-info-input-emg-name" style="font-size:9px; font-weight:700; color:var(--text-sub); display:block; margin-bottom:3px; text-transform:uppercase;">Emergency Contact Name</label>
+                                    <input type="text" id="my-info-input-emg-name" placeholder="e.g. Maria Dela Cruz (Mother)" style="width:100%; background:var(--bg-card); border:1px solid var(--border-medium); border-radius:6px; padding:8px 10px; color:var(--text-main); font-size:12px; box-sizing:border-box;">
+                                </div>
+                                <div>
+                                    <label for="my-info-input-emg-phone" style="font-size:9px; font-weight:700; color:var(--text-sub); display:block; margin-bottom:3px; text-transform:uppercase;">Emergency Contact Number</label>
+                                    <input type="tel" id="my-info-input-emg-phone" placeholder="e.g. 0910-363-3864" style="width:100%; background:var(--bg-card); border:1px solid var(--border-medium); border-radius:6px; padding:8px 10px; color:var(--text-main); font-size:12px; box-sizing:border-box;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; gap:8px;">
+                        <button type="button" onclick="GabayXMyInfo.proceedToReview()" class="gx-btn-primary" style="flex:1; padding:10px; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; justify-content:center;">
+                            <i class="fas fa-magnifying-glass"></i> Review Information
+                        </button>
+                        <button type="button" onclick="GabayXMyInfo.cancelEdit()" style="padding:10px 14px; background:var(--bg-card); border:1px solid var(--border-medium); color:var(--text-main); border-radius:8px; font-size:11px; font-weight:800; text-transform:uppercase; cursor:pointer;">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 3. REVIEW PANE -->
+                <div id="my-info-review-pane" style="display:none;">
+                    <div style="background:rgba(16,185,129,0.1); border:1px solid var(--primary); border-radius:8px; padding:10px 12px; margin-bottom:12px; display:flex; align-items:center; gap:8px;">
+                        <i class="fas fa-clipboard-check" style="color:var(--primary); font-size:18px;"></i>
+                        <div style="font-size:11px; color:var(--text-main); font-weight:700;">Please review your details before saving:</div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:1fr; gap:8px; margin-bottom:14px;">
+                        <div class="gx-meta-item">
+                            <span class="gx-meta-label">Full Name</span>
+                            <div id="my-info-rev-name" class="gx-meta-val">--</div>
+                        </div>
+
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                            <div class="gx-meta-item">
+                                <span class="gx-meta-label">Contact Phone</span>
+                                <div id="my-info-rev-phone" class="gx-meta-val">--</div>
+                            </div>
+                            <div class="gx-meta-item">
+                                <span class="gx-meta-label">Email Address</span>
+                                <div id="my-info-rev-email" class="gx-meta-val">--</div>
+                            </div>
+                        </div>
+
+                        <div style="background:var(--bg-input); border:1px solid var(--border-subtle); border-radius:8px; padding:10px;">
+                            <span class="gx-meta-label" style="color:var(--primary);">Emergency Contact</span>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:4px;">
+                                <div>
+                                    <span class="gx-meta-label">Name</span>
+                                    <div id="my-info-rev-emg-name" class="gx-meta-val" style="font-size:11px;">--</div>
+                                </div>
+                                <div>
+                                    <span class="gx-meta-label">Phone</span>
+                                    <div id="my-info-rev-emg-phone" class="gx-meta-val" style="font-size:11px;">--</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <p style="font-size:10px; color:var(--text-sub); line-height:1.4; margin-bottom:14px;">
+                        ℹ️ This information will be saved locally on this browser. It will be prefilled in emergency reports when needed.
+                    </p>
+
+                    <div style="display:flex; gap:8px;">
+                        <button type="button" onclick="GabayXMyInfo.confirmAndSave()" class="gx-btn-primary" style="flex:1; padding:10px; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; justify-content:center;">
+                            <i class="fas fa-check"></i> Confirm & Save
+                        </button>
+                        <button type="button" onclick="GabayXMyInfo.backToEdit()" style="padding:10px 14px; background:var(--bg-card); border:1px solid var(--border-medium); color:var(--text-main); border-radius:8px; font-size:11px; font-weight:800; text-transform:uppercase; cursor:pointer;">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </button>
+                    </div>
+                </div>
+
             </div>
         </div>
+    </div>
+
+    <!-- Hidden compatibility bridge for legacy profile inputs -->
+    <div id="profile-modal" style="display:none;" aria-hidden="true">
+        <input type="hidden" id="pref-name-input">
+        <input type="hidden" id="pref-phone-input">
     </div>
 
     <header>
@@ -1307,17 +1663,12 @@
 
         <div id="map-container">
             <div id="map"></div>
-            <!-- NEARBY PLACES FLOATING CALL-TO-ACTION -->
-            <button id="btn-find-nearby" class="btn-find-nearby" onclick="GabayXNearbyPlaces.findNearbyPlaces()" aria-label="Find Nearby Places">
-                <i class="fas fa-compass" id="icon-btn-find-nearby"></i>
-                <span>Find Nearby Places</span>
-            </button>
         </div>
 
         <!-- GOOGLE MAPS STYLE MAP CONTROLS -->
         <div class="map-controls-cluster" role="toolbar" aria-label="Map Navigation Controls">
-            <button class="map-ctrl-btn" id="btn-recenter" onclick="centerOnCampus()" title="Center Campus" aria-label="Center Campus">
-                <i class="fas fa-school"></i>
+            <button class="map-ctrl-btn" id="btn-recenter" onclick="centerOnCampus()" title="Center on Evacuation Center" aria-label="Center on Evacuation Center">
+                <i class="fas fa-person-shelter"></i>
             </button>
             <button class="map-ctrl-btn" id="btn-my-location" onclick="handleMyLocationClick()" title="Find My Location" aria-label="Find My Location">
                 <i class="fas fa-crosshairs" id="icon-my-location"></i>
@@ -1563,6 +1914,9 @@
     <script src="/js/pwa/network.js"></script>
     <script src="/js/offline-ui.js"></script>
     <script src="/js/services/nearbyPlacesService.js"></script>
+    <script src="/js/services/offlineMapsService.js"></script>
+    <script src="/js/offline-maps-ui.js"></script>
+    <script src="/js/my-info.js"></script>
 
     <script>
         let socket, map, userMarker, routingControl;
@@ -1580,8 +1934,10 @@
         const OFFLINE_STORAGE_KEY = "knhs_offline_data";
         const OFFLINE_STATE_KEY = "knhs_is_offline_persistent";
 
+        const EVACUATION_CENTER_COORDS = [7.100589893149529, 124.82393056927546]; // Principal Front Evacuation Center
+
         const LOCATIONS = {
-            "PRINCIPAL FRONT": [7.100589893149529, 124.82393056927546],
+            "PRINCIPAL FRONT": EVACUATION_CENTER_COORDS,
             "MENDOZA COURT": [7.100077551009359, 124.82369094608939],
             "TEJADA COURT": [7.1001461901808565, 124.82430112059413],
         };
@@ -1888,6 +2244,7 @@
             // PWA Phase 1: Native online/offline status detection
             window.addEventListener('online', () => {
                 updateStatus(true);
+                updateOfflineMapVisuals(false);
                 showToast("🟢 Internet Connection Restored");
                 if (!isOfflineMode && socket && !socket.connected) {
                     socket.connect();
@@ -1896,11 +2253,13 @@
 
             window.addEventListener('offline', () => {
                 updateStatus(false);
+                updateOfflineMapVisuals(true);
                 showToast("⚠️ Internet Connection Lost (Offline)");
             });
 
             if (!navigator.onLine) {
                 updateStatus(false);
+                updateOfflineMapVisuals(true);
             }
 
             subscribeToPush();
@@ -1933,40 +2292,13 @@
             setInterval(() => { if (!isOfflineMode) checkLogin(true); }, 30000);
         };
 
-        // --- NEW: VOUCHER MODAL FUNCTIONS ---
-        function closeDonationAlert() {
-            document.getElementById("donation-alert-modal").style.display = "none";
-        }
 
-        function openVouchersModal() {
-            const container = document.getElementById('vouchers-container');
-            const vouchers = JSON.parse(localStorage.getItem('gabayx_vouchers') || '[]');
-            
-            if(vouchers.length === 0) {
-                container.innerHTML = '<div style="text-align:center; color:var(--text-sub); padding: 30px; font-size: 0.9rem;">No vouchers available right now.</div>';
-            } else {
-                container.innerHTML = vouchers.map((v, index) => `
-                    <div style="background:var(--bg-card); padding:16px; border-radius:10px; margin-bottom:12px; border:1px solid var(--border-subtle); position: relative;">
-                        <div style="font-size:0.75rem; color:var(--text-sub); text-transform:uppercase; font-weight:600;">Amount</div>
-                        <div style="font-size:1.8rem; font-weight:800; color:var(--primary); font-family:var(--font-data);">₱${parseFloat(v.amount).toFixed(2)}</div>
-                        <div style="font-size:0.8rem; color:var(--text-sub); margin-top:8px;">From Donor: <strong style="color:var(--text-main); font-weight:700;">${v.donor}</strong></div>
-                        
-                        <div style="margin-top: 12px; border-top: 1px solid var(--border-subtle); padding-top: 12px;">
-                            <div style="font-size:0.75rem; color:var(--text-sub); text-transform:uppercase; margin-bottom:6px; font-weight:600;">Your Claim Code</div>
-                            <div style="background:var(--bg-input); color:var(--primary); border:1px solid var(--border-medium); padding:10px; font-size:1.25rem; font-family:var(--font-data); font-weight:800; border-radius:6px; letter-spacing:2px; text-align:center;">${v.voucher}</div>
-                        </div>
-                    </div>
-                `).reverse().join('');
+        function updateOfflineMapVisuals(isOffline) {
+            const mapEl = document.getElementById('map');
+            if (mapEl) {
+                mapEl.classList.toggle('offline-tactical-grid', !!isOffline);
             }
-            
-            document.getElementById('vouchers-list-modal').style.display = 'flex';
-            toggleSidebar(false); // Closes the sidebar menu automatically
         }
-
-        function closeVouchersModal() {
-            document.getElementById('vouchers-list-modal').style.display = 'none';
-        }
-        // -------------------------------------
 
         function toggleOfflineMode(skipToast = false) {
             const toggle = document.getElementById("offline-toggle");
@@ -1978,6 +2310,7 @@
                 isOfflineMode = toggle.checked;
             }
             localStorage.setItem(OFFLINE_STATE_KEY, isOfflineMode);
+            updateOfflineMapVisuals(isOfflineMode);
 
             if (isOfflineMode) {
                 if (!skipToast) showToast("🔌 Offline Mode On");
@@ -2303,7 +2636,7 @@
         }
 
         function initMap() {
-            map = L.map("map", { zoomControl: false, attributionControl: false, maxZoom: 21 }).setView([7.1002, 124.824], 19);
+            map = L.map("map", { zoomControl: false, attributionControl: false, maxZoom: 21 }).setView(EVACUATION_CENTER_COORDS, 19);
             const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
             applyMapLayer(currentTheme);
             map.on("zoomend", function () { if (typeof updateLabels === "function") { updateLabels(); } });
@@ -2467,9 +2800,20 @@
 
         function centerOnCampus() {
             if (!map) return;
-            map.flyTo([7.1002, 124.824], 19, { duration: 1 });
-            showToast("🏫 Centered on Campus");
+            if (activeDestination && Array.isArray(activeDestination) && activeDestination.length === 2) {
+                map.flyTo(activeDestination, 19, { duration: 1 });
+                const alertTitle = document.getElementById("alert-title")?.innerText || "";
+                if (alertTitle.includes("SUPPLY")) {
+                    showToast("📦 Centered on Nearest Supply Drop");
+                } else {
+                    showToast("🛡️ Centered on Evacuation Center");
+                }
+            } else {
+                map.flyTo(EVACUATION_CENTER_COORDS, 19, { duration: 1 });
+                showToast("🛡️ Centered on Evacuation Center");
+            }
         }
+        window.centerOnEvacuationCenter = centerOnCampus;
 
         function toggleLocationTracking() {
             const btn = document.getElementById("btn-toggle-tracking");
@@ -2516,35 +2860,7 @@
                 });
                 socket.on("receive-alert", handleAlert);
                 
-                // --- NEW: LISTEN FOR INCOMING DONATIONS ---
-                socket.on("donation-dropped", (data) => {
-                    let isInZone = false;
-                    
-                    if (data.zone === "ALL ZONES") {
-                        isInZone = true;
-                    } else if (userMarker) {
-                        // Check if user is physically in the target zone radius
-                        const targetCoords = LOCATIONS[data.zone];
-                        if (targetCoords) {
-                            const dist = map.distance(userMarker.getLatLng(), targetCoords);
-                            if (dist < 60) { 
-                                isInZone = true;
-                            }
-                        }
-                    }
 
-                    if (isInZone) {
-                        // 1. Save voucher securely to device
-                        let myVouchers = JSON.parse(localStorage.getItem('gabayx_vouchers') || '[]');
-                        myVouchers.push(data);
-                        localStorage.setItem('gabayx_vouchers', JSON.stringify(myVouchers));
-
-                        // 2. Alert the user!
-                        document.getElementById("donation-alert-modal").style.display = "flex";
-                        new Audio("https://image2url.com/r2/default/audio/1770035478181-9daca647-30be-478d-bef0-2700b5dfcbdd.mp3").play().catch(() => {});
-                        showToast("💰 Relief Funds Received!");
-                    }
-                });
             }
         }
 
@@ -2558,8 +2874,17 @@
             }
             studentEmail = storedId;
 
-            const displayName = localStorage.getItem("knhs_student_name") || "Citizen";
-            const displayPhone = localStorage.getItem("knhs_student_phone") || "Not set";
+            let displayName = "Citizen";
+            let displayPhone = "Not set";
+
+            if (window.GabayXMyInfo && typeof window.GabayXMyInfo.getProfile === 'function') {
+                const prof = window.GabayXMyInfo.getProfile();
+                if (prof.fullName) displayName = prof.fullName;
+                if (prof.contactNumber) displayPhone = prof.contactNumber;
+            } else {
+                displayName = localStorage.getItem("knhs_student_name") || "Citizen";
+                displayPhone = localStorage.getItem("knhs_student_phone") || "Not set";
+            }
 
             const nameEl = document.getElementById("sidebar-name");
             const emailEl = document.getElementById("sidebar-email-display");
@@ -2602,19 +2927,21 @@
         }
 
         function openProfileModal() {
-            const modal = document.getElementById("profile-modal");
-            if (modal) {
-                const nameInput = document.getElementById("pref-name-input");
-                const phoneInput = document.getElementById("pref-phone-input");
-                if (nameInput) nameInput.value = localStorage.getItem("knhs_student_name") || "";
-                if (phoneInput) phoneInput.value = localStorage.getItem("knhs_student_phone") || "";
-                modal.style.display = "flex";
+            if (window.GabayXMyInfo && typeof window.GabayXMyInfo.openModal === 'function') {
+                window.GabayXMyInfo.openModal();
+            } else {
+                const modal = document.getElementById("my-information-modal") || document.getElementById("profile-modal");
+                if (modal) modal.style.display = "flex";
             }
         }
 
         function closeProfileModal() {
-            const modal = document.getElementById("profile-modal");
-            if (modal) modal.style.display = "none";
+            if (window.GabayXMyInfo && typeof window.GabayXMyInfo.closeModal === 'function') {
+                window.GabayXMyInfo.closeModal();
+            } else {
+                const modal = document.getElementById("my-information-modal") || document.getElementById("profile-modal");
+                if (modal) modal.style.display = "none";
+            }
         }
 
         function saveProfilePreferences() {
@@ -2662,8 +2989,10 @@
                 document.getElementById("admin-banner-text").innerText = data.message;
 
                 if (data.lat && data.lng) {
+                    activeDestination = [data.lat, data.lng];
                     actionContainer.style.display = "block";
                     actionContainer.innerHTML = `<button onclick="startSupplyRoute(${data.lat}, ${data.lng})" style="background: var(--accent-orange); color: #fff; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 800; cursor: pointer; text-transform: uppercase; font-size: 10px; letter-spacing: 1px; box-shadow: 0 0 10px rgba(255,140,0,0.4);"><i class="fas fa-route"></i> Show Route</button>`;
+                    if (map) map.flyTo([data.lat, data.lng], 19, { duration: 1 });
                 } else {
                     actionContainer.style.display = "none";
                 }
@@ -2692,6 +3021,7 @@
                     if (userMarker) { startRouting(userMarker.getLatLng(), activeDestination, false); } 
                     else { navigator.geolocation.getCurrentPosition((pos) => { const currentPos = L.latLng(pos.coords.latitude, pos.coords.longitude); startRouting(currentPos, activeDestination, false); }); }
                     showToast(`Head to ${bestZone.name}`);
+                    if (map) map.flyTo(activeDestination, 19, { duration: 1 });
                 }
 
                 allowedZones.forEach((zoneName) => {
@@ -2714,6 +3044,7 @@
                     startRouting(currentPos, activeDestination, true); 
                 }); 
             }
+            if (map) map.flyTo([lat, lng], 19, { duration: 1 });
             showToast(`Routing to Supply Drop`);
             document.getElementById("banner-action-container").style.display = "none"; 
         }

@@ -125,8 +125,8 @@ test('TEST 4.2: Results are sorted by straight-line distance by default', async 
 
 // --- TEST 5: UI CONTROLS & LEAFLET MAP INTEGRATION ---
 console.log('\n--- TEST 5: UI CONTROLS & LEAFLET MAP INTEGRATION ---');
-test('TEST 5.1: "Find Nearby Places" controls exist on map, toolbar, and sidebar', () => {
-    assert(studentHtml.includes('id="btn-find-nearby"'), 'Floating Find Nearby Places button must exist');
+test('TEST 5.1: "Find Nearby Places" controls exist on toolbar and sidebar (floating btn-find-nearby removed per user request)', () => {
+    assert(!studentHtml.includes('id="btn-find-nearby"'), 'Floating Find Nearby Places button must be removed per user request');
     assert(studentHtml.includes('id="btn-map-nearby"'), 'Map cluster toolbar Find Nearby Places button must exist');
     assert(studentHtml.includes('Find Nearby Places'), 'Sidebar menu item must be present');
 });

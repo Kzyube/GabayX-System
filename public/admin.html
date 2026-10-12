@@ -426,8 +426,9 @@
                         <span style="display:flex; align-items:center; gap:8px;"><i class="fas fa-map"></i> Live Map</span>
                         <div style="display:flex; gap: 8px;">
                             <button class="route-btn" id="btn-admin-layer" onclick="toggleAdminMapLayer()"><i class="fas fa-layer-group"></i> <span id="admin-layer-text">Satellite</span></button>
-                            <button class="route-btn" onclick="toggleAllRoutes()"><i class="fas fa-route"></i> Show Routes</button>
-                            <button class="route-btn supply-btn" onclick="enableSupplyMarkerMode()"><i class="fas fa-box-open"></i> Mark Available Supply</button>
+                            <button class="route-btn" id="btn-admin-routes" onclick="toggleAllRoutes()"><i class="fas fa-route"></i> Show Routes</button>
+                            <button class="route-btn supply-btn" id="btn-admin-supply" onclick="enableSupplyMarkerMode()"><i class="fas fa-box-open"></i> Nearest Supplies / Mark</button>
+                            <button class="route-btn" id="btn-admin-evac" onclick="centerOnEvacuationCenter()" title="Center on Evacuation Center"><i class="fas fa-person-shelter"></i> Evac Center</button>
                         </div>
                     </div>
                     <div id="admin-map"></div>
@@ -510,6 +511,7 @@
         const studentData = new Map();
         let fullRoster = [];
         const TAMBAI_LOC = [7.100265815095807, 124.82402407212273];
+        const EVACUATION_CENTER_LOC = [7.100589893149529, 124.82393056927546]; // Primary Front Evacuation Center
 
         const BUILDINGS = [
             { name: "BLDG A", coords: [7.100767, 124.824077] }, { name: "BLDG B", coords: [7.100636, 124.824271] },
@@ -623,7 +625,7 @@
         }
 
         function initMap() {
-            map = L.map("admin-map", { zoomControl: false, maxZoom: 21 }).setView(TAMBAI_LOC, 18);
+            map = L.map("admin-map", { zoomControl: false, maxZoom: 21 }).setView(EVACUATION_CENTER_LOC, 18);
             applyAdminMapLayer();
             L.control.zoom({ position: "bottomright" }).addTo(map);
             
@@ -640,7 +642,7 @@
 
         async function loadSafeZones() {
             const zones = [
-                { name: "Primary Front", coords: [7.100589893149529, 124.82393056927546] },
+                { name: "Primary Front (Evacuation Center)", coords: EVACUATION_CENTER_LOC },
                 { name: "Secondary Court", coords: [7.100077551009359, 124.82369094608939] },
                 { name: "Tertiary Sector", coords: [7.1001461901808565, 124.82430112059413] },
             ];
@@ -651,17 +653,26 @@
             zones.forEach((z) => L.marker(z.coords, { icon: shieldIcon }).addTo(map).bindPopup(`<div class="map-popup"><h3>Safe Zone</h3><p>${z.name}</p></div>`));
         }
 
+        function centerOnEvacuationCenter() {
+            if (!map) return;
+            map.flyTo(EVACUATION_CENTER_LOC, 19, { animate: true, duration: 1.0 });
+            showToast("📍 Centered on Primary Evacuation Center");
+        }
+
         async function toggleAllRoutes() {
             allRoutesVisible = !allRoutesVisible;
             if (allRoutesVisible) {
                 if (!roadsLayer) roadsLayer = L.layerGroup().addTo(map);
                 roadsLayer.clearLayers();
                 
+                // Center on Evacuation Center when showing routes
+                map.flyTo(EVACUATION_CENTER_LOC, 19, { animate: true, duration: 1.0 });
+
                 const bounds = map.getBounds();
                 const bbox = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`;
                 const query = `[out:json];way[highway](${bbox});out geom;`;
                 
-                showToast("Fetching road network...");
+                showToast("📍 Centered on Evacuation Center. Fetching road network...");
                 try {
                     const response = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`);
                     const data = await response.json();
@@ -677,7 +688,7 @@
                             roadCount++;
                         }
                     });
-                    showToast(`Loaded ${roadCount} real roads`);
+                    showToast(`Centered on Evacuation Center | Loaded ${roadCount} real roads`);
                 } catch(e) {
                     console.error(e);
                     showToast("Failed to load routes. Check connection.");
@@ -691,12 +702,22 @@
         function enableSupplyMarkerMode() {
             supplyMode = true;
             document.getElementById('admin-map').classList.add('supply-cursor');
-            showToast("Click on map to mark supply drop");
+            
+            // If existing supply drops exist, center on the nearest/latest supply marker, else center on the evacuation center
+            if (supplyMarkers.length > 0) {
+                const nearestSupply = supplyMarkers[supplyMarkers.length - 1];
+                map.flyTo(nearestSupply.getLatLng(), 19, { animate: true, duration: 1.0 });
+                showToast("📍 Centered on Nearest Supply Drop. Click map to place another.");
+            } else {
+                map.flyTo(EVACUATION_CENTER_LOC, 19, { animate: true, duration: 1.0 });
+                showToast("📍 Centered on Evacuation Center. Click map to mark supply drop.");
+            }
         }
 
         function placeSupplyDrop(latlng) {
             supplyMode = false;
             document.getElementById('admin-map').classList.remove('supply-cursor');
+            map.flyTo(latlng, 19, { animate: true, duration: 1.0 });
             
             const supplyIcon = L.divIcon({
                 className: "dest-pin",

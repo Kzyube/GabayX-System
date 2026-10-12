@@ -1,1 +1,25 @@
+# Dependencies
 node_modules/
+mobile-app/node_modules/
+
+# Mobile Builds & Artifacts
+mobile-app/.expo/
+mobile-app/dist/
+mobile-app/web-build/
+mobile-app/android/
+mobile-app/ios/
+mobile-app/*.jks
+mobile-app/*.p8
+mobile-app/*.p12
+mobile-app/*.key
+mobile-app/*.mobileprovision
+mobile-app/*.orig.*
+
+# Environment & Secrets
+.env
+.env.local
+mobile-app/.env
+mobile-app/.env.local
+
+# Logs
+*.log

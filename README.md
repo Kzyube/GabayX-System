@@ -15,12 +15,10 @@ You can access the fully functional live system here:
 ## 📖 How to Use the System
 
 ### 🧑‍🎓 For Students (The Client App)
-1. **Create an Account:** Click "Sign up now" on the login page. Enter your Email, Phone Number, Name, and Password.
-2. **Log In:** Sign in with your Email and Password.
-3. **Allow Permissions:** You *must* allow **Location (GPS)** and **Notifications** for the map tracking and sirens to function.
-4. **Follow Emergency Routes:** During an alert, an alarm plays and the map automatically draws a path to the nearest safe zone.
-5. **Manage Vouchers:** If a donor sends funds to your area, a notification will appear. Open the sidebar and click **"Show GCash Vouchers"** to view your unique claim codes.
-6. **Donate to Others:** Access the **"Donate to Relief"** button in your sidebar to help other students in need.
+1. **Access the App:** Open GabayX on phone or browser directly.
+2. **Allow Permissions:** You *must* allow **Location (GPS)** for the map tracking and nearby places to function.
+3. **Follow Emergency Routes:** During an alert, an alarm plays and the map automatically draws a path to the nearest safe zone.
+4. **Offline Resilience:** Actions and emergency telemetry are saved locally and synchronized automatically once reconnected.
 
 ### 🛡️ For Administrators (The Command App)
 1. **Log In:** Use the credentials: **Email:** `admin` | **Password:** `knhs2026`.
@@ -28,24 +26,13 @@ You can access the fully functional live system here:
 3. **Broadcast Alerts:** Push Earthquake, Fire, or Flood alerts instantly to all devices to trigger evacuation protocols.
 4. **Interactive Supply Drops:** Click "Mark Available Supply" and tap the map to drop relief crates, which automatically routes students to that location.
 
-### 🧡 For Donors (The Relief Portal)
-1. **Access the Portal:** Click the **"Donate to Relief"** button in the student app sidebar or navigate directly to `/donate.html`.
-2. **Search Location:** Use the real-time search bar to find a specific city or campus sector (e.g., "Kabacan" or "Mendoza Court").
-3. **Deploy Funds:** Enter the amount and donor name to initiate the grant.
-4. **Verified Instant Aid:** Once submitted, a secure voucher is generated and broadcasted *only* to students physically located in that specific target area.
-
 ---
 
 ## 🚀 Key Features
 
-### 🎁 Transparent Donation System
-* **Real-Time Geographic Targeting:** Donors can search for real-world locations using a live API to target specific disaster zones.
-* **Blockchain-Inspired Security:** Every donation is logged in a secure ledger, ensuring the system is anti-corrupt, anti-fraud, and fully transparent.
-* **Instant Voucher Disbursement:** Funds bypass middlemen and are converted into unique GCash claim codes beamed directly to victims' phones.
-* **Proximity-Based Filtering:** The system uses GPS logic to ensure vouchers only appear for users actually located within the donor's targeted radius.
-
 ### Student App
 * **Automatic Safe Zone Routing:** Calculates the fastest walking path based on the specific disaster type.
+* **Offline Maps & Routes:** Download pre-calculated official evacuation route geometries (OSRM foot router) and campus basemap tile packages directly into IndexedDB and Service Worker CacheStorage for 100% offline navigation.
 * **Offline Data Saving:** Caches GPS coordinates and SOS notes locally if the internet drops, syncing them once reconnected.
 * **SMS Backup:** Formats a distress text message with exact coordinates for use when mobile data is unavailable.
 

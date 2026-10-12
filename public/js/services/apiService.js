@@ -64,7 +64,9 @@
             longitude: report.longitude !== undefined ? report.longitude : report.lng,
             nearest_building: report.nearest_building || report.nearestBuilding || 'Campus',
             student_id: report.student_id || report.studentId || 'anonymous',
-            student_name: report.student_name || report.studentName || 'Student',
+            student_name: report.student_name || report.studentName || 'Guest Citizen',
+            contact_phone: report.contact_phone || report.phone_number || report.contactNumber || null,
+            phone_number: report.contact_phone || report.phone_number || report.contactNumber || null,
             timestamp: report.createdAt || report.timestamp || new Date().toISOString(),
             createdAt: report.createdAt || report.timestamp || new Date().toISOString(),
             photo: report.photo || null

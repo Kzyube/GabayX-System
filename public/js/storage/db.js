@@ -7,11 +7,14 @@
     'use strict';
 
     const DB_NAME = 'GabayX_Offline_DB';
-    const DB_VERSION = 2;
+    const DB_VERSION = 3;
 
     const STORES = {
         REPORTS: 'reports',
-        SYNC_QUEUE: 'sync_queue'
+        SYNC_QUEUE: 'sync_queue',
+        ROUTES: 'offline_routes',
+        TILES: 'offline_tiles',
+        PACKAGES: 'offline_packages'
     };
 
     let dbInstance = null;
@@ -43,6 +46,26 @@
                     const queueStore = db.createObjectStore(STORES.SYNC_QUEUE, { keyPath: 'queueId', autoIncrement: true });
                     queueStore.createIndex('status', 'status', { unique: false });
                     queueStore.createIndex('timestamp', 'timestamp', { unique: false });
+                }
+
+                // 3. Offline Routes Store (Pre-calculated and downloaded route geometries)
+                if (!db.objectStoreNames.contains(STORES.ROUTES)) {
+                    const routeStore = db.createObjectStore(STORES.ROUTES, { keyPath: 'id' });
+                    routeStore.createIndex('downloadTimestamp', 'downloadTimestamp', { unique: false });
+                    routeStore.createIndex('isOfficial', 'isOfficial', { unique: false });
+                }
+
+                // 4. Offline Map Tiles Store
+                if (!db.objectStoreNames.contains(STORES.TILES)) {
+                    const tileStore = db.createObjectStore(STORES.TILES, { keyPath: 'key' });
+                    tileStore.createIndex('z', 'z', { unique: false });
+                    tileStore.createIndex('timestamp', 'timestamp', { unique: false });
+                }
+
+                // 5. Offline Packages Metadata Store
+                if (!db.objectStoreNames.contains(STORES.PACKAGES)) {
+                    const pkgStore = db.createObjectStore(STORES.PACKAGES, { keyPath: 'id' });
+                    pkgStore.createIndex('type', 'type', { unique: false });
                 }
             };
 
@@ -237,6 +260,206 @@
         });
     }
 
+    // =========================================================================
+    // OFFLINE ROUTES STORAGE
+    // =========================================================================
+
+    function saveRoute(route) {
+        if (!route || !route.id) return Promise.reject(new Error('Missing route id'));
+        return new Promise(async (resolve, reject) => {
+            try {
+                const store = await getStore(STORES.ROUTES, 'readwrite');
+                const req = store.put(route);
+                req.onsuccess = () => resolve(route);
+                req.onerror = () => reject(req.error);
+            } catch (err) {
+                reject(err);
+            }
+        });
+    }
+
+    function getRoute(id) {
+        return new Promise(async (resolve, reject) => {
+            try {
+                const store = await getStore(STORES.ROUTES, 'readonly');
+                const req = store.get(id);
+                req.onsuccess = () => resolve(req.result || null);
+                req.onerror = () => reject(req.error);
+            } catch (err) {
+                reject(err);
+            }
+        });
+    }
+
+    function getAllRoutes() {
+        return new Promise(async (resolve, reject) => {
+            try {
+                const store = await getStore(STORES.ROUTES, 'readonly');
+                const req = store.getAll();
+                req.onsuccess = () => resolve(req.result || []);
+                req.onerror = () => reject(req.error);
+            } catch (err) {
+                reject(err);
+            }
+        });
+    }
+
+    function deleteRoute(id) {
+        return new Promise(async (resolve, reject) => {
+            try {
+                const store = await getStore(STORES.ROUTES, 'readwrite');
+                const req = store.delete(id);
+                req.onsuccess = () => resolve(true);
+                req.onerror = () => reject(req.error);
+            } catch (err) {
+                reject(err);
+            }
+        });
+    }
+
+    // =========================================================================
+    // OFFLINE MAP TILES & PACKAGES STORAGE
+    // =========================================================================
+
+    function saveTile(tile) {
+        if (!tile || !tile.key) return Promise.reject(new Error('Missing tile key'));
+        return new Promise(async (resolve, reject) => {
+            try {
+                const store = await getStore(STORES.TILES, 'readwrite');
+                const req = store.put(tile);
+                req.onsuccess = () => resolve(tile);
+                req.onerror = () => reject(req.error);
+            } catch (err) {
+                reject(err);
+            }
+        });
+    }
+
+    function getTile(key) {
+        return new Promise(async (resolve, reject) => {
+            try {
+                const store = await getStore(STORES.TILES, 'readonly');
+                const req = store.get(key);
+                req.onsuccess = () => resolve(req.result || null);
+                req.onerror = () => reject(req.error);
+            } catch (err) {
+                reject(err);
+            }
+        });
+    }
+
+    function getAllTiles() {
+        return new Promise(async (resolve, reject) => {
+            try {
+                const store = await getStore(STORES.TILES, 'readonly');
+                const req = store.getAll();
+                req.onsuccess = () => resolve(req.result || []);
+                req.onerror = () => reject(req.error);
+            } catch (err) {
+                reject(err);
+            }
+        });
+    }
+
+    function clearTiles() {
+        return new Promise(async (resolve, reject) => {
+            try {
+                const store = await getStore(STORES.TILES, 'readwrite');
+                const req = store.clear();
+                req.onsuccess = () => resolve(true);
+                req.onerror = () => reject(req.error);
+            } catch (err) {
+                reject(err);
+            }
+        });
+    }
+
+    function savePackage(pkg) {
+        if (!pkg || !pkg.id) return Promise.reject(new Error('Missing package id'));
+        return new Promise(async (resolve, reject) => {
+            try {
+                const store = await getStore(STORES.PACKAGES, 'readwrite');
+                const req = store.put(pkg);
+                req.onsuccess = () => resolve(pkg);
+                req.onerror = () => reject(req.error);
+            } catch (err) {
+                reject(err);
+            }
+        });
+    }
+
+    function getPackage(id) {
+        return new Promise(async (resolve, reject) => {
+            try {
+                const store = await getStore(STORES.PACKAGES, 'readonly');
+                const req = store.get(id);
+                req.onsuccess = () => resolve(req.result || null);
+                req.onerror = () => reject(req.error);
+            } catch (err) {
+                reject(err);
+            }
+        });
+    }
+
+    function getAllPackages() {
+        return new Promise(async (resolve, reject) => {
+            try {
+                const store = await getStore(STORES.PACKAGES, 'readonly');
+                const req = store.getAll();
+                req.onsuccess = () => resolve(req.result || []);
+                req.onerror = () => reject(req.error);
+            } catch (err) {
+                reject(err);
+            }
+        });
+    }
+
+    function deletePackage(id) {
+        return new Promise(async (resolve, reject) => {
+            try {
+                const store = await getStore(STORES.PACKAGES, 'readwrite');
+                const req = store.delete(id);
+                req.onsuccess = () => resolve(true);
+                req.onerror = () => reject(req.error);
+            } catch (err) {
+                reject(err);
+            }
+        });
+    }
+
+    async function getStorageStats() {
+        const routes = await getAllRoutes();
+        const packages = await getAllPackages();
+        const tiles = await getAllTiles();
+
+        let approxBytes = 0;
+        routes.forEach(r => {
+            approxBytes += JSON.stringify(r).length;
+        });
+        packages.forEach(p => {
+            approxBytes += (p.sizeBytes || 0);
+        });
+        tiles.forEach(t => {
+            approxBytes += (t.sizeBytes || (t.dataUrl ? t.dataUrl.length : 15000));
+        });
+
+        let quotaEstimate = null;
+        if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.estimate) {
+            try {
+                quotaEstimate = await navigator.storage.estimate();
+            } catch (e) {}
+        }
+
+        return {
+            routeCount: routes.length,
+            tileCount: tiles.length,
+            packageCount: packages.length,
+            approxBytes,
+            quotaUsage: quotaEstimate ? quotaEstimate.usage : null,
+            quotaTotal: quotaEstimate ? quotaEstimate.quota : null
+        };
+    }
+
     // Expose API
     const DB = {
         openDB,
@@ -248,7 +471,21 @@
         deleteReport,
         addToSyncQueue,
         getSyncQueue,
-        clearSyncQueue
+        clearSyncQueue,
+        // Offline Routes & Map Data
+        saveRoute,
+        getRoute,
+        getAllRoutes,
+        deleteRoute,
+        saveTile,
+        getTile,
+        getAllTiles,
+        clearTiles,
+        savePackage,
+        getPackage,
+        getAllPackages,
+        deletePackage,
+        getStorageStats
     };
 
     global.GabayXDB = DB;

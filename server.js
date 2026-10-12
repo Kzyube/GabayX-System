@@ -66,6 +66,11 @@ app.get('/index.html', (req, res) => {
     res.redirect('/');
 });
 
+// RETIRED DONATION PORTAL (Redirect safely to student app)
+app.get(['/donate', '/donate.html'], (req, res) => {
+    res.redirect('/student.html');
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 // --- 4. ROUTES ---
@@ -148,36 +153,9 @@ app.post('/auth/register', async (req, res) => {
     res.redirect('/?success=registered');
 });
 
-// --- NEW GCASH DONATION ROUTE ---
-app.post('/api/donate', async (req, res) => {
-    const donorName = req.body.donor_name ? req.body.donor_name.trim() : 'Anonymous Hero';
-    const amount = parseFloat(req.body.amount);
-    const targetZone = req.body.target_zone;
-    
-    // Generate a secure 8-character voucher code (e.g. GX-8F2B9A)
-    const voucherCode = 'GX-' + Math.random().toString(36).substring(2, 8).toUpperCase();
-
-    const { error } = await supabase.from('donations').insert([{
-        donor_name: donorName,
-        amount: amount,
-        target_zone: targetZone,
-        voucher_code: voucherCode
-    }]);
-
-    if (!error) {
-        console.log(`💰 DONATION SECURED: ₱${amount} to ${targetZone}`);
-        // Broadcast the voucher to the students live
-        io.emit('donation-dropped', {
-            donor: donorName,
-            amount: amount,
-            zone: targetZone,
-            voucher: voucherCode
-        });
-        res.redirect(`/donate.html?success=true&voucher=${voucherCode}`);
-    } else {
-        console.error("Donation DB Error:", error);
-        res.redirect('/donate.html?error=true');
-    }
+// RETIRED DONATION ROUTE
+app.post('/api/donate', (req, res) => {
+    res.status(410).json({ error: 'Donation service has been retired.' });
 });
 
 app.get('/api/me', (req, res) => {
@@ -207,6 +185,24 @@ app.get('/api/me', (req, res) => {
 // Deduplication sets for offline reports and sync events
 const processedReportIds = new Set();
 const processedSyncHashes = new Set();
+const processedMessageIds = new Set();
+
+// Anti-spam & abuse rate limiting (in-memory per client IP)
+const ipRateLimits = new Map();
+function checkRateLimit(ip, limit = 30, windowMs = 60000) {
+    const now = Date.now();
+    let record = ipRateLimits.get(ip);
+    if (!record || now > record.resetTime) {
+        record = { count: 1, resetTime: now + windowMs };
+        ipRateLimits.set(ip, record);
+        return true;
+    }
+    if (record.count >= limit) {
+        return false;
+    }
+    record.count++;
+    return true;
+}
 
 // HEALTH CHECK ENDPOINT (Active connectivity verification for PWA)
 app.get('/api/health', (req, res) => {
@@ -215,65 +211,115 @@ app.get('/api/health', (req, res) => {
 
 // EMERGENCY INCIDENT REPORT SUBMISSION (Offline-first & Online reports)
 app.post('/api/reports/submit', async (req, res) => {
-    const report = req.body;
-    if (!report || !report.id) {
-        return res.status(400).json({ error: "Missing report id" });
+    const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
+    if (!checkRateLimit(clientIp, 30, 60000)) {
+        return res.status(429).json({ error: "Too many requests. Please wait a moment before submitting another report." });
     }
 
-    // Deduplication: prevent duplicate processing on retries
-    if (processedReportIds.has(report.id)) {
-        console.log(`[DEDUP] Report ${report.id} already processed. Acknowledging client.`);
-        return res.status(200).json({ status: 'success', duplicate: true, id: report.id });
+    const report = req.body;
+    if (!report || typeof report !== 'object' || !report.id || typeof report.id !== 'string') {
+        return res.status(400).json({ error: "Missing or invalid report id" });
     }
-    processedReportIds.add(report.id);
+
+    // Input sanitization and bounds checking
+    const reportId = report.id.trim().substring(0, 120);
+    const incidentType = String(report.incident_type || report.incidentType || 'GENERAL').trim().substring(0, 50).toUpperCase();
+    const description = String(report.description || '').trim().substring(0, 2000);
+    const nearestBuilding = String(report.nearest_building || report.nearestBuilding || 'Campus Zone').trim().substring(0, 100);
+    
+    let lat = (report.lat !== undefined && report.lat !== null) ? Number(report.lat) : ((report.latitude !== undefined && report.latitude !== null) ? Number(report.latitude) : null);
+    let lng = (report.lng !== undefined && report.lng !== null) ? Number(report.lng) : ((report.longitude !== undefined && report.longitude !== null) ? Number(report.longitude) : null);
+    if (lat !== null && (isNaN(lat) || lat < -90 || lat > 90)) lat = null;
+    if (lng !== null && (isNaN(lng) || lng < -180 || lng > 180)) lng = null;
+
+    const studentId = String(report.student_id || 'anonymous').trim().substring(0, 100);
+    const studentName = String(report.student_name || 'Guest Citizen').trim().substring(0, 100);
+    const contactPhone = (report.contact_phone || report.phone_number) ? String(report.contact_phone || report.phone_number).trim().substring(0, 50) : null;
+    const photo = (typeof report.photo === 'string' && report.photo.startsWith('data:image/')) ? report.photo : null;
+    const timestamp = report.timestamp || report.createdAt || new Date().toISOString();
+
+    // Deduplication: prevent duplicate processing on retries
+    if (processedReportIds.has(reportId)) {
+        console.log(`[DEDUP] Report ${reportId} already processed. Acknowledging client.`);
+        return res.status(200).json({ status: 'success', duplicate: true, id: reportId });
+    }
+    processedReportIds.add(reportId);
     if (processedReportIds.size > 2000) {
         const oldest = processedReportIds.values().next().value;
         processedReportIds.delete(oldest);
     }
 
-    console.log(`[REPORT] Received emergency report ${report.id} (${report.incident_type}) from ${report.student_id}`);
+    const cleanReport = {
+        id: reportId,
+        incident_type: incidentType,
+        incidentType: incidentType,
+        description: description || `Reported ${incidentType} emergency in area`,
+        severity: report.severity || 'HIGH',
+        lat,
+        latitude: lat,
+        lng,
+        longitude: lng,
+        nearest_building: nearestBuilding,
+        student_id: studentId,
+        student_name: studentName,
+        contact_phone: contactPhone,
+        phone_number: contactPhone,
+        photo,
+        timestamp,
+        createdAt: timestamp
+    };
+
+    console.log(`[REPORT] Emergency report ${reportId} (${incidentType}) from ${studentName} (${studentId})${contactPhone ? ' [Phone: ' + contactPhone + ']' : ''}`);
 
     // Broadcast rich incident report to admin dashboard via Socket.io
-    io.emit('admin-receive-report', report);
+    io.emit('admin-receive-report', cleanReport);
 
     // If location exists, update telemetry and pin on map
-    if (report.lat && report.lng) {
+    if (lat && lng) {
         io.emit('admin-dashboard-update', {
-            id: report.student_id,
+            id: studentId,
             status: 'DANGER',
-            lat: report.lat,
-            lng: report.lng,
-            incidentType: report.incident_type
+            lat: lat,
+            lng: lng,
+            incidentType: incidentType,
+            name: studentName,
+            phone: contactPhone
         });
     }
 
     // Persist to Supabase sos_messages
     try {
-        const formattedMsg = `[${report.incident_type}]: ${report.description || 'Emergency reported'} (${report.nearest_building || 'Campus'})`;
+        const reporterTag = studentName ? ` [Reporter: ${studentName}]` : '';
+        const phoneTag = contactPhone ? ` [Phone: ${contactPhone}]` : '';
+        const formattedMsg = `[${incidentType}]: ${description || 'Emergency reported'} (${nearestBuilding})${reporterTag}${phoneTag}`;
         await supabase.from('sos_messages').insert([{
-            student_id: report.student_id || 'anonymous',
+            student_id: studentId,
             message: formattedMsg,
             is_critical: true,
             replied: false,
-            created_at: report.timestamp || new Date().toISOString()
+            created_at: timestamp
         }]);
     } catch (dbErr) {
         console.error('[REPORT DB ERROR]:', dbErr);
     }
 
-    res.status(200).json({ status: 'success', id: report.id, receivedAt: new Date().toISOString() });
+    res.status(200).json({ status: 'success', id: reportId, receivedAt: new Date().toISOString() });
 });
 
 // MESSAGE ADMINISTRATOR ENDPOINT (General inquiries - separate from emergency reports)
-const processedMessageIds = new Set();
 app.post('/api/messages/send', async (req, res) => {
+    const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
+    if (!checkRateLimit(clientIp, 20, 60000)) {
+        return res.status(429).json({ error: "Too many messages. Please wait a moment." });
+    }
+
     const { id, message, student_id, student_name, include_location, lat, lng, timestamp } = req.body;
     
-    if (!message || !message.trim()) {
+    if (!message || !String(message).trim()) {
         return res.status(400).json({ error: "Message content cannot be empty" });
     }
 
-    const msgId = id || `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const msgId = (typeof id === 'string' && id.trim()) ? id.trim().substring(0, 100) : `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
     // Deduplication check
     if (processedMessageIds.has(msgId)) {
@@ -286,19 +332,23 @@ app.post('/api/messages/send', async (req, res) => {
         processedMessageIds.delete(oldest);
     }
 
+    const cleanMessage = String(message).trim().substring(0, 1000);
+    const cleanStudentId = String(student_id || 'anonymous').trim().substring(0, 100);
+    const cleanStudentName = String(student_name || 'Guest Citizen').trim().substring(0, 100);
+
     const payload = {
         id: msgId,
-        student_id: student_id || 'anonymous',
-        student_name: student_name || 'Student / Citizen',
-        message: message.trim(),
+        student_id: cleanStudentId,
+        student_name: cleanStudentName,
+        message: cleanMessage,
         include_location: !!include_location,
-        lat: lat !== undefined ? lat : null,
-        lng: lng !== undefined ? lng : null,
+        lat: (lat !== undefined && lat !== null && !isNaN(lat)) ? Number(lat) : null,
+        lng: (lng !== undefined && lng !== null && !isNaN(lng)) ? Number(lng) : null,
         timestamp: timestamp || new Date().toISOString(),
         type: 'INQUIRY'
     };
 
-    console.log(`[MESSAGE] Administrator inquiry from ${payload.student_id}: "${payload.message.substring(0, 50)}..."`);
+    console.log(`[MESSAGE] Administrator inquiry from ${payload.student_name} (${payload.student_id}): "${payload.message.substring(0, 50)}..."`);
 
     // Broadcast distinct inquiry message to administrator command dashboard
     io.emit('admin-receive-message', payload);
@@ -306,9 +356,10 @@ app.post('/api/messages/send', async (req, res) => {
     // Persist to Supabase sos_messages as non-critical general inquiry
     try {
         const locNote = payload.lat && payload.lng ? ` [Loc: ${payload.lat.toFixed(4)}, ${payload.lng.toFixed(4)}]` : '';
+        const reporterTag = ` [From: ${cleanStudentName}]`;
         await supabase.from('sos_messages').insert([{
             student_id: payload.student_id,
-            message: `[INQUIRY]: ${payload.message}${locNote}`,
+            message: `[INQUIRY]: ${payload.message}${locNote}${reporterTag}`,
             is_critical: false,
             replied: false,
             created_at: payload.timestamp
