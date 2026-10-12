@@ -134,136 +134,140 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            transition: background-color 0.25s ease, color 0.25s ease;
+            transition: background-color 0.2s ease, color 0.2s ease;
         }
 
         /* --- HEADER --- */
         header {
             background: var(--bg-surface);
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            padding: 14px 20px;
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            padding: 12px 18px;
             display: flex; align-items: center; justify-content: space-between;
             border-bottom: 1px solid var(--border-subtle);
             z-index: 1001;
             box-shadow: var(--shadow-card);
-            transition: background 0.25s ease, border-color 0.25s ease;
+            transition: background 0.2s ease, border-color 0.2s ease;
         }
 
         .app-logo {
-            display: flex; align-items: center; gap: 12px; cursor: pointer;
+            display: flex; align-items: center; gap: 10px; cursor: pointer;
         }
         
         .nav-logo-mark {
-            width: 28px; height: 28px; border-radius: 8px; object-fit: cover;
-            box-shadow: 0 0 10px rgba(16, 185, 129, 0.4); border: 1px solid var(--primary);
+            width: 30px; height: 30px; border-radius: 6px; object-fit: cover;
+            border: 1px solid var(--border-strong);
         }
 
         .nav-brand-text {
-            font-weight: 800; font-size: 1.4rem; letter-spacing: 1px; text-transform: uppercase;
-            background: linear-gradient(135deg, #ffffff 0%, var(--primary) 50%, #00f0ff 100%);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.4));
+            font-weight: 800; font-size: 1.25rem; letter-spacing: 0.5px; text-transform: uppercase;
+            color: var(--text-main);
         }
 
         [data-theme="light"] .nav-brand-text {
-            background: linear-gradient(135deg, #0f172a 0%, var(--primary) 65%, #0284c7 100%);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            filter: none;
+            color: var(--text-main);
         }
 
-        .status-dot { width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 10px currentColor; }
-        .conn-container { display: flex; align-items: center; gap: 8px; font-family: var(--font-data); font-size: 10px; font-weight: 700; letter-spacing: 1px; color: var(--text-sub); }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .conn-container { display: flex; align-items: center; gap: 8px; font-family: var(--font-data); font-size: 11px; font-weight: 700; letter-spacing: 0.5px; color: var(--text-sub); }
 
         /* THEME TOGGLE HEADER BUTTON */
         .theme-toggle-header-btn {
-            background: var(--primary-light);
-            border: 1px solid var(--glass-border);
-            color: var(--primary);
+            background: var(--bg-card);
+            border: 1px solid var(--border-medium);
+            color: var(--text-sub);
             width: 36px;
             height: 36px;
-            border-radius: 10px;
+            border-radius: 8px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 15px;
+            font-size: 14px;
             transition: all 0.2s ease;
             margin-left: 6px;
         }
         .theme-toggle-header-btn:hover {
-            background: var(--primary);
-            color: #ffffff;
-            transform: scale(1.05);
+            background: var(--primary-light);
+            color: var(--primary);
+            border-color: var(--border-strong);
         }
         .theme-toggle-header-btn:focus-visible {
             outline: 2px solid var(--primary);
             outline-offset: 2px;
         }
 
-        /* --- ENHANCED SIDEBAR --- */
+        /* --- SIDEBAR DRAWER --- */
         #sidebar {
-            position: fixed; left: -300px; top: 0; bottom: 0; width: 300px;
-            background: var(--sidebar-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            z-index: 11000; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            padding: 30px 24px; display: flex; flex-direction: column;
-            border-right: 1px solid var(--glass-border);
+            position: fixed; left: -320px; top: 0; bottom: 0; width: 320px;
+            background: var(--sidebar-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            z-index: 11000; transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), left 0.3s ease;
+            padding: 24px 20px; display: flex; flex-direction: column;
+            border-right: 1px solid var(--border-medium);
             color: var(--text-main);
+            overflow-y: auto;
         }
-        #sidebar.active { left: 0; box-shadow: 20px 0 50px rgba(0,0,0,0.8); }
+        #sidebar.active { left: 0; box-shadow: 10px 0 40px rgba(0,0,0,0.45); }
 
-        .sidebar-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 10999; display: none; opacity: 0; transition: opacity 0.3s; }
+        .sidebar-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); z-index: 10999; display: none; opacity: 0; transition: opacity 0.25s; }
         .sidebar-overlay.active { display: block; opacity: 1; }
 
         .sidebar-user-card {
-            background: var(--primary-light); border: 1px solid var(--glass-border);
-            border-radius: 20px; padding: 22px 18px; margin-bottom: 20px;
-            display: flex; align-items: center; gap: 16px;
+            background: var(--bg-card); border: 1px solid var(--border-medium);
+            border-radius: 12px; padding: 16px; margin-bottom: 16px;
+            display: flex; align-items: center; gap: 14px;
         }
-        .user-avatar { font-size: 42px; color: var(--primary); text-shadow: 0 0 15px rgba(16,185,129,0.4); }
-        .welcome-text { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-sub); }
-        #sidebar-name { font-weight: 800; margin: 0; font-size: 20px; color: var(--text-main); line-height: 1.2; }
-        .mono-stat { font-family: var(--font-data); font-size: 10px; color: var(--primary); margin-top: 4px; display: flex; align-items: center; gap: 5px; }
+        .user-avatar { font-size: 36px; color: var(--primary); }
+        .welcome-text { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-sub); }
+        #sidebar-name { font-weight: 700; margin: 2px 0 0 0; font-size: 17px; color: var(--text-main); line-height: 1.2; }
+        .mono-stat { font-family: var(--font-data); font-size: 11px; color: var(--text-sub); margin-top: 4px; display: flex; align-items: center; gap: 5px; }
 
-        .sidebar-label { font-size: 10px; font-weight: 800; text-transform: uppercase; color: var(--text-sub); letter-spacing: 1.5px; margin-bottom: 12px; display: block; }
+        .sidebar-label { font-size: 10px; font-weight: 800; text-transform: uppercase; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 10px; display: block; }
         
-        .guidelines-container { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 16px; padding: 12px; margin-bottom: 20px; }
-        .tabs-header { display: flex; gap: 8px; margin-bottom: 15px; }
+        .guidelines-container { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 10px; padding: 12px; margin-bottom: 16px; }
+        .tabs-header { display: flex; gap: 6px; margin-bottom: 12px; }
         .tab-btn {
-            flex: 1; border: 1px solid transparent; background: var(--bg-input); color: var(--text-sub);
-            padding: 12px 5px; border-radius: 10px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; transition: 0.3s;
+            flex: 1; border: 1px solid var(--border-subtle); background: var(--bg-input); color: var(--text-sub);
+            padding: 8px 4px; border-radius: 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: 0.2s;
         }
-        .tab-btn span { font-family: var(--font-ui); font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;}
-        .tab-btn.active { background: var(--primary-light); border-color: var(--glass-border); color: var(--primary); }
+        .tab-btn span { font-family: var(--font-ui); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;}
+        .tab-btn.active { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
 
-        .tab-pane { display: none; animation: fadeIn 0.4s ease; }
+        .tab-pane { display: none; }
         .tab-pane.active { display: block; }
-        .guide-content { background: var(--bg-input); padding: 16px; border-radius: 12px; font-size: 12px; color: var(--text-sub); line-height: 1.6; }
-        .guide-content b { color: var(--danger); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 8px;}
+        .guide-content { background: var(--bg-input); padding: 12px 14px; border-radius: 8px; font-size: 12px; color: var(--text-sub); line-height: 1.5; border: 1px solid var(--border-subtle); }
+        .guide-content b { color: var(--danger); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 6px;}
 
-        .contact-item { background: var(--bg-card); padding: 14px; border-radius: 12px; margin-bottom: 8px; border: 1px solid var(--border-subtle); display: flex; align-items: center; gap: 12px; font-size: 13px; font-weight: 600; color: var(--text-main);}
+        .contact-item { background: var(--bg-card); padding: 10px 14px; border-radius: 8px; margin-bottom: 6px; border: 1px solid var(--border-subtle); display: flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 600; color: var(--text-main);}
 
-        /* Appearance Card in Sidebar */
-        .theme-sidebar-card { background: var(--bg-card); border: 1px solid var(--border-medium); border-radius: 16px; padding: 14px 16px; margin-bottom: 15px; }
-        .theme-switch-pills { display: flex; background: var(--bg-input); border: 1px solid var(--border-subtle); border-radius: 20px; padding: 3px; gap: 4px; }
-        .theme-pill-btn { background: transparent; border: none; color: var(--text-sub); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 13px; transition: 0.2s; }
-        .theme-pill-btn.active { background: var(--primary); color: #fff; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4); }
+        /* SIDEBAR NAV BUTTONS */
+        .btn-sidebar-nav {
+            width: 100%; padding: 12px 14px; background: var(--bg-card); color: var(--text-main);
+            border: 1px solid var(--border-subtle); border-radius: 8px; font-weight: 700;
+            font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer;
+            margin-bottom: 8px; display: flex; align-items: center; gap: 10px; transition: all 0.2s ease;
+            box-sizing: border-box; font-family: var(--font-ui); text-align: left;
+        }
+        .btn-sidebar-nav:hover {
+            background: var(--primary-light); color: var(--primary); border-color: var(--border-strong);
+        }
+        .btn-sidebar-nav:active { transform: scale(0.98); }
+        .btn-sidebar-nav i { font-size: 14px; width: 18px; text-align: center; }
 
-        /* Offline Toggle Area */
-        .offline-box { background: var(--bg-card); border: 1px solid var(--glass-border); border-radius: 16px; padding: 16px; margin-bottom: 15px; }
-        .switch { position: relative; display: inline-block; width: 46px; height: 26px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-medium); transition: .4s; border-radius: 34px; border: 1px solid var(--border-subtle); }
-        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: var(--text-sub); transition: .4s; border-radius: 50%; }
-        input:checked + .slider { background-color: var(--warning-bg); border-color: var(--warning); }
-        input:checked + .slider:before { transform: translateX(20px); background-color: var(--warning); box-shadow: 0 0 10px var(--warning); }
+        .btn-sidebar-primary {
+            background: var(--primary); color: #ffffff; border-color: var(--primary);
+        }
+        .btn-sidebar-primary:hover {
+            background: var(--primary-hover); color: #ffffff; border-color: var(--primary-hover);
+        }
 
-        /* BUTTONS */
-        .btn-voucher { width: 100%; padding: 14px; background: linear-gradient(135deg, var(--emerald-500), #00f0ff); color: #ffffff; border: none; border-radius: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; margin-bottom: 10px; display: flex; justify-content: center; align-items: center; gap: 8px; box-shadow: 0 0 15px rgba(0, 240, 255, 0.3); transition: 0.3s; }
-        .btn-voucher:active { transform: scale(0.96); }
+        .btn-sidebar-accent {
+            background: transparent; color: var(--primary); border-color: var(--primary);
+        }
 
-        .btn-donate-sidebar { width: 100%; padding: 14px; background: transparent; color: var(--emerald-400); border: 1px solid var(--emerald-500); border-radius: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; margin-bottom: 10px; display: flex; justify-content: center; align-items: center; gap: 8px; transition: 0.3s; }
-        .btn-donate-sidebar:hover { background: var(--primary-light); box-shadow: 0 0 15px rgba(16, 185, 129, 0.2); }
-        .btn-donate-sidebar:active { transform: scale(0.96); }
+        .btn-sidebar-subtle {
+            background: transparent; color: var(--text-sub); border-color: var(--border-subtle);
+            font-size: 11px; margin-top: 6px;
+        }
 
         /* --- MAIN APP LAYOUT & ACTIONS TRAY --- */
         #main-container { flex: 1; position: relative; display: flex; flex-direction: column; }
@@ -287,37 +291,41 @@
 
         .actions-tray {
             position: absolute; bottom: 0; left: 0; right: 0;
-            background: var(--tray-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border-top: 1px solid var(--glass-border); border-radius: 30px 30px 0 0;
-            padding: 22px 22px max(24px, env(safe-area-inset-bottom, 24px)) 22px;
+            background: var(--tray-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border-top: 1px solid var(--border-medium); border-radius: 16px 16px 0 0;
+            padding: 16px 18px max(18px, env(safe-area-inset-bottom, 18px)) 18px;
             z-index: 1002; box-shadow: var(--shadow-card);
-            transition: all 0.3s ease;
+            transition: all 0.25s ease;
         }
 
-        .location-badge { background: var(--bg-card); color: var(--text-main); padding: 6px 12px; border-radius: 8px; font-family: var(--font-data); font-size: 10px; font-weight: 700; border: 1px solid var(--border-medium); }
+        .location-badge { background: var(--bg-card); color: var(--text-main); padding: 5px 10px; border-radius: 6px; font-family: var(--font-data); font-size: 11px; font-weight: 700; border: 1px solid var(--border-medium); }
         
-        .quick-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px; }
-        .btn-quick { background: var(--bg-card); border: 1px solid var(--border-subtle); color: var(--text-sub); border-radius: 12px; padding: 12px; font-size: 11px; font-weight: 700; cursor: pointer; transition: 0.2s;}
-        .btn-quick:active { background: var(--primary-light); color: var(--primary); }
+        .quick-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px; }
+        .btn-quick { background: var(--bg-card); border: 1px solid var(--border-subtle); color: var(--text-main); border-radius: 8px; padding: 10px; font-size: 11px; font-weight: 700; cursor: pointer; transition: 0.2s;}
+        .btn-quick:active, .btn-quick:hover { background: var(--primary-light); color: var(--primary); border-color: var(--border-strong); }
 
-        .button-group { display: grid; grid-template-columns: 1fr 1.5fr; gap: 12px; margin-top: 16px; }
-        .btn-action { border: none; border-radius: 16px; font-weight: 800; padding: 16px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 1px; font-size: 11px; transition: 0.2s;}
-        .btn-safe { background: var(--primary-light); color: var(--primary); border: 1px solid var(--glass-border); }
-        .btn-danger { background: var(--danger); color: white; box-shadow: 0 0 20px rgba(255,42,95,0.4); }
-        .btn-action:active { transform: scale(0.96); }
+        .button-group { display: grid; grid-template-columns: 1fr 1.4fr; gap: 10px; margin-top: 14px; }
+        .btn-action { border: 1px solid transparent; border-radius: 8px; font-weight: 800; padding: 14px 12px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px; transition: 0.2s;}
+        .btn-safe { background: var(--primary-light); color: var(--primary); border-color: var(--border-strong); }
+        .btn-safe:hover { background: var(--primary); color: #ffffff; }
+        .btn-danger { background: var(--danger); color: #ffffff; border-color: var(--danger); }
+        .btn-danger:hover { opacity: 0.95; }
+        .btn-action:active { transform: scale(0.98); }
 
-        .msg-bar { margin-top: 16px; background: var(--bg-input); border: 1px solid var(--border-medium); border-radius: 14px; display: flex; align-items: center; padding: 4px; }
-        .msg-bar input { flex: 1; border: none; background: transparent; padding: 12px 16px; color: var(--text-main); outline: none; font-size: 13px; font-family: var(--font-ui);}
-        .btn-send { background: var(--primary); color: #ffffff; border: none; width: 38px; height: 38px; border-radius: 10px; cursor: pointer; font-size: 14px; }
+        .msg-bar { margin-top: 14px; background: var(--bg-input); border: 1px solid var(--border-medium); border-radius: 8px; display: flex; align-items: center; padding: 3px; }
+        .msg-bar input { flex: 1; border: none; background: transparent; padding: 10px 14px; color: var(--text-main); outline: none; font-size: 13px; font-family: var(--font-ui);}
+        .btn-send { background: var(--primary); color: #ffffff; border: none; width: 36px; height: 36px; border-radius: 6px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+        .btn-send:hover { background: var(--primary-hover); }
 
         /* --- NOTIFICATIONS & ROUTING --- */
-        .alert-banner { background: var(--danger-bg); border: 1px solid var(--danger); backdrop-filter: blur(10px); padding: 16px; border-radius: 16px; margin: 15px; position: absolute; top: 0; left: 0; right: 0; display: none; z-index: 1003; text-align: center; box-shadow: 0 10px 30px rgba(255,42,95,0.3);}
+        .alert-banner { background: var(--danger); color: #ffffff; border: 1px solid var(--danger); padding: 14px 18px; border-radius: 10px; margin: 12px; position: absolute; top: 0; left: 0; right: 0; display: none; z-index: 1003; text-align: center; box-shadow: var(--shadow-card);}
         
-        #route-info { position: absolute; top: 100px; left: 50%; transform: translateX(-50%); background: var(--bg-surface); border: 1px solid var(--glass-border); backdrop-filter: blur(10px); color: var(--text-main); padding: 12px 24px; border-radius: 30px; display: none; align-items: center; gap: 15px; z-index: 1005; box-shadow: var(--shadow-card); font-family: var(--font-data); font-size: 12px; width: max-content; }
+        #route-info { position: absolute; top: 75px; left: 50%; transform: translateX(-50%); background: var(--bg-surface); border: 1px solid var(--border-medium); backdrop-filter: blur(12px); color: var(--text-main); padding: 8px 16px; border-radius: 8px; display: none; align-items: center; gap: 12px; z-index: 1005; box-shadow: var(--shadow-card); font-family: var(--font-data); font-size: 11px; width: max-content; }
 
-        #toast-notification { position: fixed; top: -100px; left: 50%; transform: translateX(-50%); background: var(--primary); color: #ffffff; padding: 12px 24px; border-radius: 99px; font-weight: 800; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; z-index: 20000; transition: 0.5s; box-shadow: 0 10px 20px rgba(16,185,129,0.3);}
+        #toast-notification { position: fixed; top: -100px; left: 50%; transform: translateX(-50%); background: var(--bg-surface-elevated); color: var(--text-main); border: 1px solid var(--border-strong); padding: 10px 20px; border-radius: 8px; font-weight: 700; font-size: 12px; letter-spacing: 0.5px; z-index: 20000; transition: top 0.3s ease; box-shadow: var(--shadow-modal);}
 
-        #admin-reply-modal { position: fixed; top: -400px; left: 50%; transform: translateX(-50%); background: var(--modal-bg); backdrop-filter: blur(15px); color: var(--text-main); width: 90%; max-width: 400px; padding: 24px; border-radius: 20px; z-index: 20001; box-shadow: var(--shadow-modal); border: 1px solid var(--primary); transition: top 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        #admin-reply-modal { position: fixed; top: -400px; left: 50%; transform: translateX(-50%); background: var(--modal-bg); backdrop-filter: blur(12px); color: var(--text-main); width: 90%; max-width: 400px; padding: 20px; border-radius: 12px; z-index: 20001; box-shadow: var(--shadow-modal); border: 1px solid var(--border-strong); transition: top 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        #admin-reply-modal.active { top: 20px; }
         #admin-reply-modal.active { top: 20px; }
 
         /* --- GOOGLE MAPS STYLE MAP CONTROLS --- */
@@ -532,26 +540,26 @@
 
 <body>
     
-    <div id="donation-alert-modal" style="display:none; position:fixed; inset:0; background:rgba(0, 0, 0, 0.75); z-index:30000; justify-content:center; align-items:center; padding:20px; backdrop-filter:blur(5px);">
-        <div style="background:var(--modal-bg); border:1px solid var(--accent-cyan); border-radius:24px; padding:30px; text-align:center; max-width:400px; width:100%; box-shadow:var(--shadow-modal);">
-            <i class="fas fa-hand-holding-heart" style="font-size:45px; color:var(--accent-cyan); margin-bottom:15px; filter: drop-shadow(0 0 10px rgba(0,240,255,0.5));"></i>
-            <h2 style="color:var(--text-main); font-size:1.5rem; margin-bottom:10px;">Financial Aid Arrived!</h2>
-            <p style="color:var(--text-sub); font-size:0.95rem; margin-bottom:20px; line-height:1.5;">A generous donor has just sent financial aid directly to your area. We have secured your voucher.</p>
+    <div id="donation-alert-modal" style="display:none; position:fixed; inset:0; background:rgba(0, 0, 0, 0.7); z-index:30000; justify-content:center; align-items:center; padding:20px; backdrop-filter:blur(4px);">
+        <div style="background:var(--modal-bg); border:1px solid var(--border-strong); border-radius:12px; padding:24px; text-align:center; max-width:400px; width:100%; box-shadow:var(--shadow-modal);">
+            <i class="fas fa-hand-holding-heart" style="font-size:40px; color:var(--primary); margin-bottom:12px;"></i>
+            <h2 style="color:var(--text-main); font-size:1.3rem; margin-bottom:8px; font-weight:700;">Financial Aid Arrived</h2>
+            <p style="color:var(--text-sub); font-size:0.9rem; margin-bottom:16px; line-height:1.5;">A donor has sent financial aid to your area. Your relief voucher is available.</p>
             
-            <div style="background:var(--bg-card); padding:15px; border-radius:12px; margin-bottom:20px; border:1px dashed var(--accent-cyan); color: var(--text-main); font-size: 0.9rem;">
-                Open your <b>Sidebar Menu</b> and click <br><b style="color: var(--accent-cyan);">"Show GCash Vouchers"</b> to view and claim your code!
+            <div style="background:var(--bg-card); padding:14px; border-radius:8px; margin-bottom:18px; border:1px solid var(--border-subtle); color: var(--text-main); font-size: 0.85rem;">
+                Open your <b>Sidebar Menu</b> and click <br><strong style="color: var(--primary);">"Show GCash Vouchers"</strong> to view your claim code.
             </div>
 
-            <button onclick="closeDonationAlert()" style="width:100%; padding:14px; background:linear-gradient(135deg, var(--primary), var(--accent-cyan)); color:#ffffff; border:none; border-radius:12px; font-weight:800; text-transform:uppercase; cursor:pointer; box-shadow: 0 0 15px rgba(0,240,255,0.4);">I Understand</button>
+            <button onclick="closeDonationAlert()" style="width:100%; padding:12px; background:var(--primary); color:#ffffff; border:none; border-radius:8px; font-weight:700; text-transform:uppercase; font-size:12px; cursor:pointer;">I Understand</button>
         </div>
     </div>
 
-    <div id="vouchers-list-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:30000; justify-content:center; align-items:center; padding:20px; backdrop-filter:blur(5px);">
-        <div style="background:var(--modal-bg); border:1px solid var(--accent-cyan); border-radius:24px; padding:25px; max-width:400px; width:100%; box-shadow:var(--shadow-modal); max-height: 85vh; display: flex; flex-direction: column;">
+    <div id="vouchers-list-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:30000; justify-content:center; align-items:center; padding:20px; backdrop-filter:blur(4px);">
+        <div style="background:var(--modal-bg); border:1px solid var(--border-strong); border-radius:12px; padding:20px; max-width:420px; width:100%; box-shadow:var(--shadow-modal); max-height: 85vh; display: flex; flex-direction: column;">
             
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 15px;">
-                <h2 style="color:var(--text-main); font-size:1.4rem; margin:0;"><i class="fas fa-gift" style="color:var(--accent-cyan); margin-right: 8px;"></i> My GCash Vouchers</h2>
-                <button onclick="closeVouchersModal()" style="background:transparent; border:none; color:var(--text-sub); font-size:24px; cursor:pointer; transition: 0.2s;">&times;</button>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px;">
+                <h2 style="color:var(--text-main); font-size:1.2rem; margin:0; font-weight:700;"><i class="fas fa-ticket-alt" style="color:var(--primary); margin-right: 8px;"></i> GCash Vouchers</h2>
+                <button onclick="closeVouchersModal()" style="background:transparent; border:none; color:var(--text-sub); font-size:20px; cursor:pointer;" aria-label="Close vouchers">&times;</button>
             </div>
             
             <div id="vouchers-container" style="overflow-y: auto; flex: 1; padding-right: 5px;">
@@ -612,75 +620,52 @@
             <div class="contact-item"><i class="fas fa-truck-medical" style="color: var(--danger);"></i> Public Emergency: 911</div>
         </div>
 
-        <div class="theme-sidebar-card">
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <i class="fas fa-circle-half-stroke" style="color: var(--primary);"></i>
-                    <span style="font-size: 11px; font-weight: 800; color: var(--text-main); text-transform: uppercase;">Theme Mode</span>
-                </div>
-                <div class="theme-switch-pills">
-                    <button type="button" class="theme-pill-btn active" id="theme-pill-dark" onclick="setTheme('dark')" title="Dark Mode" aria-label="Dark Mode"><i class="fas fa-moon"></i></button>
-                    <button type="button" class="theme-pill-btn" id="theme-pill-light" onclick="setTheme('light')" title="Light Mode" aria-label="Light Mode"><i class="fas fa-sun"></i></button>
-                </div>
-            </div>
-            <div style="font-size: 10px; color: var(--text-sub); margin-top: 6px;" id="theme-status-text">Dark Mode active</div>
+        <div style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border-subtle); display: flex; flex-direction: column;">
+            <button onclick="GabayXOfflineUI.openReportModal()" class="btn-sidebar-nav btn-sidebar-primary">
+                <i class="fas fa-file-shield"></i> File Incident Report
+            </button>
+
+            <button onclick="GabayXOfflineUI.openHistoryModal()" class="btn-sidebar-nav">
+                <i class="fas fa-clock-rotate-left"></i> My Reports & Status
+            </button>
+
+            <button onclick="GabayXOfflineUI.openInfoModal()" class="btn-sidebar-nav">
+                <i class="fas fa-book-medical"></i> Offline Guides & Hotlines
+            </button>
+
+            <button onclick="openVouchersModal()" class="btn-sidebar-nav">
+                <i class="fas fa-ticket-alt"></i> Show GCash Vouchers
+            </button>
+
+            <button onclick="window.location.href='/donate.html'" class="btn-sidebar-nav" style="border-color: rgba(239,68,68,0.3); color: var(--danger);">
+                <i class="fas fa-hand-holding-heart"></i> Donate to Relief
+            </button>
+
+            <button onclick="window.location.href='/admin-login'" class="btn-sidebar-nav btn-sidebar-subtle">
+                <i class="fas fa-shield-halved"></i> Admin Command Portal
+            </button>
         </div>
-
-        <div class="offline-box">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <i class="fas fa-wifi-slash" style="color: var(--warning);"></i>
-                    <span style="font-size: 11px; font-weight: 800; color: var(--text-main); text-transform: uppercase;">Offline Mode</span>
-                </div>
-                <label class="switch"><input type="checkbox" id="offline-toggle" onchange="toggleOfflineMode()"><span class="slider"></span></label>
-            </div>
-            <div style="font-size: 10px; color: var(--text-sub); line-height: 1.4;">Turn on to save your data if the internet disconnects. Flashlight and SMS tools will become available.</div>
-        </div>
-        
-        <button onclick="GabayXOfflineUI.openReportModal()" class="btn-voucher" style="background: linear-gradient(135deg, #10b981, #059669); margin-bottom: 8px;">
-            <i class="fas fa-file-shield"></i> File Incident Report
-        </button>
-
-        <button onclick="GabayXOfflineUI.openHistoryModal()" class="btn-voucher" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: #fff; box-shadow: none; margin-bottom: 8px;">
-            <i class="fas fa-clock-rotate-left"></i> My Reports & Status
-        </button>
-
-        <button onclick="GabayXOfflineUI.openInfoModal()" class="btn-voucher" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: #fff; box-shadow: none; margin-bottom: 8px;">
-            <i class="fas fa-book-medical"></i> Offline Guides & Hotlines
-        </button>
-
-        <button onclick="openVouchersModal()" class="btn-voucher" style="margin-bottom: 8px;">
-            <i class="fas fa-ticket-alt"></i> Show GCash Vouchers
-        </button>
-
-        <button onclick="window.location.href='/donate.html'" class="btn-donate-sidebar" style="margin-bottom: 12px;">
-            <i class="fas fa-hand-holding-heart"></i> Donate to Relief
-        </button>
-
-        <button onclick="window.location.href='/admin-login'" class="btn-voucher" style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.08); color: var(--text-sub); box-shadow: none; font-size: 10px; margin-bottom: 0;">
-            <i class="fas fa-shield-halved"></i> Admin Command Portal
-        </button>
     </div>
 
     <!-- OPTIONAL CITIZEN CONTACT PREFERENCES MODAL -->
-    <div id="profile-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:25000; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(8px);">
-        <div style="background:var(--modal-bg); border:1px solid var(--glass-border); border-radius:24px; padding:24px; width:100%; max-width:400px; box-shadow:var(--shadow-modal);">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                <h3 style="color:var(--text-main); font-size:1.1rem; margin:0; display:flex; align-items:center; gap:8px;"><i class="fas fa-id-card" style="color:var(--primary);"></i> Contact Info (Optional)</h3>
-                <button onclick="closeProfileModal()" style="background:transparent; border:none; color:var(--text-sub); font-size:24px; cursor:pointer;">&times;</button>
+    <div id="profile-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:25000; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(4px);">
+        <div style="background:var(--modal-bg); border:1px solid var(--border-strong); border-radius:12px; padding:20px; width:100%; max-width:400px; box-shadow:var(--shadow-modal);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+                <h3 style="color:var(--text-main); font-size:1.05rem; margin:0; display:flex; align-items:center; gap:8px;"><i class="fas fa-id-card" style="color:var(--primary);"></i> Contact Info (Optional)</h3>
+                <button onclick="closeProfileModal()" style="background:transparent; border:none; color:var(--text-sub); font-size:20px; cursor:pointer;" aria-label="Close dialog">&times;</button>
             </div>
             <p style="font-size:11px; color:var(--text-sub); margin-bottom:14px; line-height:1.4;">GabayX is public. You do not need an account. You may optionally enter your name and phone number to help first responders identify and contact you during an emergency.</p>
             <div style="margin-bottom:12px;">
                 <label style="font-size:10px; font-weight:700; color:var(--text-sub); display:block; margin-bottom:4px; text-transform:uppercase;">Your Name / Nickname</label>
-                <input type="text" id="pref-name-input" placeholder="e.g. Juan Dela Cruz" style="width:100%; background:var(--bg-input); border:1px solid var(--border-medium); border-radius:10px; padding:10px; color:var(--text-main); font-size:13px; box-sizing:border-box;">
+                <input type="text" id="pref-name-input" placeholder="e.g. Juan Dela Cruz" style="width:100%; background:var(--bg-input); border:1px solid var(--border-medium); border-radius:8px; padding:10px; color:var(--text-main); font-size:13px; box-sizing:border-box;">
             </div>
             <div style="margin-bottom:16px;">
                 <label style="font-size:10px; font-weight:700; color:var(--text-sub); display:block; margin-bottom:4px; text-transform:uppercase;">Contact Phone Number</label>
-                <input type="tel" id="pref-phone-input" placeholder="e.g. 0912-345-6789" style="width:100%; background:var(--bg-input); border:1px solid var(--border-medium); border-radius:10px; padding:10px; color:var(--text-main); font-size:13px; box-sizing:border-box;">
+                <input type="tel" id="pref-phone-input" placeholder="e.g. 0912-345-6789" style="width:100%; background:var(--bg-input); border:1px solid var(--border-medium); border-radius:8px; padding:10px; color:var(--text-main); font-size:13px; box-sizing:border-box;">
             </div>
             <div style="display:flex; gap:8px;">
-                <button onclick="saveProfilePreferences()" style="flex:1; padding:12px; background:var(--primary); color:#ffffff; font-weight:800; font-size:11px; border:none; border-radius:10px; text-transform:uppercase; cursor:pointer;">Save Details</button>
-                <button onclick="closeProfileModal()" style="padding:12px; background:var(--bg-card); color:var(--text-main); font-weight:700; font-size:11px; border:1px solid var(--border-subtle); border-radius:10px; text-transform:uppercase; cursor:pointer;">Cancel</button>
+                <button onclick="saveProfilePreferences()" style="flex:1; padding:10px; background:var(--primary); color:#ffffff; font-weight:700; font-size:11px; border:none; border-radius:8px; text-transform:uppercase; cursor:pointer;">Save Details</button>
+                <button onclick="closeProfileModal()" style="padding:10px 14px; background:var(--bg-card); color:var(--text-main); font-weight:700; font-size:11px; border:1px solid var(--border-subtle); border-radius:8px; text-transform:uppercase; cursor:pointer;">Cancel</button>
             </div>
         </div>
     </div>
@@ -766,10 +751,10 @@
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px;">
-                <button type="button" onclick="GabayXOfflineUI.openReportModal()" class="btn-quick" style="background: rgba(16,185,129,0.12); border-color: var(--primary); color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px;">
+                <button type="button" onclick="GabayXOfflineUI.openReportModal()" class="btn-quick" style="background: var(--primary-light); border-color: var(--primary); color: var(--primary); font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px;">
                     <i class="fas fa-file-shield" style="color:var(--primary);"></i> File Report
                 </button>
-                <button type="button" onclick="GabayXOfflineUI.openHistoryModal()" class="btn-quick" style="background: rgba(255,255,255,0.04); color: var(--text-sub); display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px;">
+                <button type="button" onclick="GabayXOfflineUI.openHistoryModal()" class="btn-quick" style="display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px;">
                     <i class="fas fa-clock-rotate-left"></i> My Reports
                 </button>
             </div>
@@ -929,14 +914,14 @@
                 container.innerHTML = '<div style="text-align:center; color:var(--text-sub); padding: 30px; font-size: 0.9rem;">No vouchers available right now.</div>';
             } else {
                 container.innerHTML = vouchers.map((v, index) => `
-                    <div style="background:rgba(0,0,0,0.5); padding:20px; border-radius:16px; margin-bottom:15px; border:1px dashed #00f0ff; position: relative;">
-                        <div style="font-size:0.75rem; color:var(--text-sub); text-transform:uppercase;">Amount</div>
-                        <div style="font-size:2rem; font-weight:800; color:var(--emerald-400); font-family:var(--font-data);">₱${parseFloat(v.amount).toFixed(2)}</div>
-                        <div style="font-size:0.75rem; color:var(--text-sub); text-transform:uppercase; margin-top:10px;">From Donor: <span style="color:white; font-weight:700; font-size:1rem;">${v.donor}</span></div>
+                    <div style="background:var(--bg-card); padding:16px; border-radius:10px; margin-bottom:12px; border:1px solid var(--border-subtle); position: relative;">
+                        <div style="font-size:0.75rem; color:var(--text-sub); text-transform:uppercase; font-weight:600;">Amount</div>
+                        <div style="font-size:1.8rem; font-weight:800; color:var(--primary); font-family:var(--font-data);">₱${parseFloat(v.amount).toFixed(2)}</div>
+                        <div style="font-size:0.8rem; color:var(--text-sub); margin-top:8px;">From Donor: <strong style="color:var(--text-main); font-weight:700;">${v.donor}</strong></div>
                         
-                        <div style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
-                            <div style="font-size:0.75rem; color:var(--text-sub); text-transform:uppercase; margin-bottom:8px;">Your Claim Code</div>
-                            <div style="background:#000; color:#00f0ff; padding:12px; font-size:1.4rem; font-family:var(--font-data); font-weight:800; border-radius:8px; letter-spacing:3px; text-align:center;">${v.voucher}</div>
+                        <div style="margin-top: 12px; border-top: 1px solid var(--border-subtle); padding-top: 12px;">
+                            <div style="font-size:0.75rem; color:var(--text-sub); text-transform:uppercase; margin-bottom:6px; font-weight:600;">Your Claim Code</div>
+                            <div style="background:var(--bg-input); color:var(--primary); border:1px solid var(--border-medium); padding:10px; font-size:1.25rem; font-family:var(--font-data); font-weight:800; border-radius:6px; letter-spacing:2px; text-align:center;">${v.voucher}</div>
                         </div>
                     </div>
                 `).reverse().join('');
@@ -957,7 +942,9 @@
             const connDot = document.getElementById("conn-dot");
             const connText = document.getElementById("conn-text");
 
-            isOfflineMode = toggle.checked;
+            if (toggle) {
+                isOfflineMode = toggle.checked;
+            }
             localStorage.setItem(OFFLINE_STATE_KEY, isOfflineMode);
 
             if (isOfflineMode) {
@@ -1204,11 +1191,13 @@
 
         // =====================================================================
         // MAP TILE LAYERS (LIGHT, DARK, SATELLITE)
-        // ===================================        const MAP_LAYERS = {
+        // =====================================================================
+        const MAP_LAYERS = {
             street: {
                 url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 options: {
-                    maxZoom: 19,
+                    maxZoom: 21,
+                    maxNativeZoom: 19,
                     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
                     className: 'map-tiles-street'
                 }
@@ -1216,7 +1205,8 @@
             light: {
                 url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 options: {
-                    maxZoom: 19,
+                    maxZoom: 21,
+                    maxNativeZoom: 19,
                     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
                     className: 'map-tiles-street'
                 }
@@ -1224,7 +1214,8 @@
             dark: {
                 url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 options: {
-                    maxZoom: 19,
+                    maxZoom: 21,
+                    maxNativeZoom: 19,
                     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
                     className: 'map-tiles-street'
                 }
@@ -1232,7 +1223,8 @@
             satellite: {
                 url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
                 options: {
-                    maxZoom: 19,
+                    maxZoom: 21,
+                    maxNativeZoom: 19,
                     attribution: 'Tiles &copy; Esri',
                     className: 'map-tiles-satellite'
                 }
@@ -1262,6 +1254,7 @@
             const layerBtn = document.getElementById('btn-map-layer');
             if (layerBtn) {
                 layerBtn.title = (currentLayerMode === 'satellite') ? "Map Layer: Satellite (Click for Street Map)" : `Map Layer: Street Map (${targetTheme === 'light' ? 'Light' : 'Dark'} Mode, Click for Satellite)`;
+                layerBtn.classList.toggle('active', currentLayerMode === 'satellite');
             }
         }
 
@@ -1275,12 +1268,10 @@
                 showToast("🛰️ Satellite Imagery Enabled");
             }
             applyMapLayer();
-        }         }
-            applyMapLayer();
         }
 
         function initMap() {
-            map = L.map("map", { zoomControl: false, attributionControl: false }).setView([7.1002, 124.824], 19);
+            map = L.map("map", { zoomControl: false, attributionControl: false, maxZoom: 21 }).setView([7.1002, 124.824], 19);
             const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
             applyMapLayer(currentTheme);
             map.on("zoomend", function () { if (typeof updateLabels === "function") { updateLabels(); } });
@@ -1404,7 +1395,12 @@
                 drawPath(latlng, activeDestination);
             }
 
-            // 5. Center map if requested
+            // 5. Emit student live telemetry to server if connected & online
+            if (socket && studentEmail && !isOfflineMode) {
+                socket.emit("student-status", { id: studentEmail, lat: lat, lng: lng, status: currentStatus });
+            }
+
+            // 6. Center map if requested
             if (centerMap) {
                 const currentZoom = map.getZoom();
                 const targetZoom = Math.max(currentZoom, 17);
@@ -1722,6 +1718,9 @@
                 document.getElementById("route-dist").innerText = Math.round(summary.totalDistance) + "m";
                 document.getElementById("route-time").innerText = Math.ceil(summary.totalTime / 60) + " min";
                 document.getElementById("route-info").style.display = "flex";
+            }).on('routingerror', function(err) {
+                console.warn('Routing API fallback to direct path:', err);
+                drawPath(L.latLng(start.lat, start.lng), endPoint);
             }).addTo(map);
         }
 

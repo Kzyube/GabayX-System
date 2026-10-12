@@ -82,10 +82,13 @@ test('TEST 3.3: Theme toggle function persists to localStorage', () => {
     assert(studentHtml.includes("function toggleTheme("), 'Must define toggleTheme');
 });
 
-test('TEST 3.4: Theme toggle buttons available on header and sidebar', () => {
+test('TEST 3.4: Menu navigation items removed while underlying functionality preserved', () => {
     assert(studentHtml.includes('id="theme-toggle-header"'), 'Header must contain theme toggle');
-    assert(studentHtml.includes('id="theme-pill-dark"'), 'Sidebar must contain dark pill');
-    assert(studentHtml.includes('id="theme-pill-light"'), 'Sidebar must contain light pill');
+    assert(!studentHtml.includes('class="theme-sidebar-card"'), 'Sidebar must not contain theme mode menu card');
+    assert(!studentHtml.includes('class="offline-box"'), 'Sidebar must not contain offline mode menu card');
+    assert(!adminHtml.includes('class="nav-item btn-theme"'), 'Admin dock must not contain theme mode menu button');
+    assert(studentHtml.includes('function toggleOfflineMode'), 'Underlying offline mode toggle function preserved');
+    assert(studentHtml.includes('function setTheme'), 'Underlying theme engine preserved');
 });
 
 // --- TEST 4: GEOLOCATION & CENTERING ---
@@ -234,6 +237,36 @@ test('TEST 11.2: Emergency reporting functions preserved', () => {
     assert(studentHtml.includes('function sendNote()'), 'Send note function preserved');
 });
 
+// --- TEST 12: JAVASCRIPT AST PARSE & MAP TELEMETRY ---
+console.log('\n--- TEST 12: JAVASCRIPT AST PARSE & MAP TELEMETRY ---');
+test('TEST 12.1: student.html inline JavaScript parses without syntax errors', () => {
+    const scripts = studentHtml.match(/<script\b[^>]*>([\s\S]*?)<\/script>/gi) || [];
+    scripts.forEach((s) => {
+        if (/<script\b[^>]*src=/i.test(s)) return;
+        const code = s.replace(/^<script\b[^>]*>/i, '').replace(/<\/script>$/i, '');
+        new Function(code);
+    });
+});
+
+test('TEST 12.2: admin.html inline JavaScript parses without syntax errors', () => {
+    const scripts = adminHtml.match(/<script\b[^>]*>([\s\S]*?)<\/script>/gi) || [];
+    scripts.forEach((s) => {
+        if (/<script\b[^>]*src=/i.test(s)) return;
+        const code = s.replace(/^<script\b[^>]*>/i, '').replace(/<\/script>$/i, '');
+        new Function(code);
+    });
+});
+
+test('TEST 12.3: Location telemetry emits student-status to server', () => {
+    assert(studentHtml.includes('socket.emit("student-status"'), 'Location telemetry must emit student-status to socket');
+});
+
+test('TEST 12.4: Admin map supports street and satellite layer toggling with maxZoom 21', () => {
+    assert(adminHtml.includes('ADMIN_MAP_LAYERS'), 'Must define ADMIN_MAP_LAYERS');
+    assert(adminHtml.includes('toggleAdminMapLayer()'), 'Must define toggleAdminMapLayer()');
+    assert(adminHtml.includes('maxZoom: 21'), 'Must configure maxZoom 21 for building-level overzoom');
+});
+
 console.log('\n================================================================');
 console.log(`TEST RESULTS: ${passedTests}/${totalTests} PASSED`);
 console.log('================================================================\n');
@@ -243,3 +276,4 @@ if (passedTests === totalTests) {
 } else {
     process.exit(1);
 }
+

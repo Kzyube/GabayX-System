@@ -32,25 +32,25 @@
             .gx-modal-card {
                 background: var(--modal-bg, rgba(8, 22, 16, 0.96));
                 border: 1px solid var(--glass-border, rgba(16, 185, 129, 0.3));
-                border-radius: 24px; padding: 24px; width: 100%; max-width: 480px;
-                box-shadow: var(--shadow-modal, 0 25px 60px rgba(0,0,0,0.85));
+                border-radius: 12px; padding: 20px; width: 100%; max-width: 480px;
+                box-shadow: var(--shadow-modal, 0 10px 25px rgba(0,0,0,0.4));
                 max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;
                 color: var(--text-main, #fff);
             }
 
             .gx-modal-header {
                 display: flex; justify-content: space-between; align-items: center;
-                padding-bottom: 14px; border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
-                margin-bottom: 16px; flex-shrink: 0;
+                padding-bottom: 12px; border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+                margin-bottom: 14px; flex-shrink: 0;
             }
             .gx-modal-title {
-                font-size: 1.25rem; font-weight: 800; text-transform: uppercase;
-                letter-spacing: 0.5px; margin: 0; display: flex; align-items: center; gap: 10px;
+                font-size: 1.15rem; font-weight: 800; text-transform: uppercase;
+                letter-spacing: 0.5px; margin: 0; display: flex; align-items: center; gap: 8px;
                 color: var(--text-main, #fff);
             }
             .gx-modal-close {
                 background: transparent; border: none; color: var(--text-sub, #94a3b8);
-                font-size: 24px; cursor: pointer; padding: 4px; line-height: 1; transition: 0.2s;
+                font-size: 20px; cursor: pointer; padding: 4px; line-height: 1; transition: 0.2s;
             }
             .gx-modal-close:hover { color: var(--primary, #10b981); }
 
@@ -60,16 +60,16 @@
 
             .gx-form-label {
                 font-size: 10px; font-weight: 800; text-transform: uppercase;
-                letter-spacing: 1px; color: var(--text-sub, #94a3b8); margin-bottom: 6px; display: block;
+                letter-spacing: 0.75px; color: var(--text-sub, #94a3b8); margin-bottom: 6px; display: block;
             }
 
             .gx-type-selector {
-                display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px;
+                display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px;
             }
             .gx-type-btn {
                 background: var(--bg-input, rgba(255, 255, 255, 0.04));
                 border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
-                color: var(--text-sub, #94a3b8); border-radius: 12px; padding: 10px 4px;
+                color: var(--text-sub, #94a3b8); border-radius: 8px; padding: 10px 4px;
                 font-size: 11px; font-weight: 700; cursor: pointer; display: flex;
                 flex-direction: column; align-items: center; gap: 6px; transition: 0.2s;
             }
@@ -78,53 +78,52 @@
                 background: var(--primary-light, rgba(16, 185, 129, 0.15));
                 border-color: var(--primary, #10b981);
                 color: var(--primary, #10b981);
-                box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
             }
 
             .gx-input, .gx-textarea {
                 width: 100%; background: var(--bg-input, rgba(0, 0, 0, 0.5));
-                border: 1px solid var(--border-medium, rgba(255, 255, 255, 0.1)); border-radius: 12px;
-                padding: 12px 14px; color: var(--text-main, #fff); font-family: var(--font-ui, sans-serif);
-                font-size: 13px; outline: none; margin-bottom: 14px; transition: 0.2s; box-sizing: border-box;
+                border: 1px solid var(--border-medium, rgba(255, 255, 255, 0.1)); border-radius: 8px;
+                padding: 10px 12px; color: var(--text-main, #fff); font-family: var(--font-ui, sans-serif);
+                font-size: 13px; outline: none; margin-bottom: 12px; transition: 0.2s; box-sizing: border-box;
             }
             .gx-input:focus, .gx-textarea:focus {
-                border-color: var(--primary, #10b981); box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
+                border-color: var(--primary, #10b981);
             }
 
             .gx-loc-card {
                 background: var(--primary-light, rgba(16, 185, 129, 0.05));
                 border: 1px solid var(--glass-border, rgba(16, 185, 129, 0.2));
-                border-radius: 12px; padding: 10px 14px; margin-bottom: 14px;
+                border-radius: 8px; padding: 10px 12px; margin-bottom: 12px;
                 display: flex; align-items: center; justify-content: space-between;
                 font-family: var(--font-data, monospace); font-size: 11px;
                 color: var(--text-main, #fff);
             }
 
             .gx-photo-preview {
-                width: 100%; max-height: 160px; object-fit: cover; border-radius: 12px;
-                margin-top: 8px; margin-bottom: 14px; border: 1px solid var(--glass-border);
+                width: 100%; max-height: 160px; object-fit: cover; border-radius: 8px;
+                margin-top: 6px; margin-bottom: 12px; border: 1px solid var(--glass-border);
                 display: none;
             }
 
             .gx-btn-primary {
-                width: 100%; padding: 14px; background: var(--primary, #10b981);
-                color: #ffffff; border: none; border-radius: 12px; font-weight: 800;
-                font-size: 12px; text-transform: uppercase; letter-spacing: 1px;
+                width: 100%; padding: 12px; background: var(--primary, #10b981);
+                color: #ffffff; border: none; border-radius: 8px; font-weight: 800;
+                font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;
                 cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
             }
             .gx-btn-primary:active { transform: scale(0.98); }
 
             .gx-btn-secondary {
-                width: 100%; padding: 12px; background: var(--bg-card, rgba(255, 255, 255, 0.05));
-                color: var(--text-main, #fff); border: 1px solid var(--border-medium, rgba(255, 255, 255, 0.1)); border-radius: 12px;
+                width: 100%; padding: 10px; background: var(--bg-card, rgba(255, 255, 255, 0.05));
+                color: var(--text-main, #fff); border: 1px solid var(--border-medium, rgba(255, 255, 255, 0.1)); border-radius: 8px;
                 font-weight: 700; font-size: 11px; text-transform: uppercase; cursor: pointer;
-                transition: 0.2s; margin-top: 8px;
+                transition: 0.2s; margin-top: 6px;
             }
 
             .gx-report-item {
                 background: var(--bg-card, rgba(0, 0, 0, 0.45));
                 border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
-                border-radius: 14px; padding: 14px; margin-bottom: 12px; transition: 0.2s;
+                border-radius: 10px; padding: 12px; margin-bottom: 10px; transition: 0.2s;
                 color: var(--text-main, #fff);
             }
             .gx-report-item:hover { border-color: var(--primary, #10b981); }
