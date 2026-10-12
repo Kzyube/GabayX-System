@@ -343,13 +343,15 @@
             }
 
             const currentContacts = await getContacts();
-            if (currentContacts.length === 0) {
+            const hasOfficialContacts = currentContacts.length >= 6 && currentContacts.some(c => c.id === 'ssmo');
+            if (!hasOfficialContacts) {
                 await cacheContacts([
-                    { id: 'clinic', name: 'KNHS Campus Clinic', number: '0912-345-6789', role: 'Medical Triage' },
-                    { id: 'emergency911', name: 'National Emergency Hotline', number: '911', role: 'General Emergency' },
-                    { id: 'police', name: 'Kabacan PNP Station', number: '0998-598-6721', role: 'Law Enforcement' },
-                    { id: 'fire', name: 'Bureau of Fire Protection (BFP)', number: '0922-832-1142', role: 'Fire & Rescue' },
-                    { id: 'mdrrmo', name: 'MDRRMO Rescue Operations', number: '0946-502-5720', role: 'Disaster Coordination' }
+                    { id: 'ssmo', name: 'USM Security Services and Management Office (SSMO)', number: '(064) 572 2100', tel: '0645722100', role: 'Campus Security & First Response' },
+                    { id: 'pnp', name: 'Kabacan Philippine National Police (PNP)', number: '0939-339-3168', tel: '09393393168', role: 'Law Enforcement & Peacekeeping' },
+                    { id: 'bfp', name: 'Kabacan Bureau of Fire Protection (BFP)', number: '0910-048-9571', tel: '09100489571', role: 'Fire & Emergency Rescue' },
+                    { id: 'afp', name: 'Armed Forces of the Philippines 90th Infantry Battalion', number: '0956-443-0948', tel: '09564430948', role: 'Heavy Emergency & Defense Response' },
+                    { id: 'mdrrm', name: 'Kabacan Municipal Disaster Risk Reduction and Management (MDRRM)', number: '0910-363-3864', tel: '09103633864', role: 'Disaster Operations Center' },
+                    { id: 'rhu', name: 'Kabacan Rural Health Unit (RHU)', number: '0926-397-0496', tel: '09263970496', role: 'Medical Emergency & Triage' }
                 ]);
             }
 

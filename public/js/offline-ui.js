@@ -137,6 +137,41 @@
             .gx-pill-synced  { background: rgba(16, 185, 129, 0.15); color: #059669; border: 1px solid #059669; }
             .gx-pill-failed  { background: rgba(255, 42, 95, 0.15); color: #dc2626; border: 1px solid #dc2626; }
 
+            .gx-hotline-item {
+                background: var(--bg-card, rgba(255, 255, 255, 0.04));
+                border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+                border-radius: 10px; padding: 10px 12px; margin-bottom: 8px;
+                display: flex; align-items: center; justify-content: space-between; gap: 10px;
+                transition: 0.2s;
+            }
+            .gx-hotline-item:hover { border-color: var(--primary, #10b981); }
+            .gx-hotline-icon {
+                width: 32px; height: 32px; border-radius: 8px;
+                display: flex; align-items: center; justify-content: center;
+                background: var(--primary-light, rgba(16, 185, 129, 0.12));
+                color: var(--primary, #10b981); flex-shrink: 0; font-size: 14px;
+            }
+            .gx-hotline-info { flex: 1; min-width: 0; }
+            .gx-hotline-name { font-size: 11px; font-weight: 700; color: var(--text-main, #fff); line-height: 1.3; }
+            .gx-hotline-role { font-size: 10px; color: var(--text-sub, #94a3b8); margin-top: 2px; }
+            .gx-call-action-btn {
+                background: var(--primary, #10b981); color: #ffffff !important; text-decoration: none;
+                padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: 700;
+                display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
+                transition: 0.2s;
+            }
+            .gx-call-action-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+            .gx-guide-card {
+                background: var(--bg-card, rgba(255, 255, 255, 0.03));
+                border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+                border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
+            }
+            .gx-guide-title {
+                font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
+                color: var(--primary, #10b981); display: flex; align-items: center; gap: 6px; margin-bottom: 4px;
+            }
+            .gx-guide-text { font-size: 11px; color: var(--text-sub, #cbd5e1); line-height: 1.45; margin: 0; }
+
             @keyframes gxFadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
         </style>
 
@@ -216,6 +251,101 @@
                 </div>
             </div>
         </div>
+
+        <!-- C. OFFLINE GUIDES & EMERGENCY HOTLINES MODAL -->
+        <div id="gx-info-modal" class="gx-modal-backdrop">
+            <div class="gx-modal-card">
+                <div class="gx-modal-header">
+                    <h3 class="gx-modal-title"><i class="fas fa-book-medical" style="color:var(--primary);"></i> Offline Guides & Hotlines</h3>
+                    <button class="gx-modal-close" onclick="GabayXOfflineUI.closeInfoModal()">&times;</button>
+                </div>
+                <div class="gx-modal-body">
+                    <div style="font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.75px; color:var(--text-sub); margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+                        <span>Official Emergency Hotlines</span>
+                        <span style="color:var(--primary); font-family:var(--font-data);">Tap to Call</span>
+                    </div>
+
+                    <!-- 1. USM SSMO -->
+                    <div class="gx-hotline-item">
+                        <div class="gx-hotline-icon"><i class="fas fa-shield-halved"></i></div>
+                        <div class="gx-hotline-info">
+                            <div class="gx-hotline-name">USM Security Services (SSMO)</div>
+                            <div class="gx-hotline-role">Campus Security & Immediate Dispatch</div>
+                        </div>
+                        <a href="tel:0645722100" class="gx-call-action-btn"><i class="fas fa-phone"></i> (064) 572 2100</a>
+                    </div>
+
+                    <!-- 2. Kabacan PNP -->
+                    <div class="gx-hotline-item">
+                        <div class="gx-hotline-icon"><i class="fas fa-building-shield"></i></div>
+                        <div class="gx-hotline-info">
+                            <div class="gx-hotline-name">Kabacan PNP (Police)</div>
+                            <div class="gx-hotline-role">Law Enforcement & Police Response</div>
+                        </div>
+                        <a href="tel:09393393168" class="gx-call-action-btn"><i class="fas fa-phone"></i> 0939-339-3168</a>
+                    </div>
+
+                    <!-- 3. Kabacan BFP -->
+                    <div class="gx-hotline-item">
+                        <div class="gx-hotline-icon" style="color:var(--danger); background:rgba(239,68,68,0.12);"><i class="fas fa-fire-extinguisher"></i></div>
+                        <div class="gx-hotline-info">
+                            <div class="gx-hotline-name">Kabacan BFP (Fire Protection)</div>
+                            <div class="gx-hotline-role">Fire Suppression & Heavy Rescue</div>
+                        </div>
+                        <a href="tel:09100489571" class="gx-call-action-btn" style="background:var(--danger);"><i class="fas fa-phone"></i> 0910-048-9571</a>
+                    </div>
+
+                    <!-- 4. AFP 90th Infantry Battalion -->
+                    <div class="gx-hotline-item">
+                        <div class="gx-hotline-icon" style="color:var(--warning); background:rgba(245,158,11,0.12);"><i class="fas fa-person-military-pointing"></i></div>
+                        <div class="gx-hotline-info">
+                            <div class="gx-hotline-name">AFP 90th Infantry Battalion</div>
+                            <div class="gx-hotline-role">Armed Forces & Disaster Security</div>
+                        </div>
+                        <a href="tel:09564430948" class="gx-call-action-btn"><i class="fas fa-phone"></i> 0956-443-0948</a>
+                    </div>
+
+                    <!-- 5. Kabacan MDRRM -->
+                    <div class="gx-hotline-item">
+                        <div class="gx-hotline-icon"><i class="fas fa-tower-broadcast"></i></div>
+                        <div class="gx-hotline-info">
+                            <div class="gx-hotline-name">Kabacan MDRRM</div>
+                            <div class="gx-hotline-role">Municipal Disaster Coordination & Rescue</div>
+                        </div>
+                        <a href="tel:09103633864" class="gx-call-action-btn"><i class="fas fa-phone"></i> 0910-363-3864</a>
+                    </div>
+
+                    <!-- 6. Kabacan RHU -->
+                    <div class="gx-hotline-item">
+                        <div class="gx-hotline-icon"><i class="fas fa-hospital"></i></div>
+                        <div class="gx-hotline-info">
+                            <div class="gx-hotline-name">Kabacan Rural Health Unit (RHU)</div>
+                            <div class="gx-hotline-role">Emergency Health & Medical Triage</div>
+                        </div>
+                        <a href="tel:09263970496" class="gx-call-action-btn"><i class="fas fa-phone"></i> 0926-397-0496</a>
+                    </div>
+
+                    <div style="font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.75px; color:var(--text-sub); margin-top:14px; margin-bottom:8px;">
+                        Offline Response Guidelines
+                    </div>
+
+                    <div class="gx-guide-card">
+                        <div class="gx-guide-title"><i class="fas fa-house-crack"></i> Earthquake Safety</div>
+                        <p class="gx-guide-text"><b>DROP, COVER, AND HOLD ON.</b> Protect your head and neck under sturdy furniture. When shaking ceases, evacuate calmly toward open spaces (Principal Front assembly ground). Avoid glass windows.</p>
+                    </div>
+
+                    <div class="gx-guide-card">
+                        <div class="gx-guide-title" style="color:var(--danger);"><i class="fas fa-fire"></i> Fire Evacuation</div>
+                        <p class="gx-guide-text"><b>STAY LOW AND EVACUATE.</b> Smoke and toxic fumes rise. Check doors with the back of your hand before turning handles. Head toward Mendoza Court or Tejada Court safe zones.</p>
+                    </div>
+
+                    <div class="gx-guide-card">
+                        <div class="gx-guide-title" style="color:#0284c7;"><i class="fas fa-water"></i> Flood Protocol</div>
+                        <p class="gx-guide-text"><b>SEEK HIGHER ELEVATION.</b> Avoid walking or driving through moving water. Stay clear of downed electrical wires. GabayX records your GPS coordinates locally if offline.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
         `;
 
         document.body.appendChild(container);
@@ -245,6 +375,16 @@
 
     function closeHistoryModal() {
         const modal = document.getElementById('gx-history-modal');
+        if (modal) modal.classList.remove('active');
+    }
+
+    function openInfoModal() {
+        injectOfflineUI();
+        document.getElementById('gx-info-modal').classList.add('active');
+    }
+
+    function closeInfoModal() {
+        const modal = document.getElementById('gx-info-modal');
         if (modal) modal.classList.remove('active');
     }
 
@@ -516,6 +656,8 @@
         closeReportModal,
         openHistoryModal,
         closeHistoryModal,
+        openInfoModal,
+        closeInfoModal,
         selectType,
         refreshLocation,
         handlePhotoUpload,
