@@ -292,10 +292,136 @@
         .actions-tray {
             position: absolute; bottom: 0; left: 0; right: 0;
             background: var(--tray-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-            border-top: 1px solid var(--border-medium); border-radius: 16px 16px 0 0;
-            padding: 16px 18px max(18px, env(safe-area-inset-bottom, 18px)) 18px;
+            border-top: 1px solid var(--border-medium); border-radius: 20px 20px 0 0;
+            padding: 12px 18px max(16px, env(safe-area-inset-bottom, 16px)) 18px;
             z-index: 1002; box-shadow: var(--shadow-card);
-            transition: all 0.25s ease;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .actions-tray.collapsed {
+            padding-bottom: max(10px, env(safe-area-inset-bottom, 10px));
+        }
+
+        /* Tray Toggle Header & Drag Handle */
+        .tray-toggle-header {
+            width: 100%;
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-bottom: 6px;
+            outline: none;
+        }
+
+        .tray-drag-pill {
+            width: 36px;
+            height: 4px;
+            border-radius: 999px;
+            background: var(--border-medium);
+            margin-bottom: 8px;
+            transition: background 0.2s ease, width 0.2s ease;
+        }
+        .tray-toggle-header:hover .tray-drag-pill,
+        .tray-toggle-header:focus-visible .tray-drag-pill {
+            background: var(--primary);
+            width: 44px;
+        }
+
+        .tray-header-meta {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .tray-header-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .tray-header-label {
+            font-size: 10px;
+            font-weight: 800;
+            color: var(--text-sub);
+            letter-spacing: 0.8px;
+            white-space: nowrap;
+        }
+
+        .tray-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .btn-tray-peek-sos {
+            display: none;
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid var(--danger);
+            color: var(--danger);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 800;
+            cursor: pointer;
+            align-items: center;
+            gap: 4px;
+            letter-spacing: 0.5px;
+            transition: all 0.15s ease;
+        }
+        .btn-tray-peek-sos:hover {
+            background: var(--danger);
+            color: #ffffff;
+        }
+        .actions-tray.collapsed .btn-tray-peek-sos {
+            display: inline-flex;
+        }
+
+        .btn-tray-toggle {
+            background: var(--bg-card);
+            border: 1px solid var(--border-medium);
+            color: var(--text-main);
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 11px;
+        }
+        .btn-tray-toggle:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        #icon-tray-toggle {
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .actions-tray.collapsed #icon-tray-toggle {
+            transform: rotate(180deg);
+        }
+
+        /* Collapsible content body */
+        .tray-content-body {
+            max-height: 900px;
+            opacity: 1;
+            overflow: visible;
+            transition: max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease, margin-top 0.2s ease;
+        }
+        .actions-tray.collapsed .tray-content-body {
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            pointer-events: none;
+            margin-top: 0 !important;
         }
 
         .location-badge { background: var(--bg-card); color: var(--text-main); padding: 5px 10px; border-radius: 6px; font-family: var(--font-data); font-size: 11px; font-weight: 700; border: 1px solid var(--border-medium); }
@@ -472,13 +598,13 @@
                 gap: 6px;
             }
             .actions-tray {
-                padding: 16px 14px max(18px, env(safe-area-inset-bottom, 18px)) 14px;
-                border-radius: 24px 24px 0 0;
+                padding: 12px 14px max(14px, env(safe-area-inset-bottom, 14px)) 14px;
+                border-radius: 20px 20px 0 0;
             }
             .button-group {
                 grid-template-columns: 1fr 1.3fr;
                 gap: 8px;
-                margin-top: 12px;
+                margin-top: 10px;
             }
             .btn-action {
                 padding: 12px 8px;
@@ -489,10 +615,22 @@
                 right: 12px;
                 bottom: 275px;
             }
+            body.tray-collapsed .map-controls-cluster {
+                bottom: max(75px, calc(env(safe-area-inset-bottom, 15px) + 65px));
+            }
             .map-ctrl-btn {
                 width: 40px;
                 height: 40px;
                 font-size: 15px;
+            }
+        }
+
+        @media (min-width: 481px) and (max-width: 767px) {
+            .actions-tray {
+                padding: 14px 18px max(16px, env(safe-area-inset-bottom, 16px)) 18px;
+            }
+            body.tray-collapsed .map-controls-cluster {
+                bottom: max(75px, calc(env(safe-area-inset-bottom, 15px) + 65px));
             }
         }
 
@@ -504,10 +642,14 @@
                 right: auto;
                 width: 380px;
                 max-width: 90vw;
-                border-radius: 24px;
+                border-radius: 20px;
                 border: 1px solid var(--border-medium);
                 box-shadow: var(--shadow-card);
-                padding: 20px;
+                padding: 14px 18px 18px 18px;
+            }
+            .actions-tray.collapsed {
+                width: 330px;
+                padding: 12px 16px;
             }
             .map-controls-cluster {
                 right: 20px;
@@ -520,7 +662,11 @@
                 left: 28px;
                 bottom: 28px;
                 width: 420px;
-                padding: 24px;
+                padding: 16px 20px 20px 20px;
+            }
+            .actions-tray.collapsed {
+                width: 340px;
+                padding: 14px 18px;
             }
             .map-controls-cluster {
                 right: 28px;
@@ -1417,49 +1563,67 @@
             <button class="tool-btn tool-sms" onclick="sendOfflineSMS()"><i class="fas fa-comment-sms"></i></button>
         </div>
 
-        <div class="actions-tray">
-            <div style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-size: 10px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px;">NEAREST BUILDING</span>
-                <span id="nearest-bldg-badge" class="location-badge">Scanning...</span>
-            </div>
-            
-            <div id="quick-responses" style="display: none;">
-                <span style="font-size: 10px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px;">QUICK MESSAGES</span>
-                <div class="quick-grid" id="quick-grid"></div>
-            </div>
-
-            <!-- USER-FACING EMERGENCY ALERT TOGGLE (Inactive by default, activates reporting panel on click) -->
-            <div class="emergency-toggle-container">
-                <button type="button" id="btn-emergency-toggle" class="btn-emergency-toggle" onclick="GabayXEmergencyAlert.openPanel()" aria-label="Activate Emergency Alert Assistance" aria-expanded="false">
-                    <div class="emergency-toggle-status">
-                        <span class="emergency-status-beacon" id="emergency-beacon"></span>
-                        <div style="text-align: left;">
-                            <div class="emergency-toggle-title" id="emergency-toggle-label">Emergency Alert: Inactive</div>
-                            <div class="emergency-toggle-sub" id="emergency-toggle-sub">Tap to open emergency report panel</div>
-                        </div>
+        <div class="actions-tray" id="actions-tray" role="region" aria-label="Emergency Actions and Telemetry">
+            <!-- TRAY DRAG & TOGGLE HEADER (Tap/click or swipe to expand/collapse) -->
+            <div class="tray-toggle-header" id="tray-toggle-header" onclick="toggleActionsTray()" role="button" aria-expanded="true" aria-controls="tray-body" tabindex="0" title="Toggle Actions Tray (Expand / Collapse)">
+                <div class="tray-drag-pill" aria-hidden="true"></div>
+                <div class="tray-header-meta">
+                    <div class="tray-header-left">
+                        <span class="tray-header-label">NEAREST BUILDING</span>
+                        <span id="nearest-bldg-badge" class="location-badge">Scanning...</span>
                     </div>
-                    <span class="emergency-toggle-badge" id="emergency-toggle-badge">ACTIVATE</span>
-                </button>
-            </div>
-            
-            <div class="button-group">
-                <button class="btn-action btn-safe" onclick="markAsSafe()"><i class="fas fa-check-circle" style="font-size: 18px;"></i> Mark as Safe</button>
-                <button class="btn-action btn-danger" onclick="GabayXEmergencyAlert.openPanel()"><i class="fas fa-triangle-exclamation" style="font-size: 18px;"></i> Emergency SOS</button>
+                    <div class="tray-header-actions">
+                        <button type="button" class="btn-tray-peek-sos" id="btn-tray-peek-sos" onclick="event.stopPropagation(); GabayXEmergencyAlert.openPanel();" title="Emergency SOS" aria-label="Emergency Alert SOS">
+                            <i class="fas fa-triangle-exclamation"></i>
+                            <span>SOS</span>
+                        </button>
+                        <button type="button" class="btn-tray-toggle" id="btn-tray-toggle" aria-label="Toggle Actions Tray">
+                            <i class="fas fa-chevron-down" id="icon-tray-toggle"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px;">
-                <button type="button" onclick="GabayXOfflineUI.openReportModal()" class="btn-quick" style="background: var(--primary-light); border-color: var(--primary); color: var(--primary); font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px;">
-                    <i class="fas fa-file-shield" style="color:var(--primary);"></i> File Report
-                </button>
-                <button type="button" onclick="GabayXOfflineUI.openHistoryModal()" class="btn-quick" style="display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px;">
-                    <i class="fas fa-clock-rotate-left"></i> My Reports
-                </button>
-            </div>
-            
-            <!-- SEPARATE MESSAGE ADMINISTRATOR ACTION BAR -->
-            <div class="msg-bar" style="margin-top: 10px;">
-                <input type="text" id="student-note" placeholder="Message administrator (inquiry)..." onkeydown="if(event.key==='Enter') GabayXAdminMessenger.openModal(this.value);" />
-                <button class="btn-send" onclick="GabayXAdminMessenger.openModal(document.getElementById('student-note').value)" title="Review and Send Message to Administrator" aria-label="Send message to admin"><i class="fas fa-paper-plane"></i></button>
+            <!-- COLLAPSIBLE CONTENT BODY -->
+            <div class="tray-content-body" id="tray-body">
+                <div id="quick-responses" style="display: none;">
+                    <span style="font-size: 10px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px;">QUICK MESSAGES</span>
+                    <div class="quick-grid" id="quick-grid"></div>
+                </div>
+
+                <!-- USER-FACING EMERGENCY ALERT TOGGLE (Inactive by default, activates reporting panel on click) -->
+                <div class="emergency-toggle-container">
+                    <button type="button" id="btn-emergency-toggle" class="btn-emergency-toggle" onclick="GabayXEmergencyAlert.openPanel()" aria-label="Activate Emergency Alert Assistance" aria-expanded="false">
+                        <div class="emergency-toggle-status">
+                            <span class="emergency-status-beacon" id="emergency-beacon"></span>
+                            <div style="text-align: left;">
+                                <div class="emergency-toggle-title" id="emergency-toggle-label">Emergency Alert: Inactive</div>
+                                <div class="emergency-toggle-sub" id="emergency-toggle-sub">Tap to open emergency report panel</div>
+                            </div>
+                        </div>
+                        <span class="emergency-toggle-badge" id="emergency-toggle-badge">ACTIVATE</span>
+                    </button>
+                </div>
+                
+                <div class="button-group">
+                    <button class="btn-action btn-safe" onclick="markAsSafe()"><i class="fas fa-check-circle" style="font-size: 18px;"></i> Mark as Safe</button>
+                    <button class="btn-action btn-danger" onclick="GabayXEmergencyAlert.openPanel()"><i class="fas fa-triangle-exclamation" style="font-size: 18px;"></i> Emergency SOS</button>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px;">
+                    <button type="button" onclick="GabayXOfflineUI.openReportModal()" class="btn-quick" style="background: var(--primary-light); border-color: var(--primary); color: var(--primary); font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px;">
+                        <i class="fas fa-file-shield" style="color:var(--primary);"></i> File Report
+                    </button>
+                    <button type="button" onclick="GabayXOfflineUI.openHistoryModal()" class="btn-quick" style="display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px;">
+                        <i class="fas fa-clock-rotate-left"></i> My Reports
+                    </button>
+                </div>
+                
+                <!-- SEPARATE MESSAGE ADMINISTRATOR ACTION BAR -->
+                <div class="msg-bar" style="margin-top: 10px;">
+                    <input type="text" id="student-note" placeholder="Message administrator (inquiry)..." onkeydown="if(event.key==='Enter') GabayXAdminMessenger.openModal(this.value);" />
+                    <button class="btn-send" onclick="GabayXAdminMessenger.openModal(document.getElementById('student-note').value)" title="Review and Send Message to Administrator" aria-label="Send message to admin"><i class="fas fa-paper-plane"></i></button>
+                </div>
             </div>
         </div>
 
@@ -2071,6 +2235,89 @@
         window.GabayXEmergencyAlert = GabayXEmergencyAlert;
         window.GabayXAdminMessenger = GabayXAdminMessenger;
 
+        /* =====================================================================
+           TOGGLEABLE ACTIONS TRAY CONTROLLER (PHONE & DESKTOP FLEXIBLE)
+           ===================================================================== */
+        function toggleActionsTray(forceState) {
+            const tray = document.getElementById('actions-tray');
+            const toggleHeader = document.getElementById('tray-toggle-header');
+            const toggleBtn = document.getElementById('btn-tray-toggle');
+            if (!tray) return;
+
+            const shouldExpand = (typeof forceState === 'boolean') 
+                ? forceState 
+                : tray.classList.contains('collapsed');
+
+            if (shouldExpand) {
+                // Expand tray
+                tray.classList.remove('collapsed');
+                document.body.classList.remove('tray-collapsed');
+                if (toggleHeader) toggleHeader.setAttribute('aria-expanded', 'true');
+                if (toggleBtn) toggleBtn.setAttribute('aria-label', 'Collapse Actions Tray');
+                try { localStorage.setItem('gabayx_tray_collapsed', 'false'); } catch (e) {}
+            } else {
+                // Collapse tray
+                tray.classList.add('collapsed');
+                document.body.classList.add('tray-collapsed');
+                if (toggleHeader) toggleHeader.setAttribute('aria-expanded', 'false');
+                if (toggleBtn) toggleBtn.setAttribute('aria-label', 'Expand Actions Tray');
+                try { localStorage.setItem('gabayx_tray_collapsed', 'true'); } catch (e) {}
+            }
+
+            // Invalidate Leaflet map size to ensure tiles render smoothly
+            setTimeout(() => {
+                if (typeof map !== 'undefined' && map && typeof map.invalidateSize === 'function') {
+                    map.invalidateSize();
+                }
+            }, 320);
+        }
+
+        function initActionsTrayTouch() {
+            const header = document.getElementById('tray-toggle-header');
+            if (!header) return;
+
+            // Keyboard accessibility (Enter or Space)
+            header.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    toggleActionsTray();
+                }
+            });
+
+            // Touch gesture support on mobile (swipe down to collapse, swipe up to expand)
+            let touchStartY = 0;
+            header.addEventListener('touchstart', (e) => {
+                if (e.touches && e.touches.length > 0) {
+                    touchStartY = e.touches[0].clientY;
+                }
+            }, { passive: true });
+
+            header.addEventListener('touchend', (e) => {
+                if (e.changedTouches && e.changedTouches.length > 0) {
+                    const diffY = e.changedTouches[0].clientY - touchStartY;
+                    const tray = document.getElementById('actions-tray');
+                    if (!tray) return;
+                    if (diffY > 40 && !tray.classList.contains('collapsed')) {
+                        // Swiped down -> collapse
+                        toggleActionsTray(false);
+                    } else if (diffY < -40 && tray.classList.contains('collapsed')) {
+                        // Swiped up -> expand
+                        toggleActionsTray(true);
+                    }
+                }
+            }, { passive: true });
+
+            // Restore user preference if previously collapsed
+            try {
+                const saved = localStorage.getItem('gabayx_tray_collapsed');
+                if (saved === 'true') {
+                    toggleActionsTray(false);
+                }
+            } catch (e) {}
+        }
+
+        window.toggleActionsTray = toggleActionsTray;
+
         window.onload = () => {
             initTheme();
             initMap();
@@ -2078,6 +2325,7 @@
             initUserIdentity();
             checkLogin();
             loadBuildingLabels();
+            initActionsTrayTouch();
 
             // Responsive map recalculation
             window.addEventListener('resize', () => {

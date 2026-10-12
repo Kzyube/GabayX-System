@@ -65,6 +65,10 @@ async function runTests() {
     assert(studentHtml.includes('sidebar-install-btn') || studentHtml.includes('GabayXInstall.promptInstall()'), 'Sidebar contains Install GabayX App action');
     assert(studentHtml.includes('GabayXEmergencyAlert'), 'student.html includes GabayXEmergencyAlert controller');
     assert(studentHtml.includes('GabayXAdminMessenger'), 'student.html includes GabayXAdminMessenger controller');
+    assert(studentHtml.includes('tray-toggle-header') && studentHtml.includes('btn-tray-toggle'), 'actions-tray provides toggleable header and button');
+    assert(studentHtml.includes('tray-content-body'), 'actions-tray wraps controls inside collapsible body');
+    assert(studentHtml.includes('toggleActionsTray'), 'student.html exports toggleActionsTray()');
+    assert(studentHtml.includes('.actions-tray.collapsed') && studentHtml.includes('body.tray-collapsed .map-controls-cluster'), 'CSS includes collapsed styles and dynamic map controls offset');
 
     // TEST SUITE 3: ApiService Updates
     console.log('\n--- SUITE 3: ApiService Client Adapter ---');
