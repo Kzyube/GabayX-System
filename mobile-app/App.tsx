@@ -16,11 +16,13 @@ import { reportRepository } from './src/database/reportRepository';
 import { ReportStatusBadge } from './src/components/ReportStatusBadge';
 import { CreateReportModal } from './src/components/CreateReportModal';
 import { ReportDetailModal } from './src/components/ReportDetailModal';
+import { MapScreen } from './src/screens/MapScreen';
 
 export default function App() {
   const [reports, setReports] = useState<GabayXReport[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [currentScreen, setCurrentScreen] = useState<'REPORTS' | 'MAP'>('REPORTS');
   const [activeTab, setActiveTab] = useState<'ALL' | 'PENDING'>('ALL');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -140,149 +142,187 @@ export default function App() {
               <Text style={styles.platformBadgeText}>MOBILE</Text>
             </View>
           </View>
-          <Text style={styles.brandSubtitle}>Disaster-Response • Offline SQLite</Text>
+          <Text style={styles.brandSubtitle}>
+            {currentScreen === 'REPORTS'
+              ? 'Disaster-Response • Offline SQLite'
+              : 'Campus Navigation • Native Map'}
+          </Text>
         </View>
 
         <View style={styles.statusIndicator}>
           <View style={styles.statusDot} />
-          <Text style={styles.statusIndicatorText}>SQLite Active</Text>
+          <Text style={styles.statusIndicatorText}>
+            {currentScreen === 'REPORTS' ? 'SQLite Active' : 'Map Scaffold'}
+          </Text>
         </View>
       </View>
 
-      {/* CALL TO ACTION: FILE EMERGENCY REPORT */}
-      <View style={styles.ctaContainer}>
-        <TouchableOpacity
-          style={styles.sosCtaButton}
-          onPress={() => setIsCreateModalOpen(true)}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.sosCtaIcon}>🚨</Text>
-          <View>
-            <Text style={styles.sosCtaTitle}>FILE EMERGENCY REPORT</Text>
-            <Text style={styles.sosCtaSubtitle}>
-              Saves instantly to offline device storage (No internet required)
-            </Text>
-          </View>
-        </TouchableOpacity>
-      </View>
-
-      {/* OFFLINE NOTICE BANNER */}
-      <View style={styles.disclaimerBanner}>
-        <Text style={styles.disclaimerIcon}>ℹ️</Text>
-        <Text style={styles.disclaimerText}>
-          Offline-first mode active. Reports are persisted locally with status{' '}
-          <Text style={{ fontWeight: '800', color: '#fbbf24' }}>PENDING</Text> and have not yet
-          reached central dispatch until synced.
-        </Text>
-      </View>
-
-      {/* ERROR BANNER */}
-      {errorMessage && (
-        <View style={styles.errorBanner}>
-          <Text style={styles.errorBannerText}>⚠️ {errorMessage}</Text>
-        </View>
-      )}
-
-      {/* TABS & METRICS STRIP */}
-      <View style={styles.tabsStrip}>
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'ALL' && styles.tabButtonActive]}
-          onPress={() => setActiveTab('ALL')}
-        >
-          <Text style={[styles.tabButtonText, activeTab === 'ALL' && styles.tabButtonTextActive]}>
-            ALL REPORTS ({reports.length})
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'PENDING' && styles.tabButtonActive]}
-          onPress={() => setActiveTab('PENDING')}
-        >
-          <Text
-            style={[
-              styles.tabButtonText,
-              activeTab === 'PENDING' && styles.tabButtonTextActive,
-            ]}
-          >
-            PENDING SYNC ({pendingCount})
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* REPORT LIST OR EMPTY/LOADING STATES */}
-      <View style={styles.listContainer}>
-        {isLoading ? (
-          <View style={styles.centerBox}>
-            <ActivityIndicator size="large" color="#10b981" />
-            <Text style={styles.loadingText}>Initializing SQLite storage...</Text>
-          </View>
-        ) : displayedReports.length === 0 ? (
-          <View style={styles.centerBox}>
-            <Text style={styles.emptyIcon}>📋</Text>
-            <Text style={styles.emptyTitle}>
-              {activeTab === 'PENDING' ? 'No Pending Reports' : 'No Emergency Reports Yet'}
-            </Text>
-            <Text style={styles.emptySubtitle}>
-              {activeTab === 'PENDING'
-                ? 'All emergency reports have been processed.'
-                : 'Reports you create offline will appear here and persist across restarts.'}
-            </Text>
+      {/* SCREEN CONTENT: REPORTS OR MAP */}
+      {currentScreen === 'MAP' ? (
+        <MapScreen />
+      ) : (
+        <>
+          {/* CALL TO ACTION: FILE EMERGENCY REPORT */}
+          <View style={styles.ctaContainer}>
             <TouchableOpacity
-              style={styles.emptyActionBtn}
+              style={styles.sosCtaButton}
               onPress={() => setIsCreateModalOpen(true)}
+              activeOpacity={0.85}
             >
-              <Text style={styles.emptyActionText}>+ Create First Report</Text>
+              <Text style={styles.sosCtaIcon}>🚨</Text>
+              <View>
+                <Text style={styles.sosCtaTitle}>FILE EMERGENCY REPORT</Text>
+                <Text style={styles.sosCtaSubtitle}>
+                  Saves instantly to offline device storage (No internet required)
+                </Text>
+              </View>
             </TouchableOpacity>
           </View>
-        ) : (
-          <FlatList
-            data={displayedReports}
-            keyExtractor={(item) => item.id}
-            refreshControl={
-              <RefreshControl
-                refreshing={isRefreshing}
-                onRefresh={handleRefresh}
-                tintColor="#10b981"
-              />
-            }
-            contentContainerStyle={styles.listContent}
-            renderItem={({ item }) => {
-              const formattedDate = new Date(item.createdAt).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              });
 
-              return (
+          {/* OFFLINE NOTICE BANNER */}
+          <View style={styles.disclaimerBanner}>
+            <Text style={styles.disclaimerIcon}>ℹ️</Text>
+            <Text style={styles.disclaimerText}>
+              Offline-first mode active. Reports are persisted locally with status{' '}
+              <Text style={{ fontWeight: '800', color: '#fbbf24' }}>PENDING</Text> and have not yet
+              reached central dispatch until synced.
+            </Text>
+          </View>
+
+          {/* ERROR BANNER */}
+          {errorMessage && (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorBannerText}>⚠️ {errorMessage}</Text>
+            </View>
+          )}
+
+          {/* TABS & METRICS STRIP */}
+          <View style={styles.tabsStrip}>
+            <TouchableOpacity
+              style={[styles.tabButton, activeTab === 'ALL' && styles.tabButtonActive]}
+              onPress={() => setActiveTab('ALL')}
+            >
+              <Text style={[styles.tabButtonText, activeTab === 'ALL' && styles.tabButtonTextActive]}>
+                ALL REPORTS ({reports.length})
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.tabButton, activeTab === 'PENDING' && styles.tabButtonActive]}
+              onPress={() => setActiveTab('PENDING')}
+            >
+              <Text
+                style={[
+                  styles.tabButtonText,
+                  activeTab === 'PENDING' && styles.tabButtonTextActive,
+                ]}
+              >
+                PENDING SYNC ({pendingCount})
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* REPORT LIST OR EMPTY/LOADING STATES */}
+          <View style={styles.listContainer}>
+            {isLoading ? (
+              <View style={styles.centerBox}>
+                <ActivityIndicator size="large" color="#10b981" />
+                <Text style={styles.loadingText}>Initializing SQLite storage...</Text>
+              </View>
+            ) : displayedReports.length === 0 ? (
+              <View style={styles.centerBox}>
+                <Text style={styles.emptyIcon}>📋</Text>
+                <Text style={styles.emptyTitle}>
+                  {activeTab === 'PENDING' ? 'No Pending Reports' : 'No Emergency Reports Yet'}
+                </Text>
+                <Text style={styles.emptySubtitle}>
+                  {activeTab === 'PENDING'
+                    ? 'All emergency reports have been processed.'
+                    : 'Reports you create offline will appear here and persist across restarts.'}
+                </Text>
                 <TouchableOpacity
-                  style={styles.reportCard}
-                  onPress={() => setSelectedReport(item)}
-                  activeOpacity={0.8}
+                  style={styles.emptyActionBtn}
+                  onPress={() => setIsCreateModalOpen(true)}
                 >
-                  <View style={styles.cardHeader}>
-                    <View style={styles.cardCategoryRow}>
-                      <Text style={styles.cardCategoryText}>{item.category}</Text>
-                      <View style={[styles.sevPill, styles[`sev_${item.severity}`]]}>
-                        <Text style={styles.sevPillText}>{item.severity}</Text>
-                      </View>
-                    </View>
-                    <Text style={styles.cardTimeText}>{formattedDate}</Text>
-                  </View>
-
-                  <Text style={styles.cardDescription} numberOfLines={2}>
-                    {item.description}
-                  </Text>
-
-                  <View style={styles.cardFooter}>
-                    <ReportStatusBadge status={item.localStatus} size="small" />
-                    <Text style={styles.cardLocationText}>
-                      📍 {item.nearestBuilding || 'Campus Zone'}
-                    </Text>
-                  </View>
+                  <Text style={styles.emptyActionText}>+ Create First Report</Text>
                 </TouchableOpacity>
-              );
-            }}
-          />
-        )}
+              </View>
+            ) : (
+              <FlatList
+                data={displayedReports}
+                keyExtractor={(item) => item.id}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={isRefreshing}
+                    onRefresh={handleRefresh}
+                    tintColor="#10b981"
+                  />
+                }
+                contentContainerStyle={styles.listContent}
+                renderItem={({ item }) => {
+                  const formattedDate = new Date(item.createdAt).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  });
+
+                  return (
+                    <TouchableOpacity
+                      style={styles.reportCard}
+                      onPress={() => setSelectedReport(item)}
+                      activeOpacity={0.8}
+                    >
+                      <View style={styles.cardHeader}>
+                        <View style={styles.cardCategoryRow}>
+                          <Text style={styles.cardCategoryText}>{item.category}</Text>
+                          <View style={[styles.sevPill, styles[`sev_${item.severity}`]]}>
+                            <Text style={styles.sevPillText}>{item.severity}</Text>
+                          </View>
+                        </View>
+                        <Text style={styles.cardTimeText}>{formattedDate}</Text>
+                      </View>
+
+                      <Text style={styles.cardDescription} numberOfLines={2}>
+                        {item.description}
+                      </Text>
+
+                      <View style={styles.cardFooter}>
+                        <ReportStatusBadge status={item.localStatus} size="small" />
+                        <Text style={styles.cardLocationText}>
+                          📍 {item.nearestBuilding || 'Campus Zone'}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+            )}
+          </View>
+        </>
+      )}
+
+      {/* BOTTOM NAVIGATION BAR */}
+      <View style={styles.bottomNavBar}>
+        <TouchableOpacity
+          style={[styles.navTab, currentScreen === 'REPORTS' && styles.navTabActive]}
+          onPress={() => setCurrentScreen('REPORTS')}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.navIcon}>📋</Text>
+          <Text style={[styles.navLabel, currentScreen === 'REPORTS' && styles.navLabelActive]}>
+            Reports
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.navTab, currentScreen === 'MAP' && styles.navTabActive]}
+          onPress={() => setCurrentScreen('MAP')}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.navIcon}>🗺️</Text>
+          <Text style={[styles.navLabel, currentScreen === 'MAP' && styles.navLabelActive]}>
+            Campus Map
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* CREATE REPORT MODAL */}
@@ -584,5 +624,38 @@ const styles = StyleSheet.create({
   sev_LOW: {
     backgroundColor: 'rgba(59, 130, 246, 0.2)',
     borderColor: '#3b82f6',
+  },
+  bottomNavBar: {
+    flexDirection: 'row',
+    backgroundColor: '#0c1712',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    justifyContent: 'space-around',
+    alignItems: 'center',
+  },
+  navTab: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  navTabActive: {
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+  },
+  navIcon: {
+    fontSize: 20,
+  },
+  navLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#64748b',
+    marginTop: 2,
+    letterSpacing: 0.3,
+  },
+  navLabelActive: {
+    color: '#10b981',
   },
 });
