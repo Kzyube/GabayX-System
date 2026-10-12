@@ -877,30 +877,47 @@
                 const list = document.getElementById("list-danger");
                 if (!list) return;
 
+                const repId = report.id || `rep-${Date.now()}`;
+                const tempId = `card-${repId}`;
+                
+                // Avoid duplicate card if already rendered
+                if (document.getElementById(tempId)) return;
+
                 const item = document.createElement("div");
-                const tempId = `rep-${Date.now()}`;
                 item.className = "intercept-card urgent-card";
                 item.id = tempId;
 
-                const photoHTML = report.attachment ? `
+                const photoHTML = report.photo || report.attachment ? `
                     <div style="margin: 8px 0;">
-                        <img src="${report.attachment}" alt="Incident attachment" style="width: 100%; max-height: 140px; object-fit: cover; border-radius: 8px; border: 1px solid var(--glass-border); cursor: pointer;" onclick="window.open(this.src)">
+                        <img src="${report.photo || report.attachment}" alt="Incident attachment" style="width: 100%; max-height: 140px; object-fit: cover; border-radius: 8px; border: 1px solid var(--glass-border); cursor: pointer;" onclick="window.open(this.src)">
                     </div>` : '';
 
-                const locText = report.lat && report.lng ? `${report.lat.toFixed(5)}, ${report.lng.toFixed(5)} (${report.nearest_building || 'Campus'})` : (report.nearest_building || 'Location unknown');
+                const locText = report.lat && report.lng ? `${Number(report.lat).toFixed(5)}, ${Number(report.lng).toFixed(5)} (${report.nearest_building || 'Campus'})` : (report.nearest_building || 'Location unknown');
+                const mapFlyBtn = (report.lat && report.lng) ? `<button type="button" onclick="if(map) map.flyTo([${report.lat}, ${report.lng}], 18)" style="background:transparent; border:none; color:var(--accent-cyan); font-size:10px; font-weight:700; cursor:pointer; text-decoration:underline; padding:0; margin-left:6px;">View on Map</button>` : '';
 
                 item.innerHTML = `
                     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
                         <div>
-                            <span class="sos-badge">${report.incident_type || 'EMERGENCY'}</span>
+                            <span class="sos-badge">${report.incident_type || report.incidentType || 'EMERGENCY ALERT'}</span>
+                            <span id="status-tag-${repId}" class="status-pill pill-danger" style="margin-left:6px; font-size:9px; padding:2px 6px;">PENDING</span>
                             <span style="font-family:var(--font-data); font-size:0.8rem; color:var(--accent-cyan); margin-left:6px;">${report.student_name || 'Student'} (${report.student_id || 'ID'})</span>
                         </div>
-                        <small class="data-mono" style="font-size:9px;">${report.id ? report.id.substring(0, 10) : 'JUST NOW'}</small>
+                        <small class="data-mono" style="font-size:9px;">${new Date(report.timestamp || Date.now()).toLocaleTimeString()}</small>
                     </div>
                     <div style="color:var(--text-main); font-size: 0.85rem; line-height: 1.4; margin-bottom: 6px; font-weight:600;">"${report.description || 'Emergency incident reported'}"</div>
-                    <div style="font-size:10px; color:var(--text-dim); margin-bottom:6px;"><i class="fas fa-location-dot" style="color:var(--accent-red);"></i> ${locText}</div>
+                    <div style="font-size:10px; color:var(--text-dim); margin-bottom:8px;"><i class="fas fa-location-dot" style="color:var(--accent-red);"></i> ${locText} ${mapFlyBtn}</div>
                     ${photoHTML}
-                    <button id="btn-${tempId}" onclick="replyTo('${report.student_id}', '${tempId}')" style="background: var(--btn-glass); border: 1px solid var(--glass-border); color: var(--text-main); font-size:9px; font-weight:800; font-family:var(--font-ui); padding:6px 10px; border-radius:6px; cursor:pointer; transition: 0.3s; width:100%; text-transform:uppercase; letter-spacing:1px;">Reply to Student</button>`;
+                    <div style="display:flex; gap:6px; margin-top:8px;">
+                        <button id="btn-ack-${repId}" onclick="acknowledgeReport('${repId}')" style="flex:1; background: rgba(16,185,129,0.15); border: 1px solid var(--accent-green); color: var(--accent-green); font-size:9px; font-weight:800; font-family:var(--font-ui); padding:6px 10px; border-radius:6px; cursor:pointer; text-transform:uppercase; letter-spacing:0.5px;">
+                            <i class="fas fa-check"></i> Acknowledge
+                        </button>
+                        <select onchange="updateReportStatusAdmin('${repId}', this.value)" style="background:var(--btn-glass); border:1px solid var(--glass-border); color:var(--text-main); font-size:9px; font-weight:700; border-radius:6px; padding:4px 6px; cursor:pointer;">
+                            <option value="PENDING" selected>Status: PENDING</option>
+                            <option value="ACKNOWLEDGED">Status: ACKNOWLEDGED</option>
+                            <option value="RESOLVED">Status: RESOLVED</option>
+                        </select>
+                        <button id="btn-rep-${tempId}" onclick="replyTo('${report.student_id}', '${tempId}')" style="background: var(--btn-glass); border: 1px solid var(--glass-border); color: var(--text-main); font-size:9px; font-weight:800; font-family:var(--font-ui); padding:6px 10px; border-radius:6px; cursor:pointer; text-transform:uppercase;">Reply</button>
+                    </div>`;
 
                 list.prepend(item);
 
@@ -910,6 +927,95 @@
 
                 new Audio("https://image2url.com/r2/default/audio/1770035478181-9daca647-30be-478d-bef0-2700b5dfcbdd.mp3").play().catch(() => {});
             });
+
+            // GENERAL MESSAGES TO ADMINISTRATOR (Separate from emergency reports)
+            socket.on("admin-receive-message", (msg) => {
+                const list = document.getElementById("list-danger");
+                if (!list) return;
+
+                const msgId = msg.id || `msg-${Date.now()}`;
+                const tempId = `card-${msgId}`;
+                if (document.getElementById(tempId)) return;
+
+                const item = document.createElement("div");
+                item.className = "intercept-card";
+                item.style.borderLeft = "3px solid var(--accent-cyan)";
+                item.id = tempId;
+
+                const locText = (msg.include_location && msg.lat && msg.lng) 
+                    ? `<div style="font-size:10px; color:var(--text-dim); margin-top:4px;"><i class="fas fa-location-dot" style="color:var(--accent-cyan);"></i> Shared Location: ${Number(msg.lat).toFixed(5)}, ${Number(msg.lng).toFixed(5)}</div>`
+                    : '';
+
+                item.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
+                        <div>
+                            <span style="background:rgba(2,132,199,0.15); color:var(--accent-cyan); border:1px solid rgba(2,132,199,0.3); padding:2px 6px; border-radius:4px; font-weight:800; font-size:9px; letter-spacing:0.5px;"><i class="fas fa-comment-dots"></i> GENERAL INQUIRY</span>
+                            <span style="font-family:var(--font-data); font-size:0.8rem; color:var(--text-main); margin-left:6px;">${msg.student_name || 'Citizen'} (${msg.student_id || 'ID'})</span>
+                        </div>
+                        <small class="data-mono" style="font-size:9px;">${new Date(msg.timestamp || Date.now()).toLocaleTimeString()}</small>
+                    </div>
+                    <div style="color:var(--text-main); font-size: 0.85rem; line-height: 1.4; margin-bottom: 6px;">"${msg.message}"</div>
+                    ${locText}
+                    <div style="margin-top:8px;">
+                        <button onclick="replyTo('${msg.student_id}', '${tempId}')" style="background: var(--btn-glass); border: 1px solid var(--glass-border); color: var(--text-main); font-size:9px; font-weight:800; font-family:var(--font-ui); padding:6px 10px; border-radius:6px; cursor:pointer; width:100%; text-transform:uppercase;">Reply to Inquiry</button>
+                    </div>`;
+
+                list.prepend(item);
+                showToast(`💬 Message from ${msg.student_name || msg.student_id}`);
+            });
+
+            // REAL-TIME REPORT STATUS UPDATE LISTENER
+            socket.on("report-status-updated", (event) => {
+                if (!event || !event.reportId) return;
+                const badge = document.getElementById(`status-tag-${event.reportId}`);
+                if (badge) {
+                    badge.innerText = event.status;
+                    if (event.status === 'ACKNOWLEDGED') {
+                        badge.className = "status-pill";
+                        badge.style.background = "rgba(16,185,129,0.2)";
+                        badge.style.color = "var(--accent-green)";
+                        badge.style.borderColor = "var(--accent-green)";
+                    } else if (event.status === 'RESOLVED') {
+                        badge.className = "status-pill pill-safe";
+                    }
+                }
+                const btnAck = document.getElementById(`btn-ack-${event.reportId}`);
+                if (btnAck && (event.status === 'ACKNOWLEDGED' || event.status === 'RESOLVED')) {
+                    btnAck.innerHTML = `<i class="fas fa-check-double"></i> ${event.status}`;
+                    btnAck.disabled = true;
+                    btnAck.style.opacity = "0.7";
+                }
+            });
+        }
+
+        async function acknowledgeReport(reportId) {
+            if (!reportId) return;
+            socket.emit("admin-acknowledge-report", { reportId: reportId, status: "ACKNOWLEDGED" });
+            try {
+                await fetch("/api/reports/status", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ reportId: reportId, status: "ACKNOWLEDGED" })
+                });
+            } catch (err) {
+                console.warn("Could not POST status:", err);
+            }
+            showToast(`Report ${reportId.substring(0, 8)} acknowledged.`);
+        }
+
+        async function updateReportStatusAdmin(reportId, status) {
+            if (!reportId || !status) return;
+            socket.emit("admin-acknowledge-report", { reportId: reportId, status: status });
+            try {
+                await fetch("/api/reports/status", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ reportId: reportId, status: status })
+                });
+            } catch (err) {
+                console.warn("Could not POST status:", err);
+            }
+            showToast(`Report status updated to ${status}.`);
         }
 
         async function triggerAlert(type) {

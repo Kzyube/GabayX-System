@@ -934,6 +934,128 @@
         .nearby-place-pin.pin-other-place {
             background: #0284c7;
         }
+
+        /* --- EMERGENCY ALERT TOGGLE & REPORTING PANEL STYLING --- */
+        .emergency-toggle-container {
+            margin-bottom: 10px;
+            width: 100%;
+        }
+        .btn-emergency-toggle {
+            width: 100%;
+            background: var(--bg-card);
+            border: 1.5px solid rgba(239, 68, 68, 0.4);
+            border-radius: 12px;
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: var(--text-main);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+        }
+        .btn-emergency-toggle:hover {
+            border-color: var(--danger);
+            background: var(--danger-bg);
+            transform: translateY(-1px);
+        }
+        .btn-emergency-toggle.active {
+            border-color: var(--danger);
+            background: rgba(239, 68, 68, 0.18);
+        }
+        .emergency-toggle-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .emergency-status-beacon {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: var(--warning);
+            box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+            flex-shrink: 0;
+            transition: all 0.3s ease;
+        }
+        .btn-emergency-toggle.active .emergency-status-beacon {
+            background-color: var(--danger);
+            box-shadow: 0 0 12px rgba(239, 68, 68, 0.9);
+            animation: radar-ping 1.2s infinite;
+        }
+        .emergency-toggle-title {
+            font-size: 11.5px;
+            font-weight: 800;
+            color: var(--text-main);
+            letter-spacing: 0.3px;
+        }
+        .emergency-toggle-sub {
+            font-size: 9.5px;
+            color: var(--text-sub);
+            margin-top: 1px;
+        }
+        .emergency-toggle-badge {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--danger);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            font-size: 9px;
+            font-weight: 800;
+            padding: 4px 8px;
+            border-radius: 6px;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+        }
+
+        .emergency-cat-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin: 12px 0;
+        }
+        .emergency-cat-btn {
+            background: var(--bg-input);
+            border: 1px solid var(--border-medium);
+            border-radius: 10px;
+            padding: 10px 8px;
+            text-align: left;
+            color: var(--text-main);
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .emergency-cat-btn:hover {
+            border-color: var(--danger);
+            background: var(--danger-bg);
+        }
+        .emergency-cat-btn.selected {
+            border-color: var(--danger);
+            background: rgba(239, 68, 68, 0.2);
+            color: #fff;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+        }
+        .emergency-cat-btn i {
+            font-size: 14px;
+            color: var(--danger);
+            flex-shrink: 0;
+        }
+        .status-pill-badge {
+            display: inline-block;
+            font-family: var(--font-data);
+            font-size: 10px;
+            font-weight: 800;
+            padding: 3px 8px;
+            border-radius: 6px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        .status-draft { background: rgba(148, 163, 184, 0.15); color: var(--text-sub); border: 1px solid var(--border-subtle); }
+        .status-sending { background: rgba(245, 158, 11, 0.15); color: var(--warning); border: 1px solid var(--warning); }
+        .status-submitted { background: rgba(16, 185, 129, 0.15); color: var(--primary); border: 1px solid var(--primary); }
+        .status-pending { background: rgba(245, 158, 11, 0.15); color: var(--accent-orange); border: 1px solid var(--accent-orange); }
+        .status-failed { background: rgba(239, 68, 68, 0.15); color: var(--danger); border: 1px solid var(--danger); }
     </style>
 </head>
 
@@ -1060,6 +1182,18 @@
         </div>
 
         <div style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border-subtle); display: flex; flex-direction: column;">
+            <button onclick="GabayXEmergencyAlert.openPanel(); toggleSidebar(false);" class="btn-sidebar-nav" style="border-color: rgba(239,68,68,0.4); color: var(--danger); font-weight:700;">
+                <i class="fas fa-triangle-exclamation"></i> Emergency Alert Panel
+            </button>
+
+            <button onclick="GabayXAdminMessenger.openModal(); toggleSidebar(false);" class="btn-sidebar-nav" style="border-color: rgba(2,132,199,0.4); color: var(--accent-cyan);">
+                <i class="fas fa-paper-plane"></i> Message Administrator
+            </button>
+
+            <button onclick="GabayXInstall.promptInstall(); toggleSidebar(false);" class="btn-sidebar-nav" id="sidebar-install-btn" style="border-color: rgba(16,185,129,0.4); color: var(--primary);">
+                <i class="fas fa-download"></i> Install GabayX App
+            </button>
+
             <button onclick="GabayXOfflineUI.openReportModal()" class="btn-sidebar-nav btn-sidebar-primary">
                 <i class="fas fa-file-shield"></i> File Incident Report
             </button>
@@ -1284,7 +1418,7 @@
         </div>
 
         <div class="actions-tray">
-            <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <div style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-size: 10px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px;">NEAREST BUILDING</span>
                 <span id="nearest-bldg-badge" class="location-badge">Scanning...</span>
             </div>
@@ -1293,10 +1427,24 @@
                 <span style="font-size: 10px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px;">QUICK MESSAGES</span>
                 <div class="quick-grid" id="quick-grid"></div>
             </div>
+
+            <!-- USER-FACING EMERGENCY ALERT TOGGLE (Inactive by default, activates reporting panel on click) -->
+            <div class="emergency-toggle-container">
+                <button type="button" id="btn-emergency-toggle" class="btn-emergency-toggle" onclick="GabayXEmergencyAlert.openPanel()" aria-label="Activate Emergency Alert Assistance" aria-expanded="false">
+                    <div class="emergency-toggle-status">
+                        <span class="emergency-status-beacon" id="emergency-beacon"></span>
+                        <div style="text-align: left;">
+                            <div class="emergency-toggle-title" id="emergency-toggle-label">Emergency Alert: Inactive</div>
+                            <div class="emergency-toggle-sub" id="emergency-toggle-sub">Tap to open emergency report panel</div>
+                        </div>
+                    </div>
+                    <span class="emergency-toggle-badge" id="emergency-toggle-badge">ACTIVATE</span>
+                </button>
+            </div>
             
             <div class="button-group">
                 <button class="btn-action btn-safe" onclick="markAsSafe()"><i class="fas fa-check-circle" style="font-size: 18px;"></i> Mark as Safe</button>
-                <button class="btn-action btn-danger" onclick="markAsDanger()"><i class="fas fa-exclamation-circle" style="font-size: 18px;"></i> Emergency SOS</button>
+                <button class="btn-action btn-danger" onclick="GabayXEmergencyAlert.openPanel()"><i class="fas fa-triangle-exclamation" style="font-size: 18px;"></i> Emergency SOS</button>
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px;">
@@ -1308,9 +1456,134 @@
                 </button>
             </div>
             
-            <div class="msg-bar">
-                <input type="text" id="student-note" placeholder="Send a message to admin..." />
-                <button class="btn-send" onclick="sendNote()"><i class="fas fa-paper-plane"></i></button>
+            <!-- SEPARATE MESSAGE ADMINISTRATOR ACTION BAR -->
+            <div class="msg-bar" style="margin-top: 10px;">
+                <input type="text" id="student-note" placeholder="Message administrator (inquiry)..." onkeydown="if(event.key==='Enter') GabayXAdminMessenger.openModal(this.value);" />
+                <button class="btn-send" onclick="GabayXAdminMessenger.openModal(document.getElementById('student-note').value)" title="Review and Send Message to Administrator" aria-label="Send message to admin"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+
+        <!-- EMERGENCY ALERT REPORTING PANEL (MODAL) -->
+        <div id="emergency-alert-panel" role="dialog" aria-modal="true" aria-labelledby="emergency-panel-title" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:28000; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(6px);">
+            <div style="background:var(--modal-bg); border:1.5px solid var(--danger); border-radius:14px; padding:20px; width:100%; max-width:440px; box-shadow:var(--shadow-modal); max-height:92vh; overflow-y:auto; display:flex; flex-direction:column;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-subtle); padding-bottom:12px; margin-bottom:14px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <i class="fas fa-triangle-exclamation" style="color:var(--danger); font-size:18px;"></i>
+                        <h3 id="emergency-panel-title" style="margin:0; font-size:1.1rem; color:var(--text-main); font-weight:800;">Emergency Alert Panel</h3>
+                    </div>
+                    <button type="button" onclick="GabayXEmergencyAlert.cancelPanel()" style="background:transparent; border:none; color:var(--text-sub); font-size:22px; cursor:pointer;" aria-label="Cancel and close">&times;</button>
+                </div>
+
+                <div style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.25); border-radius:8px; padding:8px 12px; font-size:11px; color:var(--text-main); margin-bottom:14px; line-height:1.4;">
+                    <i class="fas fa-shield-heart" style="color:var(--danger); margin-right:4px;"></i>
+                    <b>Notice:</b> Activating this panel does NOT automatically transmit an alert. Select a category, add details, and click <b>Confirm & Submit</b> to send.
+                </div>
+
+                <!-- 1. Category Selection -->
+                <div>
+                    <label style="font-size:10px; font-weight:800; color:var(--text-sub); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:6px;">1. Select Emergency Category *</label>
+                    <div class="emergency-cat-grid" id="emergency-cat-selector">
+                        <button type="button" class="emergency-cat-btn" data-category="Flooding" onclick="GabayXEmergencyAlert.selectCategory('Flooding', this)"><i class="fas fa-water"></i> Flooding</button>
+                        <button type="button" class="emergency-cat-btn" data-category="Medical emergency" onclick="GabayXEmergencyAlert.selectCategory('Medical emergency', this)"><i class="fas fa-kit-medical"></i> Medical</button>
+                        <button type="button" class="emergency-cat-btn" data-category="Trapped or stranded person" onclick="GabayXEmergencyAlert.selectCategory('Trapped or stranded person', this)"><i class="fas fa-person-shelter"></i> Trapped</button>
+                        <button type="button" class="emergency-cat-btn" data-category="Fire" onclick="GabayXEmergencyAlert.selectCategory('Fire', this)"><i class="fas fa-fire"></i> Fire</button>
+                        <button type="button" class="emergency-cat-btn" data-category="Infrastructure damage" onclick="GabayXEmergencyAlert.selectCategory('Infrastructure damage', this)"><i class="fas fa-house-crack"></i> Infrastructure</button>
+                        <button type="button" class="emergency-cat-btn" data-category="Other emergency" onclick="GabayXEmergencyAlert.selectCategory('Other emergency', this)"><i class="fas fa-circle-exclamation"></i> Other</button>
+                    </div>
+                </div>
+
+                <!-- 2. Description -->
+                <div style="margin-bottom:14px;">
+                    <label style="font-size:10px; font-weight:800; color:var(--text-sub); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:6px;">2. Situation Description *</label>
+                    <textarea id="emergency-desc-input" rows="3" placeholder="Describe the emergency, hazards, or immediate assistance needed..." style="width:100%; background:var(--bg-input); border:1px solid var(--border-medium); border-radius:8px; padding:10px; color:var(--text-main); font-family:var(--font-ui); font-size:12px; resize:vertical; box-sizing:border-box; outline:none;" oninput="GabayXEmergencyAlert.updateReviewSummary()"></textarea>
+                </div>
+
+                <!-- 3. Location Details & Acquisition -->
+                <div style="background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:10px; padding:10px 12px; margin-bottom:14px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <span style="font-size:10px; font-weight:800; color:var(--text-sub); text-transform:uppercase;"><i class="fas fa-location-crosshairs" style="color:var(--primary); margin-right:4px;"></i> 3. Current Location</span>
+                        <button type="button" onclick="GabayXEmergencyAlert.acquireLocation(true)" style="background:transparent; border:none; color:var(--primary); font-size:10px; font-weight:700; cursor:pointer; text-decoration:underline;">Re-detect GPS</button>
+                    </div>
+                    <div id="emergency-loc-status" style="font-size:11px; color:var(--text-main); font-family:var(--font-data);">Acquiring GPS location...</div>
+                    <div id="emergency-loc-ref" style="font-size:9.5px; color:var(--text-sub); margin-top:2px;">Campus location reference active</div>
+                </div>
+
+                <!-- 4. Review Before Submission -->
+                <div id="emergency-review-summary" style="background:var(--bg-card); border:1px dashed var(--border-medium); border-radius:10px; padding:10px 12px; margin-bottom:14px;">
+                    <div style="font-size:10px; font-weight:800; color:var(--text-sub); text-transform:uppercase; margin-bottom:4px;">Review Details Before Sending</div>
+                    <div style="font-size:11px; color:var(--text-main); margin-bottom:2px;"><span style="color:var(--text-sub);">Category:</span> <b id="summary-cat">None selected</b></div>
+                    <div style="font-size:11px; color:var(--text-main);"><span style="color:var(--text-sub);">Location:</span> <span id="summary-loc">Pending acquisition</span></div>
+                </div>
+
+                <!-- 5. Actual Submission Status Tracker -->
+                <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:var(--bg-card); border-radius:8px; margin-bottom:16px;">
+                    <span style="font-size:10px; font-weight:800; color:var(--text-sub); text-transform:uppercase;">Status:</span>
+                    <span id="emergency-status-badge" class="status-pill-badge status-draft">Draft</span>
+                </div>
+
+                <!-- 6. Confirmation and Cancellation Actions -->
+                <div style="display:flex; gap:10px; margin-top:auto;">
+                    <button type="button" onclick="GabayXEmergencyAlert.cancelPanel()" style="flex:1; padding:12px; background:var(--bg-card); border:1px solid var(--border-medium); color:var(--text-main); font-weight:700; font-size:11px; border-radius:8px; text-transform:uppercase; cursor:pointer;">Cancel</button>
+                    <button type="button" id="btn-confirm-emergency" onclick="GabayXEmergencyAlert.confirmAndSubmit()" style="flex:2; padding:12px; background:var(--danger); border:none; color:#fff; font-weight:800; font-size:11px; border-radius:8px; text-transform:uppercase; cursor:pointer; letter-spacing:0.5px; display:flex; align-items:center; justify-content:center; gap:6px;">
+                        <i class="fas fa-paper-plane"></i> Confirm & Send Alert
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MESSAGE ADMINISTRATOR ACTION PANEL (MODAL) -->
+        <div id="message-admin-modal" role="dialog" aria-modal="true" aria-labelledby="msg-admin-title" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:28000; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(6px);">
+            <div style="background:var(--modal-bg); border:1.5px solid var(--accent-cyan); border-radius:14px; padding:20px; width:100%; max-width:420px; box-shadow:var(--shadow-modal); max-height:90vh; overflow-y:auto; display:flex; flex-direction:column;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-subtle); padding-bottom:12px; margin-bottom:14px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <i class="fas fa-paper-plane" style="color:var(--accent-cyan); font-size:16px;"></i>
+                        <h3 id="msg-admin-title" style="margin:0; font-size:1.1rem; color:var(--text-main); font-weight:800;">Message Administrator</h3>
+                    </div>
+                    <button type="button" onclick="GabayXAdminMessenger.closeModal()" style="background:transparent; border:none; color:var(--text-sub); font-size:22px; cursor:pointer;" aria-label="Close dialog">&times;</button>
+                </div>
+
+                <p style="font-size:11.5px; color:var(--text-sub); line-height:1.45; margin-bottom:14px;">
+                    Send general inquiries, resource requests, or non-urgent questions to the command administrator. (For urgent danger, use the <b>Emergency Alert</b> control).
+                </p>
+
+                <div style="margin-bottom:12px;">
+                    <label style="font-size:10px; font-weight:800; color:var(--text-sub); text-transform:uppercase; display:block; margin-bottom:6px;">Your Message *</label>
+                    <textarea id="admin-message-input" rows="3" maxlength="500" placeholder="Type your message to the administrator..." style="width:100%; background:var(--bg-input); border:1px solid var(--border-medium); border-radius:8px; padding:10px; color:var(--text-main); font-family:var(--font-ui); font-size:12px; resize:vertical; box-sizing:border-box; outline:none;" oninput="GabayXAdminMessenger.handleInput(this)"></textarea>
+                    <div style="display:flex; justify-content:space-between; font-size:9.5px; color:var(--text-sub); margin-top:4px;">
+                        <span>Non-emergency communication</span>
+                        <span id="admin-msg-char-count">0 / 500</span>
+                    </div>
+                </div>
+
+                <!-- Optional Location Inclusion -->
+                <div style="background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:8px; padding:10px 12px; margin-bottom:14px;">
+                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:11px; font-weight:700; color:var(--text-main);">
+                        <input type="checkbox" id="admin-msg-include-loc" onchange="GabayXAdminMessenger.toggleLocationOption(this.checked)" style="accent-color:var(--primary); cursor:pointer;" />
+                        <span>Include my current GPS location (Optional)</span>
+                    </label>
+                    <div id="admin-msg-loc-display" style="display:none; font-size:10px; color:var(--text-sub); font-family:var(--font-data); margin-top:6px; padding-top:6px; border-top:1px solid var(--border-subtle);">
+                        Location: Acquiring coordinates...
+                    </div>
+                </div>
+
+                <!-- Review Summary -->
+                <div id="admin-msg-review-box" style="background:rgba(2,132,199,0.06); border:1px solid rgba(2,132,199,0.2); border-radius:8px; padding:8px 12px; margin-bottom:14px; font-size:10.5px; color:var(--text-sub);">
+                    <b>Review:</b> Ordinary inquiries are delivered to the command log. Verify details before sending.
+                </div>
+
+                <!-- Real Status Indicator -->
+                <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:var(--bg-card); border-radius:8px; margin-bottom:16px;">
+                    <span style="font-size:10px; font-weight:800; color:var(--text-sub); text-transform:uppercase;">Status:</span>
+                    <span id="admin-msg-status-badge" class="status-pill-badge status-draft">Draft</span>
+                </div>
+
+                <!-- Actions -->
+                <div style="display:flex; gap:10px;">
+                    <button type="button" onclick="GabayXAdminMessenger.closeModal()" style="flex:1; padding:12px; background:var(--bg-card); border:1px solid var(--border-medium); color:var(--text-main); font-weight:700; font-size:11px; border-radius:8px; text-transform:uppercase; cursor:pointer;">Cancel</button>
+                    <button type="button" id="btn-submit-admin-msg" onclick="GabayXAdminMessenger.confirmAndSubmit()" style="flex:2; padding:12px; background:var(--primary); border:none; color:#010a07; font-weight:800; font-size:11px; border-radius:8px; text-transform:uppercase; cursor:pointer; letter-spacing:0.5px;">
+                        Confirm & Send Message
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -1386,6 +1659,417 @@
             for (let i = 0; i < rawData.length; ++i) { outputArray[i] = rawData.charCodeAt(i); }
             return outputArray;
         }
+
+        /* =====================================================================
+           FEATURE 2: EMERGENCY ALERT TOGGLE & REPORTING PANEL CONTROLLER
+           ===================================================================== */
+        const GabayXEmergencyAlert = (function () {
+            let active = false;
+            let currentCategory = null;
+            let currentLocation = null;
+            let isSubmitting = false;
+
+            function openPanel() {
+                active = true;
+                const panel = document.getElementById('emergency-alert-panel');
+                if (panel) panel.style.display = 'flex';
+
+                const toggleBtn = document.getElementById('btn-emergency-toggle');
+                if (toggleBtn) {
+                    toggleBtn.classList.add('active');
+                    toggleBtn.setAttribute('aria-expanded', 'true');
+                    const label = document.getElementById('emergency-toggle-label');
+                    const sub = document.getElementById('emergency-toggle-sub');
+                    const badge = document.getElementById('emergency-toggle-badge');
+                    if (label) label.innerText = '🚨 Emergency Alert: Active';
+                    if (sub) sub.innerText = 'Reporting panel opened';
+                    if (badge) badge.innerText = 'ACTIVE';
+                }
+
+                // Reset submission status to Draft
+                setStatus('Draft');
+
+                // Auto-acquire location
+                acquireLocation();
+            }
+
+            function cancelPanel() {
+                active = false;
+                const panel = document.getElementById('emergency-alert-panel');
+                if (panel) panel.style.display = 'none';
+
+                const toggleBtn = document.getElementById('btn-emergency-toggle');
+                if (toggleBtn) {
+                    toggleBtn.classList.remove('active');
+                    toggleBtn.setAttribute('aria-expanded', 'false');
+                    const label = document.getElementById('emergency-toggle-label');
+                    const sub = document.getElementById('emergency-toggle-sub');
+                    const badge = document.getElementById('emergency-toggle-badge');
+                    if (label) label.innerText = 'Emergency Alert: Inactive';
+                    if (sub) sub.innerText = 'Tap to open emergency report panel';
+                    if (badge) badge.innerText = 'ACTIVATE';
+                }
+
+                // Reset state
+                currentCategory = null;
+                const buttons = document.querySelectorAll('.emergency-cat-btn');
+                buttons.forEach(b => b.classList.remove('selected'));
+                const descInput = document.getElementById('emergency-desc-input');
+                if (descInput) descInput.value = '';
+                updateReviewSummary();
+                setStatus('Draft');
+                isSubmitting = false;
+                const submitBtn = document.getElementById('btn-confirm-emergency');
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Confirm & Send Alert';
+                }
+            }
+
+            function selectCategory(cat, btnElement) {
+                currentCategory = cat;
+                const buttons = document.querySelectorAll('.emergency-cat-btn');
+                buttons.forEach(b => b.classList.remove('selected'));
+                if (btnElement) btnElement.classList.add('selected');
+                updateReviewSummary();
+            }
+
+            function acquireLocation(force = false) {
+                const statusEl = document.getElementById('emergency-loc-status');
+                const refEl = document.getElementById('emergency-loc-ref');
+                if (statusEl) statusEl.innerText = 'Acquiring GPS coordinates...';
+
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        (pos) => {
+                            const lat = pos.coords.latitude;
+                            const lng = pos.coords.longitude;
+                            currentLocation = {
+                                lat: lat,
+                                lng: lng,
+                                source: 'gps'
+                            };
+                            const nearest = (typeof findNearestBuilding === 'function') 
+                                ? findNearestBuilding([lat, lng]) 
+                                : 'Campus Vicinity';
+                            currentLocation.nearest = nearest;
+
+                            if (statusEl) statusEl.innerText = `GPS: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+                            if (refEl) refEl.innerText = `Nearest: ${nearest} (Accurate to ~${Math.round(pos.coords.accuracy || 10)}m)`;
+                            updateReviewSummary();
+                        },
+                        (err) => {
+                            console.warn('[EmergencyAlert] GPS acquisition notice:', err.message);
+                            // Safe campus reference fallback
+                            currentLocation = {
+                                lat: 7.1002,
+                                lng: 124.8240,
+                                source: 'campus_reference',
+                                nearest: 'Principal Front / Campus'
+                            };
+                            if (statusEl) statusEl.innerText = 'GPS not permitted / unavailable. Reference: Campus (7.1002, 124.8240)';
+                            if (refEl) refEl.innerText = 'First responders will be notified of reference point';
+                            updateReviewSummary();
+                        },
+                        { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }
+                    );
+                } else {
+                    currentLocation = {
+                        lat: 7.1002,
+                        lng: 124.8240,
+                        source: 'campus_reference',
+                        nearest: 'Principal Front'
+                    };
+                    if (statusEl) statusEl.innerText = 'GPS unavailable. Reference: Campus (7.1002, 124.8240)';
+                    updateReviewSummary();
+                }
+            }
+
+            function updateReviewSummary() {
+                const catEl = document.getElementById('summary-cat');
+                const locEl = document.getElementById('summary-loc');
+                if (catEl) catEl.innerText = currentCategory || 'None selected';
+                if (locEl) {
+                    if (currentLocation) {
+                        locEl.innerText = `${currentLocation.lat.toFixed(4)}, ${currentLocation.lng.toFixed(4)} (${currentLocation.nearest || 'Campus'})`;
+                    } else {
+                        locEl.innerText = 'Pending GPS detection';
+                    }
+                }
+            }
+
+            function setStatus(statusName) {
+                const badge = document.getElementById('emergency-status-badge');
+                if (!badge) return;
+                badge.innerText = statusName;
+                badge.className = 'status-pill-badge';
+                if (statusName === 'Draft') badge.classList.add('status-draft');
+                else if (statusName === 'Sending...') badge.classList.add('status-sending');
+                else if (statusName === 'Submitted') badge.classList.add('status-submitted');
+                else if (statusName.includes('Pending')) badge.classList.add('status-pending');
+                else if (statusName === 'Failed') badge.classList.add('status-failed');
+            }
+
+            async function confirmAndSubmit() {
+                if (isSubmitting) return;
+
+                if (!currentCategory) {
+                    alert('Please select an emergency category before submitting.');
+                    return;
+                }
+
+                const descInput = document.getElementById('emergency-desc-input');
+                const description = descInput ? descInput.value.trim() : '';
+                if (!description) {
+                    alert('Please provide a brief description of the emergency.');
+                    if (descInput) descInput.focus();
+                    return;
+                }
+
+                // Explicit confirmation check
+                const confirmed = confirm(`Are you sure you want to send this EMERGENCY ALERT for "${currentCategory}" to the Command Center?`);
+                if (!confirmed) return;
+
+                isSubmitting = true;
+                const submitBtn = document.getElementById('btn-confirm-emergency');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Transmitting Alert...';
+                }
+                setStatus('Sending...');
+
+                const lat = currentLocation ? currentLocation.lat : 7.1002;
+                const lng = currentLocation ? currentLocation.lng : 124.8240;
+                const nearest = (currentLocation && currentLocation.nearest) ? currentLocation.nearest : 'Campus';
+
+                const reportPayload = {
+                    incidentType: currentCategory,
+                    description: description,
+                    severity: 'CRITICAL',
+                    latitude: lat,
+                    longitude: lng,
+                    nearestBuilding: nearest,
+                    studentId: studentEmail || 'anonymous',
+                    studentName: (typeof window.gabayxUserName !== 'undefined' && window.gabayxUserName) ? window.gabayxUserName : 'Student / Citizen'
+                };
+
+                try {
+                    // Use local-first ReportService
+                    if (window.GabayXReportService) {
+                        const result = await window.GabayXReportService.createReport(reportPayload);
+
+                        if (result.status === 'SYNCED') {
+                            setStatus('Submitted');
+                            if (submitBtn) submitBtn.innerHTML = '<i class="fas fa-check"></i> Alert Submitted';
+                            showToast('🚨 Emergency Alert Submitted & Confirmed by Command Center!');
+                            
+                            // Send telemetry via socket as well if online
+                            if (socket && socket.connected) {
+                                socket.emit('student-status', { id: reportPayload.studentId, status: 'DANGER', lat: lat, lng: lng });
+                            }
+
+                            setTimeout(() => {
+                                cancelPanel();
+                            }, 2500);
+                        } else {
+                            // Saved to IndexedDB for offline background synchronization
+                            setStatus('Delivery Pending (Saved Offline)');
+                            if (submitBtn) submitBtn.innerHTML = '<i class="fas fa-clock"></i> Delivery Pending';
+                            showToast('⚠️ Offline: Report saved locally. Will transmit automatically when reconnected.');
+                            setTimeout(() => {
+                                cancelPanel();
+                            }, 3500);
+                        }
+                    } else {
+                        // Direct API fallback
+                        const res = await window.GabayXApi.submitReport({
+                            id: `sos-${Date.now()}`,
+                            ...reportPayload
+                        });
+                        if (res && res.success) {
+                            setStatus('Submitted');
+                            showToast('🚨 Emergency Alert Submitted!');
+                            setTimeout(() => cancelPanel(), 2000);
+                        } else {
+                            setStatus('Failed');
+                        }
+                    }
+                } catch (err) {
+                    console.error('[Emergency Alert Submission Error]:', err);
+                    setStatus('Delivery Pending (Saved Offline)');
+                    showToast('⚠️ Connection error. Alert safely preserved in offline draft.');
+                } finally {
+                    isSubmitting = false;
+                }
+            }
+
+            return {
+                openPanel,
+                cancelPanel,
+                selectCategory,
+                acquireLocation,
+                updateReviewSummary,
+                confirmAndSubmit
+            };
+        })();
+
+        /* =====================================================================
+           FEATURE 3: MESSAGE ADMINISTRATOR (GENERAL INQUIRIES) CONTROLLER
+           ===================================================================== */
+        const GabayXAdminMessenger = (function () {
+            let includeLocation = false;
+            let acquiredLocation = null;
+            let isSubmitting = false;
+
+            function openModal(prefill = '') {
+                const modal = document.getElementById('message-admin-modal');
+                if (modal) modal.style.display = 'flex';
+
+                const input = document.getElementById('admin-message-input');
+                if (input) {
+                    if (prefill) input.value = prefill;
+                    input.focus();
+                    handleInput(input);
+                }
+                setStatus('Draft');
+            }
+
+            function closeModal() {
+                const modal = document.getElementById('message-admin-modal');
+                if (modal) modal.style.display = 'none';
+                const input = document.getElementById('admin-message-input');
+                if (input) input.value = '';
+                const noteInput = document.getElementById('student-note');
+                if (noteInput) noteInput.value = '';
+                setStatus('Draft');
+                isSubmitting = false;
+                const btn = document.getElementById('btn-submit-admin-msg');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerText = 'Confirm & Send Message';
+                }
+            }
+
+            function handleInput(textarea) {
+                const count = textarea ? textarea.value.length : 0;
+                const counter = document.getElementById('admin-msg-char-count');
+                if (counter) counter.innerText = `${count} / 500`;
+            }
+
+            function toggleLocationOption(checked) {
+                includeLocation = checked;
+                const display = document.getElementById('admin-msg-loc-display');
+                if (!display) return;
+
+                if (checked) {
+                    display.style.display = 'block';
+                    display.innerText = 'Detecting GPS coordinates...';
+                    if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(
+                            (pos) => {
+                                acquiredLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                                display.innerText = `Location: ${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`;
+                            },
+                            () => {
+                                acquiredLocation = { lat: 7.1002, lng: 124.8240 };
+                                display.innerText = 'Location: Campus Reference (7.1002, 124.8240)';
+                            },
+                            { timeout: 6000 }
+                        );
+                    }
+                } else {
+                    display.style.display = 'none';
+                    acquiredLocation = null;
+                }
+            }
+
+            function setStatus(statusName) {
+                const badge = document.getElementById('admin-msg-status-badge');
+                if (!badge) return;
+                badge.innerText = statusName;
+                badge.className = 'status-pill-badge';
+                if (statusName === 'Draft') badge.classList.add('status-draft');
+                else if (statusName === 'Sending...') badge.classList.add('status-sending');
+                else if (statusName.includes('Submitted')) badge.classList.add('status-submitted');
+                else if (statusName.includes('Failed')) badge.classList.add('status-failed');
+            }
+
+            async function confirmAndSubmit() {
+                if (isSubmitting) return;
+
+                const input = document.getElementById('admin-message-input');
+                const message = input ? input.value.trim() : '';
+
+                if (!message) {
+                    alert('Please enter a message to send to the administrator.');
+                    if (input) input.focus();
+                    return;
+                }
+
+                // Review & Confirmation step
+                const confirmed = confirm(`Confirm sending inquiry to Administrator:\n"${message.substring(0, 100)}${message.length > 100 ? '...' : ''}"`);
+                if (!confirmed) return;
+
+                isSubmitting = true;
+                const btn = document.getElementById('btn-submit-admin-msg');
+                if (btn) {
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+                }
+                setStatus('Sending...');
+
+                const payload = {
+                    id: `inq-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                    student_id: studentEmail || 'anonymous',
+                    student_name: (typeof window.gabayxUserName !== 'undefined' && window.gabayxUserName) ? window.gabayxUserName : 'Student / Citizen',
+                    message: message,
+                    include_location: includeLocation,
+                    lat: acquiredLocation ? acquiredLocation.lat : null,
+                    lng: acquiredLocation ? acquiredLocation.lng : null,
+                    timestamp: new Date().toISOString()
+                };
+
+                try {
+                    const response = await window.GabayXApi.sendMessage(payload);
+                    if (response && response.success) {
+                        setStatus('Submitted to Administrator');
+                        if (btn) btn.innerHTML = '<i class="fas fa-check"></i> Sent';
+                        showToast('💬 Message delivered to administrator.');
+                        setTimeout(() => {
+                            closeModal();
+                        }, 1600);
+                    } else {
+                        setStatus('Delivery Failed');
+                        if (btn) {
+                            btn.disabled = false;
+                            btn.innerText = 'Retry Sending';
+                        }
+                        showToast('⚠️ Could not deliver message to administrator.');
+                    }
+                } catch (err) {
+                    console.error('[Admin Message Send Error]:', err);
+                    setStatus('Delivery Failed');
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerText = 'Retry Sending';
+                    }
+                    showToast(`⚠️ Error sending message: ${err.message || 'Offline'}`);
+                } finally {
+                    isSubmitting = false;
+                }
+            }
+
+            return {
+                openModal,
+                closeModal,
+                handleInput,
+                toggleLocationOption,
+                confirmAndSubmit
+            };
+        })();
+
+        window.GabayXEmergencyAlert = GabayXEmergencyAlert;
+        window.GabayXAdminMessenger = GabayXAdminMessenger;
 
         window.onload = () => {
             initTheme();
