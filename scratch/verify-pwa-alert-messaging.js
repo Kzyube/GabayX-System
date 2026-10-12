@@ -56,14 +56,17 @@ async function runTests() {
     const studentHtmlPath = path.join(__dirname, '../public/student.html');
     const studentHtml = fs.readFileSync(studentHtmlPath, 'utf8');
 
-    assert(studentHtml.includes('btn-emergency-toggle'), 'student.html contains Emergency Alert Toggle button');
-    assert(studentHtml.includes('emergency-alert-panel'), 'student.html contains Emergency Alert Reporting Panel modal');
-    assert(studentHtml.includes('Flooding') && studentHtml.includes('Medical emergency') && studentHtml.includes('Trapped or stranded person'), 'Emergency Alert Panel provides required emergency categories');
-    assert(studentHtml.includes('message-admin-modal'), 'student.html contains Message Administrator modal');
+    assert(!studentHtml.includes('btn-emergency-toggle'), 'student.html does not contain redundant Emergency Alert Toggle button in actions-tray');
+    assert(!studentHtml.includes('id="emergency-alert-panel"'), 'student.html does not contain Emergency Alert Reporting Panel modal');
+    assert(!studentHtml.includes('Emergency Alert Panel</button>'), 'Sidebar menu does not contain Emergency Alert Panel');
+    assert(!studentHtml.includes('Message Administrator</button>'), 'Sidebar menu does not contain Message Administrator button');
+    assert(!studentHtml.includes('File Incident Report</button>'), 'Sidebar menu does not contain File Incident Report button');
+    assert(!studentHtml.includes('Offline Guides & Hotlines</button>'), 'Sidebar menu does not contain Offline Guides & Hotlines button');
+    assert(studentHtml.includes('markAsDanger()'), 'Actions-tray SOS is wired directly to markAsDanger()');
+    assert(studentHtml.includes('message-admin-modal'), 'student.html contains Message Administrator modal for actions-tray');
     assert(studentHtml.includes('admin-message-input'), 'Message Administrator modal has message input textarea');
     assert(studentHtml.includes('admin-msg-include-loc'), 'Message Administrator provides optional location checkbox');
     assert(studentHtml.includes('sidebar-install-btn') || studentHtml.includes('GabayXInstall.promptInstall()'), 'Sidebar contains Install GabayX App action');
-    assert(studentHtml.includes('GabayXEmergencyAlert'), 'student.html includes GabayXEmergencyAlert controller');
     assert(studentHtml.includes('GabayXAdminMessenger'), 'student.html includes GabayXAdminMessenger controller');
     assert(studentHtml.includes('tray-toggle-header') && studentHtml.includes('btn-tray-toggle'), 'actions-tray provides toggleable header and button');
     assert(studentHtml.includes('tray-content-body'), 'actions-tray wraps controls inside collapsible body');
