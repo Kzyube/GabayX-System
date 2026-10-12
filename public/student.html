@@ -535,6 +535,405 @@
                 transition-duration: 0.01ms !important;
             }
         }
+
+        /* =====================================================================
+           NEARBY PLACES FEATURE STYLING
+           ===================================================================== */
+        .btn-find-nearby {
+            position: absolute;
+            top: 70px;
+            left: 16px;
+            z-index: 1000;
+            background: var(--bg-card);
+            color: var(--text-main);
+            border: 1px solid var(--border-medium);
+            border-radius: 9999px;
+            padding: 8px 14px;
+            font-size: 11px;
+            font-weight: 700;
+            font-family: var(--font-ui);
+            letter-spacing: 0.3px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            backdrop-filter: blur(8px);
+            transition: all 0.2s ease;
+        }
+        .btn-find-nearby:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            transform: translateY(-1px);
+        }
+        .btn-find-nearby i {
+            color: var(--primary);
+            font-size: 13px;
+        }
+        .btn-find-nearby.loading i {
+            animation: fa-spin 1s infinite linear;
+        }
+
+        /* Nearby Places Panel */
+        #nearby-places-panel {
+            position: fixed;
+            z-index: 1050;
+            background: var(--modal-bg);
+            border: 1px solid var(--border-medium);
+            box-shadow: var(--shadow-modal);
+            backdrop-filter: blur(12px);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            transition: transform 0.25s ease, opacity 0.25s ease;
+        }
+        #nearby-places-panel.active {
+            display: flex;
+        }
+
+        /* Desktop: Docked right panel */
+        @media (min-width: 768px) {
+            #nearby-places-panel {
+                top: 72px;
+                right: 20px;
+                width: 380px;
+                max-width: calc(100vw - 40px);
+                height: calc(100vh - 100px);
+                max-height: 720px;
+                border-radius: 16px;
+            }
+        }
+        /* Mobile: Bottom Sheet */
+        @media (max-width: 767px) {
+            #nearby-places-panel {
+                inset: auto 0 0 0;
+                width: 100%;
+                max-height: 78vh;
+                border-radius: 20px 20px 0 0;
+                border-bottom: none;
+            }
+            .btn-find-nearby {
+                top: 66px;
+                left: 12px;
+                padding: 7px 12px;
+                font-size: 10.5px;
+            }
+        }
+
+        .nearby-panel-header {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+            background: var(--bg-surface-elevated);
+        }
+        .nearby-panel-title {
+            font-size: 13px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-main);
+        }
+        .nearby-panel-close {
+            background: transparent;
+            border: none;
+            color: var(--text-sub);
+            font-size: 20px;
+            cursor: pointer;
+            padding: 2px 6px;
+            line-height: 1;
+            transition: color 0.15s;
+        }
+        .nearby-panel-close:hover {
+            color: var(--primary);
+        }
+
+        .nearby-controls-bar {
+            padding: 10px 14px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .nearby-meta-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 10px;
+            color: var(--text-sub);
+            font-family: var(--font-data);
+        }
+        .nearby-center-badge {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--primary);
+            border: 1px solid var(--glass-border);
+            padding: 2px 6px;
+            border-radius: 4px;
+            max-width: 190px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .nearby-filter-chips {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            padding-bottom: 2px;
+            scrollbar-width: none;
+        }
+        .nearby-filter-chips::-webkit-scrollbar { display: none; }
+        .nearby-chip {
+            background: var(--bg-input);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-sub);
+            font-size: 10px;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.15s;
+        }
+        .nearby-chip.active {
+            background: var(--primary-light);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .nearby-radius-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 10px;
+            color: var(--text-sub);
+        }
+        .nearby-radius-select {
+            background: var(--bg-input);
+            border: 1px solid var(--border-medium);
+            color: var(--text-main);
+            font-size: 10px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 6px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .nearby-disclaimer-banner {
+            background: rgba(2, 132, 199, 0.08);
+            border: 1px solid rgba(2, 132, 199, 0.2);
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 9.5px;
+            color: var(--text-sub);
+            line-height: 1.35;
+            display: flex;
+            gap: 6px;
+            align-items: flex-start;
+        }
+        .nearby-disclaimer-banner i {
+            color: #0284c7;
+            margin-top: 1px;
+            flex-shrink: 0;
+        }
+
+        .nearby-offline-banner {
+            background: rgba(245, 158, 11, 0.12);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 9.5px;
+            color: var(--warning);
+            line-height: 1.35;
+            display: flex;
+            gap: 6px;
+            align-items: flex-start;
+        }
+
+        .nearby-list-container {
+            overflow-y: auto;
+            flex: 1;
+            padding: 10px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .nearby-place-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            padding: 10px 12px;
+            transition: all 0.15s ease;
+            cursor: pointer;
+        }
+        .nearby-place-card:hover {
+            border-color: var(--primary);
+            background: var(--bg-surface-elevated);
+        }
+        .nearby-place-card.selected {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 1px var(--primary);
+        }
+
+        .nearby-card-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+        .nearby-place-name {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-main);
+            line-height: 1.3;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .nearby-place-dist {
+            font-family: var(--font-data);
+            font-size: 10.5px;
+            font-weight: 700;
+            color: var(--primary);
+            white-space: nowrap;
+        }
+
+        .nearby-badge-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 5px;
+            margin-bottom: 5px;
+        }
+        .gx-badge-verified {
+            background: rgba(16, 185, 129, 0.15);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            font-size: 8.5px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: var(--font-data);
+        }
+        .gx-badge-emergency {
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.35);
+            font-size: 8.5px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: var(--font-data);
+        }
+        .gx-badge-unverified {
+            background: rgba(100, 116, 139, 0.15);
+            color: #94a3b8;
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            font-size: 8.5px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: var(--font-data);
+        }
+        .gx-badge-subtype {
+            background: var(--bg-input);
+            color: var(--text-sub);
+            border: 1px solid var(--border-subtle);
+            font-size: 8.5px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .nearby-card-desc {
+            font-size: 10px;
+            color: var(--text-sub);
+            line-height: 1.35;
+            margin-top: 3px;
+        }
+        .nearby-safety-warning {
+            font-size: 9.5px;
+            color: var(--text-muted);
+            line-height: 1.3;
+            margin-top: 4px;
+            font-style: italic;
+        }
+
+        .nearby-card-actions {
+            margin-top: 8px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 6px;
+        }
+        .btn-view-on-map {
+            background: var(--bg-input);
+            border: 1px solid var(--border-medium);
+            color: var(--text-main);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.15s;
+        }
+        .btn-view-on-map:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        /* Map Pin Styles */
+        .nearby-place-pin-container {
+            background: transparent;
+            border: none;
+        }
+        .nearby-place-pin {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--pin-color, #0284c7);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+            border: 2px solid #ffffff;
+            transition: transform 0.15s ease;
+        }
+        .nearby-place-pin:hover {
+            transform: scale(1.15);
+        }
+        .nearby-place-pin.pin-verified-safe {
+            background: #10b981;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+        }
+        .nearby-place-pin.pin-emergency-service {
+            background: #ef4444;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+        }
+        .nearby-place-pin.pin-other-place {
+            background: #0284c7;
+        }
     </style>
 </head>
 
@@ -673,6 +1072,10 @@
                 <i class="fas fa-book-medical"></i> Offline Guides & Hotlines
             </button>
 
+            <button onclick="GabayXNearbyPlaces.findNearbyPlaces(); toggleSidebar(false);" class="btn-sidebar-nav">
+                <i class="fas fa-compass"></i> Find Nearby Places
+            </button>
+
             <button onclick="openVouchersModal()" class="btn-sidebar-nav">
                 <i class="fas fa-ticket-alt"></i> Show GCash Vouchers
             </button>
@@ -743,7 +1146,14 @@
             </div>
         </div>
 
-        <div id="map-container"><div id="map"></div></div>
+        <div id="map-container">
+            <div id="map"></div>
+            <!-- NEARBY PLACES FLOATING CALL-TO-ACTION -->
+            <button id="btn-find-nearby" class="btn-find-nearby" onclick="GabayXNearbyPlaces.findNearbyPlaces()" aria-label="Find Nearby Places">
+                <i class="fas fa-compass" id="icon-btn-find-nearby"></i>
+                <span>Find Nearby Places</span>
+            </button>
+        </div>
 
         <!-- GOOGLE MAPS STYLE MAP CONTROLS -->
         <div class="map-controls-cluster" role="toolbar" aria-label="Map Navigation Controls">
@@ -756,6 +1166,9 @@
             <button class="map-ctrl-btn" id="btn-toggle-tracking" onclick="toggleLocationTracking()" title="Toggle Live Tracking" aria-label="Toggle Live Tracking">
                 <i class="fas fa-location-arrow"></i>
             </button>
+            <button class="map-ctrl-btn" id="btn-map-nearby" onclick="GabayXNearbyPlaces.findNearbyPlaces()" title="Find Nearby Places" aria-label="Find Nearby Places">
+                <i class="fas fa-compass" id="icon-map-nearby"></i>
+            </button>
             <button class="map-ctrl-btn" id="btn-map-layer" onclick="toggleMapLayerStyle()" title="Toggle Map Layer (Street/Dark/Satellite)" aria-label="Toggle Map Layer">
                 <i class="fas fa-layer-group"></i>
             </button>
@@ -766,6 +1179,102 @@
             <button class="map-ctrl-btn" id="btn-zoom-out" onclick="if(map) map.zoomOut()" title="Zoom Out" aria-label="Zoom Out">
                 <i class="fas fa-minus"></i>
             </button>
+        </div>
+
+        <!-- NEARBY PLACES SLIDE-IN / BOTTOM SHEET PANEL -->
+        <div id="nearby-places-panel" role="region" aria-label="Nearby Places Results">
+            <div class="nearby-panel-header">
+                <h3 class="nearby-panel-title">
+                    <i class="fas fa-compass" style="color:var(--primary);"></i>
+                    <span>Nearby Places</span>
+                </h3>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span id="nearby-count-badge" style="font-family:var(--font-data); font-size:10px; color:var(--primary); background:rgba(16,185,129,0.1); border:1px solid var(--glass-border); padding:2px 6px; border-radius:4px;">0 Places</span>
+                    <button class="nearby-panel-close" onclick="GabayXNearbyPlaces.closeNearbyPanel()" aria-label="Close panel">&times;</button>
+                </div>
+            </div>
+
+            <div class="nearby-controls-bar">
+                <div class="nearby-meta-row">
+                    <span>CENTER: <span id="nearby-center-label" class="nearby-center-badge">Acquiring...</span></span>
+                    <button type="button" onclick="GabayXNearbyPlaces.searchCurrentMapCenter()" style="background:transparent; border:none; color:var(--text-sub); font-size:10px; font-weight:700; cursor:pointer; text-decoration:underline;">Search Map Center</button>
+                </div>
+
+                <div class="nearby-radius-row">
+                    <span>SEARCH RADIUS</span>
+                    <select id="nearby-radius-select" class="nearby-radius-select" onchange="GabayXNearbyPlaces.changeRadius(this.value)" aria-label="Search Radius">
+                        <option value="500">500 meters</option>
+                        <option value="1000">1.0 kilometer</option>
+                        <option value="2000" selected>2.0 kilometers (Default)</option>
+                        <option value="5000">5.0 kilometers</option>
+                    </select>
+                </div>
+
+                <div class="nearby-filter-chips" role="tablist">
+                    <button type="button" class="nearby-chip active" data-filter="all" onclick="GabayXNearbyPlaces.setFilter('all', this)">All Places</button>
+                    <button type="button" class="nearby-chip" data-filter="safe_zones" onclick="GabayXNearbyPlaces.setFilter('safe_zones', this)">Safe Zones</button>
+                    <button type="button" class="nearby-chip" data-filter="emergency_services" onclick="GabayXNearbyPlaces.setFilter('emergency_services', this)">Emergency Services</button>
+                    <button type="button" class="nearby-chip" data-filter="other_places" onclick="GabayXNearbyPlaces.setFilter('other_places', this)">Schools & Public</button>
+                </div>
+
+                <div class="nearby-disclaimer-banner">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Straight-line distances shown. Actual road evacuation routes may differ. Never assume unverified structures are safe during disasters.</span>
+                </div>
+
+                <div id="nearby-offline-alert" class="nearby-offline-banner" style="display:none;">
+                    <i class="fas fa-triangle-exclamation"></i>
+                    <span>Live network query unavailable. Displaying locally cached campus facilities and official safe zones.</span>
+                </div>
+            </div>
+
+            <div id="nearby-loading-indicator" style="display:none; padding:30px 20px; text-align:center; color:var(--text-sub);">
+                <i class="fas fa-spinner fa-spin" style="font-size:24px; color:var(--primary); margin-bottom:10px;"></i>
+                <div style="font-size:12px; font-weight:700; color:var(--text-main);">Searching Nearby Places...</div>
+                <div style="font-size:10px; color:var(--text-sub); margin-top:4px;">Scanning radius for emergency & civic facilities</div>
+            </div>
+
+            <div id="nearby-results-list" class="nearby-list-container">
+                <!-- Dynamically populated -->
+            </div>
+
+            <div id="nearby-empty-state" style="display:none; padding:30px 20px; text-align:center; color:var(--text-sub);">
+                <i class="fas fa-magnifying-glass-location" style="font-size:32px; color:var(--text-muted); margin-bottom:10px;"></i>
+                <div style="font-size:12px; font-weight:700; color:var(--text-main);">No Facilities Found</div>
+                <p style="font-size:11px; color:var(--text-sub); line-height:1.4; margin:6px 0 12px 0;">No mapped places match your criteria within this radius. Try increasing the search distance.</p>
+                <button type="button" onclick="GabayXNearbyPlaces.changeRadius(5000)" style="background:var(--primary-light); border:1px solid var(--primary); color:var(--primary); font-size:10px; font-weight:800; padding:6px 12px; border-radius:6px; cursor:pointer; text-transform:uppercase;">Expand to 5.0 km</button>
+            </div>
+        </div>
+
+        <!-- LOCATION PERMISSION FALLBACK MODAL -->
+        <div id="nearby-location-fallback-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:26000; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(6px);">
+            <div style="background:var(--modal-bg); border:1px solid var(--border-strong); border-radius:12px; padding:20px; width:100%; max-width:400px; box-shadow:var(--shadow-modal);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <h3 style="color:var(--text-main); font-size:1.05rem; margin:0; display:flex; align-items:center; gap:8px;">
+                        <i class="fas fa-location-crosshairs" style="color:var(--warning);"></i> Location Access Needed
+                    </h3>
+                    <button onclick="document.getElementById('nearby-location-fallback-modal').style.display='none'" style="background:transparent; border:none; color:var(--text-sub); font-size:20px; cursor:pointer;" aria-label="Close dialog">&times;</button>
+                </div>
+                <p id="nearby-fallback-reason" style="font-size:11.5px; color:var(--text-sub); line-height:1.45; margin-bottom:14px;">
+                    Browser GPS could not be acquired. You can still discover nearby facilities by choosing a reference location below:
+                </p>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                    <button type="button" onclick="GabayXNearbyPlaces.searchCampusReference()" style="width:100%; padding:10px 12px; background:var(--primary-light); border:1px solid var(--primary); color:var(--primary); border-radius:8px; font-weight:700; font-size:11px; cursor:pointer; text-align:left; display:flex; align-items:center; gap:8px;">
+                        <i class="fas fa-school" style="font-size:14px;"></i>
+                        <div>
+                            <div>Search Around Campus Reference Point</div>
+                            <div style="font-size:9.5px; opacity:0.8; font-family:var(--font-data);">Coordinates: 7.1002, 124.824 (Manual reference, not your GPS)</div>
+                        </div>
+                    </button>
+                    <button type="button" onclick="GabayXNearbyPlaces.searchCurrentMapCenter()" style="width:100%; padding:10px 12px; background:var(--bg-input); border:1px solid var(--border-medium); color:var(--text-main); border-radius:8px; font-weight:700; font-size:11px; cursor:pointer; text-align:left; display:flex; align-items:center; gap:8px;">
+                        <i class="fas fa-crosshairs" style="font-size:14px;"></i>
+                        <div>
+                            <div>Search Around Current Map Center</div>
+                            <div style="font-size:9.5px; color:var(--text-sub);">Pans to active viewpoint</div>
+                        </div>
+                    </button>
+                </div>
+            </div>
         </div>
 
         <div id="offline-floating-tools" class="offline-toolbelt">
@@ -819,6 +1328,7 @@
     <script src="/js/pwa/install.js"></script>
     <script src="/js/pwa/network.js"></script>
     <script src="/js/offline-ui.js"></script>
+    <script src="/js/services/nearbyPlacesService.js"></script>
 
     <script>
         let socket, map, userMarker, routingControl;
@@ -1856,6 +2366,309 @@
                 else { badge.innerText = "Out of Bounds"; badge.style.background = "rgba(255,255,255,0.05)"; badge.style.color = "var(--text-sub)"; badge.style.borderColor = "transparent";}
             }
         }
+
+        // =====================================================================
+        // NEARBY PLACES CONTROLLER & LEAFLET INTEGRATION
+        // =====================================================================
+        let nearbyPlacesLayer = null;
+        let nearbyPlacesData = [];
+        let nearbyCurrentFilter = 'all';
+        let nearbyCurrentRadius = 2000;
+        let nearbyActiveCenter = null;
+
+        const GabayXNearbyPlaces = {
+            init() {
+                if (map && !nearbyPlacesLayer) {
+                    nearbyPlacesLayer = L.layerGroup().addTo(map);
+                }
+            },
+
+            async findNearbyPlaces() {
+                this.init();
+                const btn = document.getElementById('btn-find-nearby');
+                const btnIcon = document.getElementById('icon-btn-find-nearby');
+                const mapBtnIcon = document.getElementById('icon-map-nearby');
+
+                // 1. If we already have a recent GPS position from userLocationMarker, use it!
+                if (userLocationMarker) {
+                    const latlng = userLocationMarker.getLatLng();
+                    await this.executeSearch(latlng.lat, latlng.lng, 'GPS Position (Acquired)');
+                    return;
+                }
+
+                // 2. Otherwise request Geolocation
+                if (!('geolocation' in navigator)) {
+                    this.showLocationFallback('Geolocation is not supported by your browser.');
+                    return;
+                }
+
+                if (btn) btn.classList.add('loading');
+                if (btnIcon) btnIcon.className = 'fas fa-spinner fa-spin';
+                if (mapBtnIcon) mapBtnIcon.className = 'fas fa-spinner fa-spin';
+
+                showToast('📍 Acquiring GPS for Nearby Places...');
+
+                navigator.geolocation.getCurrentPosition(
+                    async (pos) => {
+                        if (btn) btn.classList.remove('loading');
+                        if (btnIcon) btnIcon.className = 'fas fa-compass';
+                        if (mapBtnIcon) mapBtnIcon.className = 'fas fa-compass';
+
+                        // Center map on user location and display marker
+                        onLocationSuccess(pos, true);
+
+                        const lat = pos.coords.latitude;
+                        const lng = pos.coords.longitude;
+                        await this.executeSearch(lat, lng, `GPS Fix (±${Math.round(pos.coords.accuracy || 15)}m)`);
+                    },
+                    (err) => {
+                        if (btn) btn.classList.remove('loading');
+                        if (btnIcon) btnIcon.className = 'fas fa-compass';
+                        if (mapBtnIcon) mapBtnIcon.className = 'fas fa-compass';
+
+                        let reason = 'Could not retrieve your location.';
+                        if (err.code === 1) {
+                            reason = 'Location permission was denied. You can enable GPS in browser settings, or select a reference point below.';
+                        } else if (err.code === 2) {
+                            reason = 'GPS signal is currently unavailable. You can search around the campus reference point below.';
+                        } else if (err.code === 3) {
+                            reason = 'GPS request timed out. You can retry or use a reference point below.';
+                        }
+                        this.showLocationFallback(reason);
+                    },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+                );
+            },
+
+            showLocationFallback(reason) {
+                const modal = document.getElementById('nearby-location-fallback-modal');
+                const reasonEl = document.getElementById('nearby-fallback-reason');
+                if (reasonEl) reasonEl.innerText = reason;
+                if (modal) modal.style.display = 'flex';
+            },
+
+            searchCampusReference() {
+                const modal = document.getElementById('nearby-location-fallback-modal');
+                if (modal) modal.style.display = 'none';
+                centerOnCampus();
+                this.executeSearch(7.1002, 124.824, 'Campus Reference (Manual Reference)');
+            },
+
+            searchCurrentMapCenter() {
+                const modal = document.getElementById('nearby-location-fallback-modal');
+                if (modal) modal.style.display = 'none';
+                if (!map) return;
+                const center = map.getCenter();
+                this.executeSearch(center.lat, center.lng, `Map Center (${center.lat.toFixed(4)}, ${center.lng.toFixed(4)})`);
+            },
+
+            async executeSearch(lat, lng, centerLabel) {
+                this.init();
+                nearbyActiveCenter = { lat, lng, label: centerLabel };
+                this.openNearbyPanel();
+
+                const centerBadge = document.getElementById('nearby-center-label');
+                if (centerBadge) centerBadge.innerText = centerLabel;
+
+                const loadingEl = document.getElementById('nearby-loading-indicator');
+                const listEl = document.getElementById('nearby-results-list');
+                const emptyEl = document.getElementById('nearby-empty-state');
+                const offlineAlert = document.getElementById('nearby-offline-alert');
+
+                if (loadingEl) loadingEl.style.display = 'block';
+                if (listEl) listEl.innerHTML = '';
+                if (emptyEl) emptyEl.style.display = 'none';
+
+                try {
+                    const result = await global.GabayXNearbyPlacesService.findNearbyPlaces({
+                        lat: lat,
+                        lng: lng,
+                        radius: nearbyCurrentRadius
+                    });
+
+                    nearbyPlacesData = result.places || [];
+
+                    if (offlineAlert) {
+                        offlineAlert.style.display = result.isOfflineFallback ? 'flex' : 'none';
+                    }
+
+                    this.renderResults();
+                    this.renderMapMarkers();
+                } catch (err) {
+                    console.error('[GabayXNearbyPlaces] Search error:', err);
+                    showToast('⚠️ Could not load nearby places: ' + err.message);
+                } finally {
+                    if (loadingEl) loadingEl.style.display = 'none';
+                }
+            },
+
+            renderResults() {
+                const listEl = document.getElementById('nearby-results-list');
+                const emptyEl = document.getElementById('nearby-empty-state');
+                const countBadge = document.getElementById('nearby-count-badge');
+                if (!listEl) return;
+
+                const filtered = nearbyPlacesData.filter((p) => {
+                    if (nearbyCurrentFilter === 'all') return true;
+                    return p.categoryKey === nearbyCurrentFilter;
+                });
+
+                if (countBadge) {
+                    countBadge.innerText = `${filtered.length} Places`;
+                }
+
+                if (filtered.length === 0) {
+                    listEl.innerHTML = '';
+                    if (emptyEl) emptyEl.style.display = 'block';
+                    return;
+                }
+
+                if (emptyEl) emptyEl.style.display = 'none';
+
+                listEl.innerHTML = filtered.map((p) => {
+                    return `
+                    <div class="nearby-place-card" id="place-card-${p.id}" onclick="GabayXNearbyPlaces.focusPlace('${p.id}')">
+                        <div class="nearby-card-top">
+                            <div class="nearby-place-name">
+                                <i class="fas ${p.classification.icon}" style="color:${p.classification.pinColor};"></i>
+                                <span>${p.name}</span>
+                            </div>
+                            <div class="nearby-place-dist" title="Approximate straight-line distance">
+                                <i class="fas fa-ruler"></i> ${p.distanceFormatted}
+                            </div>
+                        </div>
+
+                        <div class="nearby-badge-row">
+                            <span class="${p.classification.badgeClass}">${p.classification.label}</span>
+                            <span class="gx-badge-subtype">${p.subType}</span>
+                        </div>
+
+                        ${p.address ? `<div class="nearby-card-desc"><i class="fas fa-location-dot" style="margin-right:4px;"></i>${p.address}</div>` : ''}
+
+                        <div class="nearby-safety-warning">
+                            <i class="fas fa-shield" style="font-size:9px; margin-right:3px;"></i>${p.safetyStatus}
+                        </div>
+
+                        <div class="nearby-card-actions">
+                            <button type="button" class="btn-view-on-map" onclick="event.stopPropagation(); GabayXNearbyPlaces.focusPlace('${p.id}')">
+                                <i class="fas fa-crosshairs"></i> View on Map
+                            </button>
+                        </div>
+                    </div>`;
+                }).join('');
+            },
+
+            renderMapMarkers() {
+                if (!nearbyPlacesLayer || !map) return;
+
+                // Completely clear old markers to prevent duplicates
+                nearbyPlacesLayer.clearLayers();
+
+                const filtered = nearbyPlacesData.filter((p) => {
+                    if (nearbyCurrentFilter === 'all') return true;
+                    return p.categoryKey === nearbyCurrentFilter;
+                });
+
+                filtered.forEach((p) => {
+                    const pinIcon = L.divIcon({
+                        className: 'nearby-place-pin-container',
+                        html: `
+                            <div class="nearby-place-pin ${p.classification.pinClass}" style="--pin-color: ${p.classification.pinColor};">
+                                <i class="fas ${p.classification.icon}"></i>
+                            </div>
+                        `,
+                        iconSize: [28, 28],
+                        iconAnchor: [14, 14],
+                        popupAnchor: [0, -14]
+                    });
+
+                    const marker = L.marker([p.lat, p.lng], { icon: pinIcon }).addTo(nearbyPlacesLayer);
+                    marker.placeId = p.id;
+
+                    const popupContent = `
+                        <div style="font-family:var(--font-ui); font-size:11.5px; min-width:180px; max-width:240px; padding:2px;">
+                            <strong style="color:var(--text-main); font-size:12.5px; display:block; margin-bottom:4px;">
+                                ${p.name}
+                            </strong>
+                            <div style="margin-bottom:6px;">
+                                <span class="${p.classification.badgeClass}" style="font-size:8px;">${p.classification.label}</span>
+                            </div>
+                            <div style="font-family:var(--font-data); font-size:10px; color:var(--primary); margin-bottom:4px;">
+                                <i class="fas fa-ruler"></i> Distance: <b>${p.distanceFormatted}</b> (approx. straight-line)
+                            </div>
+                            ${p.address ? `<div style="font-size:9.5px; color:var(--text-sub); margin-bottom:4px;">${p.address}</div>` : ''}
+                            <div style="font-size:9px; color:var(--text-muted); font-style:italic; border-top:1px solid var(--border-subtle); padding-top:4px;">
+                                ${p.safetyStatus}
+                            </div>
+                        </div>
+                    `;
+
+                    marker.bindPopup(popupContent);
+                    marker.on('click', () => {
+                        GabayXNearbyPlaces.highlightCard(p.id);
+                    });
+                });
+            },
+
+            focusPlace(placeId) {
+                const place = nearbyPlacesData.find((p) => p.id === placeId);
+                if (!place || !map) return;
+
+                map.flyTo([place.lat, place.lng], 18, { duration: 0.8 });
+
+                // Find marker in layer and open popup
+                if (nearbyPlacesLayer) {
+                    nearbyPlacesLayer.eachLayer((m) => {
+                        if (m.placeId === placeId) {
+                            m.openPopup();
+                        }
+                    });
+                }
+
+                this.highlightCard(placeId);
+            },
+
+            highlightCard(placeId) {
+                document.querySelectorAll('.nearby-place-card').forEach((c) => c.classList.remove('selected'));
+                const card = document.getElementById(`place-card-${placeId}`);
+                if (card) {
+                    card.classList.add('selected');
+                    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            },
+
+            setFilter(categoryKey, chipBtn) {
+                nearbyCurrentFilter = categoryKey;
+                document.querySelectorAll('.nearby-chip').forEach((c) => c.classList.remove('active'));
+                if (chipBtn) chipBtn.classList.add('active');
+                this.renderResults();
+                this.renderMapMarkers();
+            },
+
+            changeRadius(radiusVal) {
+                nearbyCurrentRadius = parseInt(radiusVal, 10) || 2000;
+                const selectEl = document.getElementById('nearby-radius-select');
+                if (selectEl) selectEl.value = nearbyCurrentRadius;
+                if (nearbyActiveCenter) {
+                    this.executeSearch(nearbyActiveCenter.lat, nearbyActiveCenter.lng, nearbyActiveCenter.label);
+                } else {
+                    this.findNearbyPlaces();
+                }
+            },
+
+            openNearbyPanel() {
+                const panel = document.getElementById('nearby-places-panel');
+                if (panel) panel.classList.add('active');
+            },
+
+            closeNearbyPanel() {
+                const panel = document.getElementById('nearby-places-panel');
+                if (panel) panel.classList.remove('active');
+            }
+        };
+
+        // Export on window
+        window.GabayXNearbyPlaces = GabayXNearbyPlaces;
     </script>
 </body>
 </html>

@@ -10,6 +10,8 @@
     const API_CONFIG = {
         endpoints: {
             submitReport: '/api/reports/submit',
+            sendMessage: '/api/messages/send',
+            reportStatus: '/api/reports/status',
             health: '/api/health',
             sync: '/api/sync'
         },
@@ -92,6 +94,75 @@
     }
 
     /**
+     * Send general inquiry / message to Administrator
+     * Keeps ordinary inquiries separate from emergency incident reports.
+     * @param {Object} messagePayload
+     * @returns {Promise<Object>}
+     */
+    async function sendMessage(messagePayload) {
+        if (!messagePayload || !messagePayload.message || !messagePayload.message.trim()) {
+            throw new Error('Message content is required');
+        }
+
+        const payload = {
+            id: messagePayload.id || `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+            student_id: messagePayload.student_id || messagePayload.studentId || 'anonymous',
+            student_name: messagePayload.student_name || messagePayload.studentName || 'Student',
+            message: messagePayload.message.trim(),
+            include_location: !!messagePayload.include_location,
+            lat: messagePayload.lat !== undefined ? messagePayload.lat : null,
+            lng: messagePayload.lng !== undefined ? messagePayload.lng : null,
+            timestamp: messagePayload.timestamp || new Date().toISOString()
+        };
+
+        const response = await fetchWithTimeout(API_CONFIG.endpoints.sendMessage, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Idempotency-Key': payload.id
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text().catch(() => '');
+            throw new Error(`Server responded with HTTP ${response.status}: ${errorText}`);
+        }
+
+        const data = await response.json();
+        return {
+            success: true,
+            id: data.id || payload.id,
+            receivedAt: data.receivedAt || new Date().toISOString()
+        };
+    }
+
+    /**
+     * Update report status (admin action)
+     * @param {string} reportId
+     * @param {string} status
+     * @returns {Promise<Object>}
+     */
+    async function updateReportStatus(reportId, status) {
+        if (!reportId || !status) {
+            throw new Error('Report ID and Status are required');
+        }
+
+        const response = await fetchWithTimeout(API_CONFIG.endpoints.reportStatus, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reportId, status })
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text().catch(() => '');
+            throw new Error(`Server responded with HTTP ${response.status}: ${errorText}`);
+        }
+
+        return response.json();
+    }
+
+    /**
      * Check active backend reachability
      * @returns {Promise<boolean>}
      */
@@ -132,6 +203,8 @@
     // Expose API
     const ApiService = {
         submitReport,
+        sendMessage,
+        updateReportStatus,
         checkHealth,
         syncLogs
     };

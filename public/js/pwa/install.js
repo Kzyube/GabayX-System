@@ -145,6 +145,134 @@
     }
 
     /**
+     * Show iOS Safari step-by-step installation guide
+     */
+    function showIOSInstallModal() {
+        let modal = document.getElementById('gabayx-ios-install-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'gabayx-ios-install-modal';
+            modal.style.cssText = [
+                'position: fixed', 'inset: 0', 'background: rgba(0, 0, 0, 0.75)',
+                'z-index: 35000', 'display: flex', 'align-items: center', 'justify-content: center',
+                'padding: 16px', 'backdrop-filter: blur(8px)'
+            ].join(';');
+
+            modal.innerHTML = `
+                <div style="background:var(--modal-bg, #061912); border:1px solid var(--border-strong, #10b981); border-radius:16px; padding:22px; width:100%; max-width:400px; color:var(--text-main, #fff); box-shadow:0 20px 40px rgba(0,0,0,0.6);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid var(--border-subtle, rgba(255,255,255,0.1)); padding-bottom:10px;">
+                        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+                            <i class="fab fa-apple" style="color:var(--primary, #10b981);"></i> Install GabayX on iOS
+                        </h3>
+                        <button onclick="document.getElementById('gabayx-ios-install-modal').style.display='none'" style="background:transparent; border:none; color:var(--text-sub, #94a3b8); font-size:22px; cursor:pointer;" aria-label="Close dialog">&times;</button>
+                    </div>
+                    <p style="font-size:12px; color:var(--text-sub, #cbd5e1); line-height:1.45; margin-bottom:16px;">
+                        iOS Safari does not support one-click web installation prompts. You can add GabayX directly to your Home Screen in 3 quick steps:
+                    </p>
+                    <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:18px;">
+                        <div style="display:flex; align-items:center; gap:12px; background:var(--bg-card, rgba(255,255,255,0.05)); padding:10px 12px; border-radius:10px; border:1px solid var(--border-subtle, rgba(255,255,255,0.08));">
+                            <span style="background:var(--primary-light, rgba(16,185,129,0.2)); color:var(--primary, #10b981); width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px;">1</span>
+                            <span style="font-size:12px;">Tap the <b>Share</b> button <i class="fas fa-arrow-up-from-bracket" style="color:var(--primary, #10b981); margin:0 4px;"></i> at the bottom of Safari.</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:12px; background:var(--bg-card, rgba(255,255,255,0.05)); padding:10px 12px; border-radius:10px; border:1px solid var(--border-subtle, rgba(255,255,255,0.08));">
+                            <span style="background:var(--primary-light, rgba(16,185,129,0.2)); color:var(--primary, #10b981); width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px;">2</span>
+                            <span style="font-size:12px;">Scroll down and tap <b>"Add to Home Screen"</b> <i class="fas fa-plus-square" style="margin-left:4px;"></i>.</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:12px; background:var(--bg-card, rgba(255,255,255,0.05)); padding:10px 12px; border-radius:10px; border:1px solid var(--border-subtle, rgba(255,255,255,0.08));">
+                            <span style="background:var(--primary-light, rgba(16,185,129,0.2)); color:var(--primary, #10b981); width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px;">3</span>
+                            <span style="font-size:12px;">Tap <b>"Add"</b> in the top-right corner to finish.</span>
+                        </div>
+                    </div>
+                    <button onclick="document.getElementById('gabayx-ios-install-modal').style.display='none'" style="width:100%; padding:10px; background:var(--primary, #10b981); color:#fff; border:none; border-radius:8px; font-weight:700; font-size:12px; cursor:pointer; text-transform:uppercase;">Got it</button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        modal.style.display = 'flex';
+    }
+
+    /**
+     * Show desktop / general browser install guidance
+     */
+    function showBrowserInstallGuide() {
+        let modal = document.getElementById('gabayx-browser-install-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'gabayx-browser-install-modal';
+            modal.style.cssText = [
+                'position: fixed', 'inset: 0', 'background: rgba(0, 0, 0, 0.75)',
+                'z-index: 35000', 'display: flex', 'align-items: center', 'justify-content: center',
+                'padding: 16px', 'backdrop-filter: blur(8px)'
+            ].join(';');
+
+            modal.innerHTML = `
+                <div style="background:var(--modal-bg, #061912); border:1px solid var(--border-strong, #10b981); border-radius:16px; padding:22px; width:100%; max-width:400px; color:var(--text-main, #fff); box-shadow:0 20px 40px rgba(0,0,0,0.6);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid var(--border-subtle, rgba(255,255,255,0.1)); padding-bottom:10px;">
+                        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+                            <i class="fas fa-desktop" style="color:var(--primary, #10b981);"></i> Install GabayX App
+                        </h3>
+                        <button onclick="document.getElementById('gabayx-browser-install-modal').style.display='none'" style="background:transparent; border:none; color:var(--text-sub, #94a3b8); font-size:22px; cursor:pointer;" aria-label="Close dialog">&times;</button>
+                    </div>
+                    <p style="font-size:12px; color:var(--text-sub, #cbd5e1); line-height:1.45; margin-bottom:16px;">
+                        To install GabayX on your computer or browser:
+                    </p>
+                    <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:18px;">
+                        <div style="background:var(--bg-card, rgba(255,255,255,0.05)); padding:10px 12px; border-radius:10px; font-size:12px; line-height:1.4;">
+                            <i class="fas fa-computer" style="color:var(--primary, #10b981); margin-right:6px;"></i> Click the <b>Install App icon</b> in your browser's address bar (top right).
+                        </div>
+                        <div style="background:var(--bg-card, rgba(255,255,255,0.05)); padding:10px 12px; border-radius:10px; font-size:12px; line-height:1.4;">
+                            <i class="fas fa-ellipsis-vertical" style="color:var(--primary, #10b981); margin-right:6px;"></i> Or open browser menu (<b>⋮</b>) &rarr; select <b>"Install GabayX..."</b> or <b>"Save and Share &rarr; Install"</b>.
+                        </div>
+                    </div>
+                    <button onclick="document.getElementById('gabayx-browser-install-modal').style.display='none'" style="width:100%; padding:10px; background:var(--primary, #10b981); color:#fff; border:none; border-radius:8px; font-weight:700; font-size:12px; cursor:pointer; text-transform:uppercase;">Understood</button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        modal.style.display = 'flex';
+    }
+
+    /**
+     * User-facing explicit trigger to install the application
+     */
+    async function promptInstall() {
+        if (isRunningStandalone()) {
+            if (typeof window.showToast === 'function') {
+                window.showToast('✅ GabayX is already running as an installed standalone app.');
+            } else {
+                alert('GabayX is already installed as a standalone app.');
+            }
+            return;
+        }
+
+        // If native beforeinstallprompt was captured
+        if (deferredPrompt) {
+            try {
+                deferredPrompt.prompt();
+                const choiceResult = await deferredPrompt.userChoice;
+                console.log(`[PWA Install] Explicit prompt outcome: ${choiceResult.outcome}`);
+                if (choiceResult.outcome === 'accepted') {
+                    hideInstallPrompt();
+                }
+                deferredPrompt = null;
+            } catch (err) {
+                console.error('[PWA Install] Prompt execution failed:', err);
+            }
+            return;
+        }
+
+        // Check if iOS Safari
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        if (isIOS) {
+            showIOSInstallModal();
+            return;
+        }
+
+        // General browser fallback guidance
+        showBrowserInstallGuide();
+    }
+
+    /**
      * Initialize install lifecycle
      */
     function initInstallController() {
@@ -168,6 +296,9 @@
             console.log('[PWA Install] GabayX was successfully installed.');
             deferredPrompt = null;
             hideInstallPrompt();
+            if (typeof window.showToast === 'function') {
+                window.showToast('🎉 GabayX installed successfully!');
+            }
         });
     }
 
@@ -176,6 +307,7 @@
     global.GabayXInstall = {
         isStandalone: isRunningStandalone,
         showPrompt: showInstallPrompt,
-        hidePrompt: hideInstallPrompt
+        hidePrompt: hideInstallPrompt,
+        promptInstall: promptInstall
     };
 })(typeof window !== 'undefined' ? window : this);

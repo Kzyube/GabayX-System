@@ -264,6 +264,81 @@ app.post('/api/reports/submit', async (req, res) => {
     res.status(200).json({ status: 'success', id: report.id, receivedAt: new Date().toISOString() });
 });
 
+// MESSAGE ADMINISTRATOR ENDPOINT (General inquiries - separate from emergency reports)
+const processedMessageIds = new Set();
+app.post('/api/messages/send', async (req, res) => {
+    const { id, message, student_id, student_name, include_location, lat, lng, timestamp } = req.body;
+    
+    if (!message || !message.trim()) {
+        return res.status(400).json({ error: "Message content cannot be empty" });
+    }
+
+    const msgId = id || `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+
+    // Deduplication check
+    if (processedMessageIds.has(msgId)) {
+        console.log(`[DEDUP] Message ${msgId} already processed. Acknowledging client.`);
+        return res.status(200).json({ status: 'success', duplicate: true, id: msgId });
+    }
+    processedMessageIds.add(msgId);
+    if (processedMessageIds.size > 2000) {
+        const oldest = processedMessageIds.values().next().value;
+        processedMessageIds.delete(oldest);
+    }
+
+    const payload = {
+        id: msgId,
+        student_id: student_id || 'anonymous',
+        student_name: student_name || 'Student / Citizen',
+        message: message.trim(),
+        include_location: !!include_location,
+        lat: lat !== undefined ? lat : null,
+        lng: lng !== undefined ? lng : null,
+        timestamp: timestamp || new Date().toISOString(),
+        type: 'INQUIRY'
+    };
+
+    console.log(`[MESSAGE] Administrator inquiry from ${payload.student_id}: "${payload.message.substring(0, 50)}..."`);
+
+    // Broadcast distinct inquiry message to administrator command dashboard
+    io.emit('admin-receive-message', payload);
+
+    // Persist to Supabase sos_messages as non-critical general inquiry
+    try {
+        const locNote = payload.lat && payload.lng ? ` [Loc: ${payload.lat.toFixed(4)}, ${payload.lng.toFixed(4)}]` : '';
+        await supabase.from('sos_messages').insert([{
+            student_id: payload.student_id,
+            message: `[INQUIRY]: ${payload.message}${locNote}`,
+            is_critical: false,
+            replied: false,
+            created_at: payload.timestamp
+        }]);
+    } catch (dbErr) {
+        console.error('[MESSAGE DB ERROR]:', dbErr);
+    }
+
+    res.status(200).json({ status: 'success', id: msgId, receivedAt: new Date().toISOString() });
+});
+
+// REPORT STATUS UPDATE & ACKNOWLEDGEMENT ENDPOINT
+app.post('/api/reports/status', async (req, res) => {
+    const { reportId, status } = req.body;
+    if (!reportId || !status) {
+        return res.status(400).json({ error: "Missing reportId or status" });
+    }
+
+    console.log(`[STATUS UPDATE] Report ${reportId} marked as ${status}`);
+
+    const updateEvent = {
+        reportId,
+        status: status.toUpperCase(),
+        updatedAt: new Date().toISOString()
+    };
+
+    io.emit('report-status-updated', updateEvent);
+    res.status(200).json({ status: 'success', ...updateEvent });
+});
+
 app.post('/api/sync', async (req, res) => {
     const { id, logs } = req.body;
     
@@ -375,6 +450,19 @@ io.on('connection', async (socket) => {
 
     socket.on('admin-reply', (data) => { 
         io.to(data.targetId).emit('receive-reply', { message: data.message }); 
+    });
+
+    socket.on('admin-acknowledge-report', (data) => {
+        const reportId = data && data.reportId;
+        const status = (data && data.status) || 'ACKNOWLEDGED';
+        if (reportId) {
+            console.log(`[SOCKET ACK] Report ${reportId} acknowledged (${status})`);
+            io.emit('report-status-updated', {
+                reportId: reportId,
+                status: status,
+                timestamp: new Date().toISOString()
+            });
+        }
     });
 
     socket.on('disconnect', () => {

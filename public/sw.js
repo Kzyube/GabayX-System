@@ -31,7 +31,8 @@ const STATIC_ASSETS = [
     '/js/pwa/install.js',
     '/js/pwa/network.js',
     '/js/pwa/sw-register.js',
-    '/js/offline-ui.js'
+    '/js/offline-ui.js',
+    '/js/services/nearbyPlacesService.js'
 ];
 
 // Critical External CDN Dependencies
