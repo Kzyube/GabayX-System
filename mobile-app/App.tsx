@@ -17,11 +17,13 @@ import { ReportStatusBadge } from './src/components/ReportStatusBadge';
 import { CreateReportModal } from './src/components/CreateReportModal';
 import { ReportDetailModal } from './src/components/ReportDetailModal';
 import { MapScreen } from './src/screens/MapScreen';
+import { syncService } from './src/sync/syncService';
 
 export default function App() {
   const [reports, setReports] = useState<GabayXReport[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [currentScreen, setCurrentScreen] = useState<'REPORTS' | 'MAP'>('REPORTS');
   const [activeTab, setActiveTab] = useState<'ALL' | 'PENDING'>('ALL');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -70,6 +72,36 @@ export default function App() {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await loadReports();
+  };
+
+  /**
+   * Handle server synchronization for pending reports
+   */
+  const handleSyncReports = async () => {
+    setIsSyncing(true);
+    try {
+      const res = await syncService.syncPendingReports();
+      await loadReports();
+      if (res.syncedCount > 0) {
+        Alert.alert(
+          '✅ Cloud Sync Complete',
+          `Successfully dispatched ${res.syncedCount} offline report(s) to Central Dispatch. Server verified receipt.`,
+          [{ text: 'OK' }]
+        );
+      } else if (res.totalPending === 0) {
+        Alert.alert('Up to Date', 'All reports are already synchronized.');
+      } else {
+        Alert.alert(
+          '📡 Offline Mode',
+          'Server unreachable. Reports remain securely stored in local SQLite storage with status PENDING.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (err: any) {
+      Alert.alert('Sync Notice', err?.message || 'Sync failed');
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   /**
@@ -203,7 +235,7 @@ export default function App() {
               onPress={() => setActiveTab('ALL')}
             >
               <Text style={[styles.tabButtonText, activeTab === 'ALL' && styles.tabButtonTextActive]}>
-                ALL REPORTS ({reports.length})
+                ALL ({reports.length})
               </Text>
             </TouchableOpacity>
 
@@ -217,8 +249,21 @@ export default function App() {
                   activeTab === 'PENDING' && styles.tabButtonTextActive,
                 ]}
               >
-                PENDING SYNC ({pendingCount})
+                PENDING ({pendingCount})
               </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.syncButton}
+              onPress={handleSyncReports}
+              disabled={isSyncing}
+              activeOpacity={0.8}
+            >
+              {isSyncing ? (
+                <ActivityIndicator size="small" color="#10b981" />
+              ) : (
+                <Text style={styles.syncButtonText}>🔄 Sync</Text>
+              )}
             </TouchableOpacity>
           </View>
 
@@ -501,6 +546,22 @@ const styles = StyleSheet.create({
   },
   tabButtonTextActive: {
     color: '#10b981',
+  },
+  syncButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderWidth: 1,
+    borderColor: '#10b981',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 70,
+  },
+  syncButtonText: {
+    color: '#10b981',
+    fontSize: 11,
+    fontWeight: '800',
   },
   listContainer: {
     flex: 1,
