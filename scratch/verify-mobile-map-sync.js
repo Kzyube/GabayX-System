@@ -60,12 +60,12 @@ test('TEST 2.1: MapScreen integrates expo-location for real GPS tracking', () =>
   assert(mapScreenContent.includes("from 'expo-location'"), 'Must import expo-location');
   assert(mapScreenContent.includes('requestForegroundPermissionsAsync'), 'Must request foreground permission');
   assert(mapScreenContent.includes('watchPositionAsync'), 'Must watch position');
-  assert(mapScreenContent.includes('showsUserLocation'), 'Must enable showsUserLocation on MapView');
+  assert(mapScreenContent.includes('UPDATE_USER_LOCATION') || mapScreenContent.includes('showsUserLocation'), 'Must track user location on map');
 });
 
-test('TEST 2.2: MapScreen renders native Markers and Polylines', () => {
-  assert(mapScreenContent.includes('<Marker'), 'Must render native Marker');
-  assert(mapScreenContent.includes('<Polyline'), 'Must render native Polyline');
+test('TEST 2.2: MapScreen renders campus Markers and Polylines', () => {
+  assert(mapScreenContent.includes('L.marker') || mapScreenContent.includes('<Marker'), 'Must render markers');
+  assert(mapScreenContent.includes('L.polyline') || mapScreenContent.includes('<Polyline'), 'Must render polylines');
   assert(mapScreenContent.includes('calculateDistanceMeters'), 'Must calculate distance from user GPS');
   assert(mapScreenContent.includes('handleRecenterUser'), 'Must provide recenter to GPS action');
   assert(mapScreenContent.includes('handleRecenterCampus'), 'Must provide recenter to Campus action');

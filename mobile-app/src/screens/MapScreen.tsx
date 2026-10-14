@@ -4,43 +4,26 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Platform,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
-import MapView, {
-  Region,
-  MapType,
-  PROVIDER_DEFAULT,
-  PROVIDER_GOOGLE,
-  Marker,
-  Polyline,
-} from 'react-native-maps';
+import { WebView } from 'react-native-webview';
 import * as Location from 'expo-location';
 import {
   CAMPUS_CENTER,
   SAFE_ASSEMBLY_ZONES,
   CAMPUS_BUILDINGS,
   EVACUATION_ROUTES,
-  CampusBuilding,
-  SafeAssemblyZone,
-  EvacuationRoute,
 } from '../constants/geoData';
 
-const INITIAL_REGION: Region = {
-  latitude: CAMPUS_CENTER.latitude,
-  longitude: CAMPUS_CENTER.longitude,
-  latitudeDelta: 0.0035,
-  longitudeDelta: 0.0035,
-};
-
-// Calculate Haversine distance in meters between two lat/lng points
+// Calculate Haversine distance in meters
 function calculateDistanceMeters(
   lat1: number,
   lon1: number,
   lat2: number,
   lon2: number
 ): number {
-  const R = 6371e3; // Earth radius in meters
+  const R = 6371e3;
   const phi1 = (lat1 * Math.PI) / 180;
   const phi2 = (lat2 * Math.PI) / 180;
   const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
@@ -55,9 +38,9 @@ function calculateDistanceMeters(
 }
 
 export const MapScreen: React.FC = () => {
-  const mapRef = useRef<MapView>(null);
-  const [mapType, setMapType] = useState<MapType>('standard');
+  const webViewRef = useRef<WebView>(null);
   const [isSatellite, setIsSatellite] = useState(false);
+  const [mapLoaded, setMapLoaded] = useState(false);
 
   // Layer toggles
   const [showBuildings, setShowBuildings] = useState(true);
@@ -94,19 +77,19 @@ export const MapScreen: React.FC = () => {
 
         setLocationPermission('granted');
 
-        // Initial one-shot position
         const current = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.Balanced,
         });
         if (current && current.coords) {
-          setUserCoords({
+          const coords = {
             latitude: current.coords.latitude,
             longitude: current.coords.longitude,
-          });
+          };
+          setUserCoords(coords);
           setGpsAccuracy(current.coords.accuracy ? Math.round(current.coords.accuracy) : null);
+          postMessageToWeb({ type: 'UPDATE_USER_LOCATION', coords });
         }
 
-        // Live position watcher
         subscriber = await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.High,
@@ -115,11 +98,13 @@ export const MapScreen: React.FC = () => {
           },
           (loc) => {
             if (loc && loc.coords) {
-              setUserCoords({
+              const coords = {
                 latitude: loc.coords.latitude,
                 longitude: loc.coords.longitude,
-              });
+              };
+              setUserCoords(coords);
               setGpsAccuracy(loc.coords.accuracy ? Math.round(loc.coords.accuracy) : null);
+              postMessageToWeb({ type: 'UPDATE_USER_LOCATION', coords });
             }
           }
         );
@@ -131,51 +116,73 @@ export const MapScreen: React.FC = () => {
     initLocation();
 
     return () => {
-      if (subscriber) {
-        subscriber.remove();
-      }
+      if (subscriber) subscriber.remove();
     };
   }, []);
 
-  // Toggle map type between Standard and Satellite
+  const postMessageToWeb = (msg: object) => {
+    const js = `window.handleNativeMessage && window.handleNativeMessage(${JSON.stringify(msg)}); true;`;
+    webViewRef.current?.injectJavaScript(js);
+  };
+
+  // Toggle map type between Street (OSM) and Satellite (ArcGIS)
   const toggleMapType = () => {
-    const nextType: MapType = isSatellite ? 'standard' : 'satellite';
-    setIsSatellite(!isSatellite);
-    setMapType(nextType);
+    const next = !isSatellite;
+    setIsSatellite(next);
+    postMessageToWeb({ type: 'SET_MAP_TYPE', mode: next ? 'satellite' : 'standard' });
   };
 
-  // Recenter map back to campus center coordinates
   const handleRecenterCampus = () => {
-    mapRef.current?.animateToRegion(INITIAL_REGION, 600);
+    postMessageToWeb({ type: 'RECENTER_CAMPUS' });
   };
 
-  // Recenter map to user's real physical GPS location
   const handleRecenterUser = () => {
     if (!userCoords) {
       if (locationPermission === 'denied') {
         Alert.alert(
           'Location Permission Required',
-          'Please enable location services in your phone settings to view your position on the campus evacuation map.',
-          [{ text: 'OK' }]
+          'Please enable location services in your phone settings to view your position on the map.'
         );
       } else {
         Alert.alert('Acquiring GPS', 'Searching for satellite fix. Please ensure location is enabled.');
       }
       return;
     }
-
-    mapRef.current?.animateToRegion(
-      {
-        latitude: userCoords.latitude,
-        longitude: userCoords.longitude,
-        latitudeDelta: 0.003,
-        longitudeDelta: 0.003,
-      },
-      600
-    );
+    postMessageToWeb({ type: 'RECENTER_USER', coords: userCoords });
   };
 
-  // Calculate distance string from user to target coordinate
+  const toggleLayer = (layer: 'buildings' | 'safeZones' | 'routes') => {
+    if (layer === 'buildings') {
+      const next = !showBuildings;
+      setShowBuildings(next);
+      postMessageToWeb({ type: 'TOGGLE_LAYER', layer: 'buildings', visible: next });
+    } else if (layer === 'safeZones') {
+      const next = !showSafeZones;
+      setShowSafeZones(next);
+      postMessageToWeb({ type: 'TOGGLE_LAYER', layer: 'safeZones', visible: next });
+    } else if (layer === 'routes') {
+      const next = !showRoutes;
+      setShowRoutes(next);
+      postMessageToWeb({ type: 'TOGGLE_LAYER', layer: 'routes', visible: next });
+    }
+  };
+
+  const handleWebMessage = (event: any) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      if (data.type === 'MAP_READY') {
+        setMapLoaded(true);
+        if (userCoords) {
+          postMessageToWeb({ type: 'UPDATE_USER_LOCATION', coords: userCoords });
+        }
+      } else if (data.type === 'SELECT_PLACE') {
+        setSelectedPlace(data.place);
+      }
+    } catch (e) {
+      console.warn('Error parsing web message:', e);
+    }
+  };
+
   const getDistanceFromUser = (targetLat?: number, targetLon?: number): string | null => {
     if (!userCoords || targetLat === undefined || targetLon === undefined) return null;
     const meters = calculateDistanceMeters(
@@ -190,105 +197,178 @@ export const MapScreen: React.FC = () => {
     return `${(meters / 1000).toFixed(1)}km away`;
   };
 
+  // Generate self-contained Leaflet HTML with OpenStreetMap and Satellite layers
+  const leafletHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    html, body, #map { margin: 0; padding: 0; width: 100%; height: 100%; background: #060d09; }
+    .bldg-marker {
+      width: 24px; height: 24px; border-radius: 12px; background: #f59e0b;
+      border: 2px solid #0f172a; color: #0f172a; font-weight: 900; font-size: 11px;
+      display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    }
+    .hub-marker {
+      background: #10b981; border: 2px solid #ffffff; border-radius: 14px;
+      padding: 3px 6px; color: #ffffff; font-weight: 800; font-size: 10px;
+      display: flex; align-items: center; gap: 4px; box-shadow: 0 3px 8px rgba(0,0,0,0.5);
+      white-space: nowrap;
+    }
+    .hub-primary { background: #059669; border-color: #fef08a; }
+    .user-pulse {
+      width: 18px; height: 18px; border-radius: 50%; background: #0284c7;
+      border: 3px solid #ffffff; box-shadow: 0 0 12px #38bdf8;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    const CAMPUS = [${CAMPUS_CENTER.latitude}, ${CAMPUS_CENTER.longitude}];
+    const map = L.map('map', { zoomControl: false }).setView(CAMPUS, 18);
+
+    const osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 });
+
+    let userMarker = null;
+    let bldgLayer = L.layerGroup().addTo(map);
+    let zoneLayer = L.layerGroup().addTo(map);
+    let routeLayer = L.layerGroup().addTo(map);
+
+    const BUILDINGS = ${JSON.stringify(CAMPUS_BUILDINGS)};
+    const SAFE_ZONES = ${JSON.stringify(SAFE_ASSEMBLY_ZONES)};
+    const ROUTES = ${JSON.stringify(EVACUATION_ROUTES)};
+
+    // Render 19 Campus Buildings
+    BUILDINGS.forEach(b => {
+      const icon = L.divIcon({ className: '', html: '<div class="bldg-marker">' + b.shortLetter + '</div>', iconSize: [24, 24], iconAnchor: [12, 12] });
+      const m = L.marker([b.latitude, b.longitude], { icon: icon });
+      m.on('click', () => {
+        window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'SELECT_PLACE',
+          place: {
+            type: 'building',
+            title: b.name,
+            subtitle: b.category,
+            description: 'Campus designated academic building. Follow marked evacuation path.',
+            latitude: b.latitude,
+            longitude: b.longitude,
+            badge: b.shortLetter
+          }
+        }));
+      });
+      bldgLayer.addLayer(m);
+    });
+
+    // Render 3 Safe Assembly Hubs
+    SAFE_ZONES.forEach(z => {
+      const isPrimary = z.isPrimaryHub;
+      const icon = L.divIcon({
+        className: '',
+        html: '<div class="hub-marker ' + (isPrimary ? 'hub-primary' : '') + '">' + (isPrimary ? '🛡️' : '⛳') + ' ' + z.shortLabel + '</div>',
+        iconSize: [60, 24], iconAnchor: [30, 12]
+      });
+      const m = L.marker([z.latitude, z.longitude], { icon: icon });
+      m.on('click', () => {
+        window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'SELECT_PLACE',
+          place: {
+            type: 'safe_zone',
+            title: z.name,
+            subtitle: 'Safe Assembly Area (' + (z.capacity || 'Open Hub') + ')',
+            description: z.description,
+            latitude: z.latitude,
+            longitude: z.longitude,
+            badge: z.shortLabel
+          }
+        }));
+      });
+      zoneLayer.addLayer(m);
+    });
+
+    // Render 3 Evacuation Routes
+    ROUTES.forEach(r => {
+      const pts = r.coordinates.map(c => [c.latitude, c.longitude]);
+      const poly = L.polyline(pts, { color: r.color, weight: 5, opacity: 0.9, lineCap: 'round' });
+      poly.on('click', () => {
+        window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'SELECT_PLACE',
+          place: {
+            type: 'route',
+            title: r.name,
+            subtitle: 'Estimated Time: ~' + r.estimatedMinutes + ' mins',
+            description: r.description,
+            latitude: r.coordinates[0].latitude,
+            longitude: r.coordinates[0].longitude,
+            badge: 'ROUTE'
+          }
+        }));
+      });
+      routeLayer.addLayer(poly);
+    });
+
+    // Native Message Bridge Handler
+    window.handleNativeMessage = function(data) {
+      if (data.type === 'SET_MAP_TYPE') {
+        if (data.mode === 'satellite') {
+          map.removeLayer(osmLayer);
+          map.addLayer(satLayer);
+        } else {
+          map.removeLayer(satLayer);
+          map.addLayer(osmLayer);
+        }
+      } else if (data.type === 'RECENTER_CAMPUS') {
+        map.setView(CAMPUS, 18, { animate: true });
+      } else if (data.type === 'RECENTER_USER' && data.coords) {
+        map.setView([data.coords.latitude, data.coords.longitude], 18, { animate: true });
+      } else if (data.type === 'UPDATE_USER_LOCATION' && data.coords) {
+        const userPos = [data.coords.latitude, data.coords.longitude];
+        if (!userMarker) {
+          const userIcon = L.divIcon({ className: '', html: '<div class="user-pulse"></div>', iconSize: [18, 18], iconAnchor: [9, 9] });
+          userMarker = L.marker(userPos, { icon: userIcon }).addTo(map);
+        } else {
+          userMarker.setLatLng(userPos);
+        }
+      } else if (data.type === 'TOGGLE_LAYER') {
+        if (data.layer === 'buildings') data.visible ? map.addLayer(bldgLayer) : map.removeLayer(bldgLayer);
+        if (data.layer === 'safeZones') data.visible ? map.addLayer(zoneLayer) : map.removeLayer(zoneLayer);
+        if (data.layer === 'routes') data.visible ? map.addLayer(routeLayer) : map.removeLayer(routeLayer);
+      }
+    };
+
+    window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'MAP_READY' }));
+  </script>
+</body>
+</html>
+`;
+
   return (
     <View style={styles.container}>
-      {/* NATIVE MAP COMPONENT */}
-      <MapView
-        ref={mapRef}
+      {/* WEBVIEW-POWERED MAP ENGINE (NO API KEY REQUIRED, WORKS INSTANTLY ON ALL PHONES) */}
+      <WebView
+        ref={webViewRef}
+        originWhitelist={['*']}
+        source={{ html: leafletHtml }}
         style={styles.map}
-        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT}
-        initialRegion={INITIAL_REGION}
-        mapType={mapType}
-        zoomEnabled={true}
-        scrollEnabled={true}
-        rotateEnabled={true}
-        pitchEnabled={false}
-        showsCompass={true}
-        showsUserLocation={locationPermission === 'granted'}
-        showsMyLocationButton={false}
-      >
-        {/* EVACUATION ROUTE POLYLINES */}
-        {showRoutes &&
-          EVACUATION_ROUTES.map((route: EvacuationRoute) => (
-            <Polyline
-              key={route.id}
-              coordinates={route.coordinates}
-              strokeColor={route.color}
-              strokeWidth={4.5}
-              lineCap="round"
-              lineJoin="round"
-              tappable={true}
-              onPress={() => {
-                setSelectedPlace({
-                  type: 'route',
-                  title: route.name,
-                  subtitle: `Estimated Time: ~${route.estimatedMinutes} mins`,
-                  description: route.description,
-                  latitude: route.coordinates[0].latitude,
-                  longitude: route.coordinates[0].longitude,
-                  badge: 'ROUTE',
-                });
-              }}
-            />
-          ))}
+        onMessage={handleWebMessage}
+        javaScriptEnabled={true}
+        domStorageEnabled={true}
+        startInLoadingState={true}
+        renderLoading={() => (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#10b981" />
+            <Text style={styles.loadingText}>Loading Campus Map & Routes...</Text>
+          </View>
+        )}
+      />
 
-        {/* SAFE ASSEMBLY ZONE MARKERS */}
-        {showSafeZones &&
-          SAFE_ASSEMBLY_ZONES.map((zone: SafeAssemblyZone) => (
-            <Marker
-              key={zone.id}
-              coordinate={{ latitude: zone.latitude, longitude: zone.longitude }}
-              title={zone.name}
-              description={zone.description}
-              onPress={() => {
-                setSelectedPlace({
-                  type: 'safe_zone',
-                  title: zone.name,
-                  subtitle: `Safe Assembly Area (${zone.capacity || 'Open Zone'})`,
-                  description: zone.description,
-                  latitude: zone.latitude,
-                  longitude: zone.longitude,
-                  badge: zone.shortLabel,
-                });
-              }}
-            >
-              <View style={[styles.zoneMarker, zone.isPrimaryHub && styles.primaryZoneMarker]}>
-                <Text style={styles.zoneMarkerIcon}>{zone.isPrimaryHub ? '🛡️' : '⛳'}</Text>
-                <Text style={styles.zoneMarkerText}>{zone.shortLabel}</Text>
-              </View>
-            </Marker>
-          ))}
-
-        {/* 19 CAMPUS BUILDING MARKERS */}
-        {showBuildings &&
-          CAMPUS_BUILDINGS.map((bldg: CampusBuilding) => (
-            <Marker
-              key={bldg.id}
-              coordinate={{ latitude: bldg.latitude, longitude: bldg.longitude }}
-              title={bldg.name}
-              description={bldg.category}
-              onPress={() => {
-                setSelectedPlace({
-                  type: 'building',
-                  title: bldg.name,
-                  subtitle: bldg.category,
-                  description: `Campus designated building. Follow evacuation path to the nearest safe assembly zone.`,
-                  latitude: bldg.latitude,
-                  longitude: bldg.longitude,
-                  badge: bldg.shortLetter,
-                });
-              }}
-            >
-              <View style={styles.bldgBadge}>
-                <Text style={styles.bldgBadgeText}>{bldg.shortLetter}</Text>
-              </View>
-            </Marker>
-          ))}
-      </MapView>
-
-      {/* TOP HEADER OVERLAYS */}
+      {/* TOP STATUS OVERLAY */}
       <View style={styles.topOverlay}>
-        {/* GPS STATUS PILL */}
         <View style={styles.statusPill}>
           <View
             style={[
@@ -307,7 +387,7 @@ export const MapScreen: React.FC = () => {
         <View style={styles.layerBar}>
           <TouchableOpacity
             style={[styles.layerChip, showBuildings && styles.layerChipActive]}
-            onPress={() => setShowBuildings(!showBuildings)}
+            onPress={() => toggleLayer('buildings')}
             activeOpacity={0.7}
           >
             <Text style={[styles.layerChipText, showBuildings && styles.layerChipTextActive]}>
@@ -317,7 +397,7 @@ export const MapScreen: React.FC = () => {
 
           <TouchableOpacity
             style={[styles.layerChip, showSafeZones && styles.layerChipActive]}
-            onPress={() => setShowSafeZones(!showSafeZones)}
+            onPress={() => toggleLayer('safeZones')}
             activeOpacity={0.7}
           >
             <Text style={[styles.layerChipText, showSafeZones && styles.layerChipTextActive]}>
@@ -327,7 +407,7 @@ export const MapScreen: React.FC = () => {
 
           <TouchableOpacity
             style={[styles.layerChip, showRoutes && styles.layerChipActive]}
-            onPress={() => setShowRoutes(!showRoutes)}
+            onPress={() => toggleLayer('routes')}
             activeOpacity={0.7}
           >
             <Text style={[styles.layerChipText, showRoutes && styles.layerChipTextActive]}>
@@ -378,15 +458,13 @@ export const MapScreen: React.FC = () => {
               <TouchableOpacity
                 style={styles.focusBtn}
                 onPress={() => {
-                  mapRef.current?.animateToRegion(
-                    {
+                  postMessageToWeb({
+                    type: 'RECENTER_USER',
+                    coords: {
                       latitude: selectedPlace.latitude!,
                       longitude: selectedPlace.longitude!,
-                      latitudeDelta: 0.002,
-                      longitudeDelta: 0.002,
                     },
-                    500
-                  );
+                  });
                 }}
               >
                 <Text style={styles.focusBtnText}>🎯 Focus Location on Map</Text>
@@ -420,7 +498,7 @@ export const MapScreen: React.FC = () => {
           <Text style={styles.controlBtnText}>Campus</Text>
         </TouchableOpacity>
 
-        {/* TOGGLE SATELLITE / STANDARD */}
+        {/* TOGGLE SATELLITE / STREET */}
         <TouchableOpacity
           style={[styles.controlBtn, isSatellite && styles.controlBtnActive]}
           onPress={toggleMapType}
@@ -441,11 +519,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#060d09',
   },
   map: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    flex: 1,
+  },
+  loadingContainer: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: '#060d09',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    color: '#94a3b8',
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 8,
   },
   topOverlay: {
     position: 'absolute',
@@ -488,7 +574,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   layerChip: {
-    backgroundColor: 'rgba(12, 23, 18, 0.88)',
+    backgroundColor: 'rgba(12, 23, 18, 0.9)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.15)',
     paddingHorizontal: 9,
@@ -506,56 +592,6 @@ const styles = StyleSheet.create({
   },
   layerChipTextActive: {
     color: '#ffffff',
-  },
-  // MARKER STYLES
-  bldgBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#f59e0b',
-    borderWidth: 2,
-    borderColor: '#0f172a',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  bldgBadgeText: {
-    color: '#0f172a',
-    fontSize: 11,
-    fontWeight: '900',
-  },
-  zoneMarker: {
-    backgroundColor: '#10b981',
-    borderRadius: 16,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderWidth: 1.5,
-    borderColor: '#ffffff',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.4,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  primaryZoneMarker: {
-    backgroundColor: '#059669',
-    borderColor: '#fef08a',
-    borderWidth: 2,
-  },
-  zoneMarkerIcon: {
-    fontSize: 12,
-  },
-  zoneMarkerText: {
-    color: '#ffffff',
-    fontSize: 10,
-    fontWeight: '900',
   },
   // CONTROLS GROUP
   controlsGroup: {
