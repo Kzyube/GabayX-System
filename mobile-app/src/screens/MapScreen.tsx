@@ -15,6 +15,7 @@ import {
   COMMUNITY_FACILITIES,
   SafeAssemblyZone,
   LatLng,
+  getOfflineRoadWaypoints,
 } from '../constants/geoData';
 
 function calculateDistanceMeters(
@@ -35,6 +36,59 @@ function calculateDistanceMeters(
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
   return Math.round(R * c);
+}
+
+/**
+ * Smart Road Routing Engine
+ * Queries OSRM walking network to strictly route along streets and footpaths.
+ * Falls back to verified Kabacan municipal street intersections when offline.
+ */
+async function calculateSmartRoadRoute(
+  origin: LatLng,
+  targetHub: SafeAssemblyZone
+): Promise<{ waypoints: [number, number][]; distanceMeters: number; walkMinutes: number }> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+    const url = `https://router.project-osrm.org/route/v1/foot/${origin.longitude},${origin.latitude};${targetHub.longitude},${targetHub.latitude}?overview=full&geometries=geojson`;
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.code === 'Ok' && data.routes && data.routes[0]) {
+        const route = data.routes[0];
+        const rawCoords: [number, number][] = route.geometry.coordinates.map(
+          (pt: [number, number]) => [pt[1], pt[0]]
+        );
+        const waypoints: [number, number][] = [
+          [origin.latitude, origin.longitude],
+          ...rawCoords,
+          [targetHub.latitude, targetHub.longitude],
+        ];
+        const distanceMeters = Math.max(20, Math.round(route.distance));
+        const walkMinutes = Math.max(1, Math.ceil(route.duration / 60));
+        return { waypoints, distanceMeters, walkMinutes };
+      }
+    }
+  } catch (err) {
+    console.log('[Router] OSRM live routing unreachable, using municipal road network fallback.');
+  }
+
+  // Authoritative municipal road network fallback (Poblacion streets)
+  const waypoints = getOfflineRoadWaypoints(origin, targetHub);
+  let totalDist = 0;
+  for (let i = 0; i < waypoints.length - 1; i++) {
+    totalDist += calculateDistanceMeters(
+      waypoints[i][0],
+      waypoints[i][1],
+      waypoints[i + 1][0],
+      waypoints[i + 1][1]
+    );
+  }
+  const distanceMeters = Math.max(30, Math.round(totalDist));
+  const walkMinutes = Math.max(1, Math.ceil(distanceMeters / 75));
+  return { waypoints, distanceMeters, walkMinutes };
 }
 
 export interface ActiveEvacRoute {
@@ -143,7 +197,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   }, [postMessageToWeb]);
 
   const startEvacuationRoute = useCallback(
-    (origin: LatLng, originName: string, requestedHub?: SafeAssemblyZone) => {
+    async (origin: LatLng, originName: string, requestedHub?: SafeAssemblyZone) => {
       let targetHub = requestedHub;
       if (!targetHub) {
         let minDistance = Infinity;
@@ -164,31 +218,18 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         targetHub = closest;
       }
 
-      const quadrangleConnector: [number, number] = [7.10030, 124.82400];
-      const startPoint: [number, number] = [origin.latitude, origin.longitude];
-      const endPoint: [number, number] = [targetHub.latitude, targetHub.longitude];
-
-      const directDist = calculateDistanceMeters(
-        origin.latitude,
-        origin.longitude,
-        targetHub.latitude,
-        targetHub.longitude
+      // Compute exact road-following route via OSRM / Municipal Street Network
+      const { waypoints, distanceMeters, walkMinutes } = await calculateSmartRoadRoute(
+        origin,
+        targetHub
       );
-
-      let waypoints: [number, number][] = [startPoint, endPoint];
-      if (directDist > 50) {
-        waypoints = [startPoint, quadrangleConnector, endPoint];
-      }
-
-      const totalMeters = Math.max(25, directDist);
-      const estMinutes = Math.max(1, Math.ceil(totalMeters / 75));
 
       const routeData: ActiveEvacRoute = {
         originTitle: originName,
         originCoords: origin,
         targetZone: targetHub,
-        distanceMeters: totalMeters,
-        walkMinutes: estMinutes,
+        distanceMeters,
+        walkMinutes,
         waypoints,
       };
 
@@ -432,16 +473,24 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         const waypoints = data.waypoints;
         if (!waypoints || waypoints.length < 2) return;
 
-        // Clean emerald evacuation polyline
-        const path = L.polyline(waypoints, {
-          color: '#059669',
-          weight: 6,
-          opacity: 0.9,
-          dashArray: '8, 6',
+        // High-contrast dual-layer road polyline
+        const roadCasing = L.polyline(waypoints, {
+          color: '#064e3b',
+          weight: 8,
+          opacity: 0.85,
           lineCap: 'round',
           lineJoin: 'round'
         });
-        dynamicRouteGroup.addLayer(path);
+        dynamicRouteGroup.addLayer(roadCasing);
+
+        const roadCenter = L.polyline(waypoints, {
+          color: '#10b981',
+          weight: 4,
+          opacity: 1.0,
+          lineCap: 'round',
+          lineJoin: 'round'
+        });
+        dynamicRouteGroup.addLayer(roadCenter);
 
         const startIcon = L.divIcon({
           className: '',

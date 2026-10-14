@@ -17,13 +17,13 @@ async function testTargetedReplies() {
   const clientB_Id = 'RESIDENT-UNIT-BRAVO-' + Math.floor(Math.random() * 1000);
 
   console.log(`Connecting Client A (${clientA_Id})...`);
-  const socketA = io(BACKEND_URL, { transports: ['websocket', 'polling'] });
+  const socketA = io(BACKEND_URL);
 
   console.log(`Connecting Client B (${clientB_Id})...`);
-  const socketB = io(BACKEND_URL, { transports: ['websocket', 'polling'] });
+  const socketB = io(BACKEND_URL);
 
   console.log(`Connecting Admin Dispatcher...`);
-  const adminSocket = io(BACKEND_URL, { transports: ['websocket', 'polling'] });
+  const adminSocket = io(BACKEND_URL);
 
   await Promise.all([
     new Promise((resolve) => socketA.on('connect', resolve)),
@@ -31,16 +31,21 @@ async function testTargetedReplies() {
     new Promise((resolve) => adminSocket.on('connect', resolve)),
   ]);
 
-  console.log('[PASS] All 3 sockets connected to Render backend.');
+  console.log('[PASS] All 3 sockets connected to backend.');
 
-  // Register each user's unique room (using register-student which is currently live on Render)
-  socketA.emit('register-student', clientA_Id);
-  socketB.emit('register-student', clientB_Id);
-  socketA.emit('register-resident', clientA_Id);
-  socketB.emit('register-resident', clientB_Id);
+  // Register with retry bursts to accommodate backend database startup
+  const registerAll = () => {
+    socketA.emit('register-student', clientA_Id);
+    socketB.emit('register-student', clientB_Id);
+    socketA.emit('register-resident', clientA_Id);
+    socketB.emit('register-resident', clientB_Id);
+  };
+  registerAll();
+  setTimeout(registerAll, 500);
+  setTimeout(registerAll, 1200);
 
-  // Give server 500ms to join rooms
-  await new Promise((r) => setTimeout(r, 600));
+  // Give server 1.5s to ensure room joined
+  await new Promise((r) => setTimeout(r, 1600));
 
   let clientAReceived = null;
   let clientBReceived = null;

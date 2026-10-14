@@ -32,6 +32,11 @@ class AlertService {
   private isConnected: boolean = false;
   private currentAlert: DisasterAlert | null = null;
   private residentId: string | null = null;
+  private heartbeatTimer: any = null;
+
+  getResidentId(): string | null {
+    return this.residentId;
+  }
 
   /**
    * Connect to Render Socket.io server and register unique device room
@@ -45,12 +50,18 @@ class AlertService {
 
     try {
       this.socket = io(apiBase, {
-        transports: ['websocket', 'polling'],
         timeout: 10000,
         reconnection: true,
         reconnectionAttempts: Infinity,
         reconnectionDelay: 2000,
       });
+
+      const emitRegistration = () => {
+        if (this.socket && this.residentId) {
+          this.socket.emit('register-student', this.residentId);
+          this.socket.emit('register-resident', this.residentId);
+        }
+      };
 
       this.socket.on('connect', () => {
         console.log('[AlertService] Socket connected to Render backend:', this.socket?.id);
@@ -58,12 +69,17 @@ class AlertService {
         this.notifyStatus(true);
 
         // Register unique resident device room with server so replies reach ONLY this device
-        if (this.residentId) {
-          this.socket?.emit('register-student', this.residentId);
-          this.socket?.emit('register-resident', this.residentId);
-          console.log(`[AlertService] Registered device room: ${this.residentId}`);
-        }
+        emitRegistration();
+
+        // Guaranteed retry bursts in case backend was initializing
+        setTimeout(emitRegistration, 500);
+        setTimeout(emitRegistration, 1500);
+        setTimeout(emitRegistration, 3000);
       });
+
+      // Maintain persistent heartbeat registration so rooms remain active indefinitely
+      if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = setInterval(emitRegistration, 8000);
 
       this.socket.on('disconnect', (reason) => {
         console.log('[AlertService] Socket disconnected:', reason);
@@ -109,18 +125,20 @@ class AlertService {
       // 2. Listen for targeted private reply from MDRRMO Dispatch to this user
       this.socket.on('receive-reply', (data: any) => {
         console.log('[AlertService] Private dispatch message received:', data);
-        if (!data || !data.message) return;
+        if (!data) return;
+        const msgText = typeof data === 'string' ? data : (data.message || JSON.stringify(data));
+        if (!msgText) return;
 
         try {
-          Vibration.vibrate([0, 400, 200, 400]);
+          Vibration.vibrate([0, 500, 250, 500, 250, 500]);
         } catch {
           // Fallback
         }
 
         const replyObj: AdminReplyMessage = {
-          message: data.message,
-          sender: data.sender || 'MDRRMO Central Dispatch',
-          timestamp: new Date().toISOString(),
+          message: msgText,
+          sender: (typeof data === 'object' && data.sender) ? data.sender : 'MDRRMO Central Dispatch',
+          timestamp: (typeof data === 'object' && data.timestamp) ? data.timestamp : new Date().toISOString(),
         };
 
         this.notifyReply(replyObj);
@@ -128,6 +146,49 @@ class AlertService {
     } catch (err) {
       console.error('[AlertService] Failed to initialize socket:', err);
     }
+  }
+
+  /**
+   * Emit emergency report directly over real-time socket
+   */
+  emitEmergencyReport(report: {
+    id: string;
+    incident_type: string;
+    description: string;
+    nearest_building?: string;
+    lat?: number | null;
+    lng?: number | null;
+    student_name?: string;
+  }): void {
+    if (!this.socket || !this.residentId) return;
+
+    this.socket.emit('register-student', this.residentId);
+    this.socket.emit('register-resident', this.residentId);
+
+    const payload = {
+      id: report.id,
+      student_id: this.residentId,
+      student_name: report.student_name || `Resident (${this.residentId.slice(-4)})`,
+      incident_type: report.incident_type,
+      description: report.description,
+      nearest_building: report.nearest_building || 'Central Poblacion',
+      lat: report.lat || null,
+      lng: report.lng || null,
+      timestamp: new Date().toISOString(),
+    };
+
+    // Forward through socket events
+    this.socket.emit('student-note', {
+      id: this.residentId,
+      message: `[${report.incident_type}]: ${report.description}`,
+    });
+    this.socket.emit('student-status', {
+      id: this.residentId,
+      status: 'DANGER',
+      lat: report.lat || null,
+      lng: report.lng || null,
+      accuracy: 10,
+    });
   }
 
   /**

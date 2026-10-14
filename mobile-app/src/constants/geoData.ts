@@ -163,3 +163,70 @@ export const EVACUATION_ROUTES: EvacuationRoute[] = [
     estimatedMinutes: 3,
   },
 ];
+
+// Official Municipal Road Network Intersections (Poblacion Kabacan)
+export const MUNICIPAL_ROAD_NETWORK_NODES: LatLng[] = [
+  { latitude: 7.100767, longitude: 124.824077 }, // North Municipal Hall Road
+  { latitude: 7.100589893149529, longitude: 124.82393056927546 }, // Hub 1 Gym Gate
+  { latitude: 7.100450, longitude: 124.823900 }, // Rizal Ave Mid-Crossing
+  { latitude: 7.100250, longitude: 124.823850 }, // Market Avenue Crossing
+  { latitude: 7.100077551009359, longitude: 124.82369094608939 }, // Hub 2 Central Plaza Gate
+  { latitude: 7.099850, longitude: 124.823720 }, // South Road Exit
+  { latitude: 7.100458, longitude: 124.824615 }, // East MDRRMO & BFP Road
+  { latitude: 7.100423, longitude: 124.824379 }, // Police Station Crossing
+  { latitude: 7.100282, longitude: 124.824365 }, // Market East Road
+  { latitude: 7.1001461901808565, longitude: 124.82430112059413 }, // Hub 3 Civic Center Gate
+  { latitude: 7.099643, longitude: 124.824357 }, // Poblacion South Junction
+];
+
+export function getOfflineRoadWaypoints(
+  origin: LatLng,
+  targetHub: SafeAssemblyZone
+): [number, number][] {
+  function distSq(a: LatLng, b: LatLng): number {
+    const dLat = a.latitude - b.latitude;
+    const dLng = a.longitude - b.longitude;
+    return dLat * dLat + dLng * dLng;
+  }
+
+  // Find nearest street node to origin
+  let closestOriginNode = MUNICIPAL_ROAD_NETWORK_NODES[0];
+  let minOriginDist = Infinity;
+  for (const node of MUNICIPAL_ROAD_NETWORK_NODES) {
+    const d = distSq(origin, node);
+    if (d < minOriginDist) {
+      minOriginDist = d;
+      closestOriginNode = node;
+    }
+  }
+
+  // Find nearest street node to target hub
+  let closestHubNode = MUNICIPAL_ROAD_NETWORK_NODES[1];
+  let minHubDist = Infinity;
+  for (const node of MUNICIPAL_ROAD_NETWORK_NODES) {
+    const d = distSq(targetHub, node);
+    if (d < minHubDist) {
+      minHubDist = d;
+      closestHubNode = node;
+    }
+  }
+
+  const waypoints: [number, number][] = [
+    [origin.latitude, origin.longitude],
+    [closestOriginNode.latitude, closestOriginNode.longitude],
+  ];
+
+  // If different nodes, add mid-way street junction if needed
+  if (closestOriginNode !== closestHubNode) {
+    // If one is east corridor and other is west spine, route through the central street crossing
+    const isOriginEast = closestOriginNode.longitude > 124.82410;
+    const isHubEast = closestHubNode.longitude > 124.82410;
+    if (isOriginEast !== isHubEast) {
+      waypoints.push([7.100450, 124.824100]); // Central Crossing
+    }
+    waypoints.push([closestHubNode.latitude, closestHubNode.longitude]);
+  }
+
+  waypoints.push([targetHub.latitude, targetHub.longitude]);
+  return waypoints;
+}

@@ -9,6 +9,7 @@
 import { reportRepository } from '../database/reportRepository';
 import { GabayXReport } from '../types/report';
 import { getResidentDeviceId } from '../utils/deviceIdentity';
+import { alertService } from '../services/alertService';
 
 export interface SyncResult {
   totalPending: number;
@@ -92,6 +93,17 @@ export const syncService = {
           const ackTimestamp = data.receivedAt || new Date().toISOString();
           await reportRepository.updateReportStatus(report.id, 'SYNCED', ackTimestamp);
           result.syncedCount++;
+
+          // Real-time socket notification to Admin console
+          alertService.emitEmergencyReport({
+            id: report.id,
+            incident_type: report.category,
+            description: report.description,
+            nearest_building: report.nearestBuilding,
+            lat: report.latitude,
+            lng: report.longitude,
+            student_name: residentName,
+          });
         } else {
           throw new Error(data.error || 'Server did not acknowledge receipt');
         }

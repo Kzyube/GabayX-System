@@ -10,10 +10,10 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
+  Modal,
 } from 'react-native';
 import { GabayXReport, CreateReportInput } from './src/types/report';
 import { reportRepository } from './src/database/reportRepository';
-import { ReportStatusBadge } from './src/components/ReportStatusBadge';
 import { CreateReportModal } from './src/components/CreateReportModal';
 import { ReportDetailModal } from './src/components/ReportDetailModal';
 import { MapScreen } from './src/screens/MapScreen';
@@ -21,6 +21,17 @@ import { syncService } from './src/sync/syncService';
 import { alertService, AdminReplyMessage } from './src/services/alertService';
 import { DisasterAlert } from './src/types/alert';
 import { DisasterAlertBanner } from './src/components/DisasterAlertBanner';
+import { getResidentDeviceId } from './src/utils/deviceIdentity';
+
+const CATEGORY_ICONS: Record<string, { icon: string; color: string }> = {
+  MEDICAL: { icon: '🚑', color: '#ef4444' },
+  FIRE: { icon: '🔥', color: '#f97316' },
+  FLOOD: { icon: '🌊', color: '#0284c7' },
+  EARTHQUAKE: { icon: '🏚️', color: '#d97706' },
+  TRAPPED: { icon: '🆘', color: '#dc2626' },
+  HAZARD: { icon: '⚠️', color: '#eab308' },
+  GENERAL: { icon: '📢', color: '#10b981' },
+};
 
 export default function App() {
   const [reports, setReports] = useState<GabayXReport[]>([]);
@@ -31,9 +42,13 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'ALL' | 'PENDING'>('ALL');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Device identity
+  const [residentDeviceId, setResidentDeviceId] = useState<string>('');
+
   // Modals
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedReport, setSelectedReport] = useState<GabayXReport | null>(null);
+  const [isReplyModalVisible, setIsReplyModalVisible] = useState(false);
 
   // Real-time Disaster Alerts from Central Command
   const [activeAlert, setActiveAlert] = useState<DisasterAlert | null>(null);
@@ -44,20 +59,24 @@ export default function App() {
   const [adminReply, setAdminReply] = useState<AdminReplyMessage | null>(null);
 
   /**
-   * Connect to Central Dispatch via Socket.io for live disaster alerts and private two-way replies
+   * Initialize device identity and Socket.io connection
    */
   useEffect(() => {
+    getResidentDeviceId().then((id) => {
+      setResidentDeviceId(id);
+    });
+
     alertService.connect();
 
-    // 1. Listen for community-wide broadcasts
+    // 1. Listen for community disaster broadcasts
     const unsubAlert = alertService.subscribeAlert((alert) => {
       setActiveAlert(alert);
       Alert.alert(
         `🚨 ${String(alert.type).toUpperCase()} BROADCAST`,
-        `${alert.message}\n\nPlease proceed immediately to the nearest designated Municipal Safe Hub.`,
+        `${alert.message}\n\nPlease proceed immediately along the designated municipal road route to the nearest Safe Hub.`,
         [
           {
-            text: '🗺️ View Routes',
+            text: '🗺️ View Evacuation Route',
             onPress: () => {
               setAutoRouteRequested(true);
               setCurrentScreen('MAP');
@@ -81,14 +100,10 @@ export default function App() {
       setIsSocketConnected(connected);
     });
 
-    // 2. Listen for private targeted direct reply from MDRRMO to this device
+    // 2. Listen for targeted private direct reply from MDRRMO Dispatch
     const unsubReply = alertService.subscribeReply((reply) => {
       setAdminReply(reply);
-      Alert.alert(
-        `📩 Direct Message from ${reply.sender}`,
-        `"${reply.message}"\n\nSent at ${new Date(reply.timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`,
-        [{ text: 'Acknowledge', style: 'default' }]
-      );
+      setIsReplyModalVisible(true);
     });
 
     // Check on startup if an active disaster was already declared
@@ -163,11 +178,11 @@ export default function App() {
           [{ text: 'OK' }]
         );
       } else if (res.totalPending === 0) {
-        Alert.alert('Up to Date', 'All your incident reports are already synced with MDRRMO Dispatch.');
+        Alert.alert('Up to Date', 'All reports are already synced with MDRRMO Dispatch.');
       } else {
         Alert.alert(
           'Saved on Device',
-          'Could not reach server. Your reports remain safely stored on this phone and will sync once connected.',
+          'Could not reach server. Your reports remain safely stored on this phone and will sync automatically once connected.',
           [{ text: 'OK' }]
         );
       }
@@ -179,16 +194,40 @@ export default function App() {
   };
 
   /**
-   * Handle emergency report creation
+   * Handle emergency report creation:
+   * 1. Saves to SQLite (guaranteed offline safety).
+   * 2. Immediately dispatches via Socket.io.
+   * 3. Immediately triggers background REST sync.
    */
   const handleCreateReport = async (data: CreateReportInput) => {
     try {
       const created = await reportRepository.createReport(data);
       console.log(`[App] Emergency report ${created.id} saved to SQLite.`);
       await loadReports();
+
+      // Real-time socket emission
+      alertService.emitEmergencyReport({
+        id: created.id,
+        incident_type: created.category,
+        description: created.description,
+        nearest_building: created.nearestBuilding,
+        lat: created.latitude,
+        lng: created.longitude,
+        student_name: created.contactInformation.isAnonymous
+          ? `Resident (${residentDeviceId ? residentDeviceId.slice(-4) : 'Mobile'})`
+          : created.contactInformation.name || undefined,
+      });
+
+      // Immediate background sync attempt with REST backend
+      syncService.syncPendingReports().then((res) => {
+        if (res.syncedCount > 0) {
+          loadReports();
+        }
+      }).catch((e) => console.log('[App] Auto-sync attempt:', e?.message));
+
       Alert.alert(
-        '🛡️ Report Saved on Phone',
-        'Your incident report has been saved locally. It will upload to MDRRMO Dispatch once online or when you tap Sync.',
+        '🚨 Incident Dispatched',
+        'Your report has been saved on this phone and sent to MDRRMO Central Command.',
         [{ text: 'OK' }]
       );
     } catch (err) {
@@ -247,6 +286,13 @@ export default function App() {
         </View>
 
         <View style={styles.headerRightGroup}>
+          {/* Device ID Badge */}
+          {residentDeviceId ? (
+            <View style={styles.devicePill}>
+              <Text style={styles.devicePillText}>📱 {residentDeviceId}</Text>
+            </View>
+          ) : null}
+
           {/* Connection Status Indicator */}
           <View style={styles.connectionBadge}>
             <View
@@ -259,26 +305,6 @@ export default function App() {
               {isSocketConnected ? 'Online' : 'Offline'}
             </Text>
           </View>
-
-          {/* Sync Button */}
-          <TouchableOpacity
-            style={[
-              styles.syncButton,
-              pendingCount > 0 && styles.syncBtnPending,
-            ]}
-            onPress={handleSyncReports}
-            disabled={isSyncing}
-            activeOpacity={0.8}
-            accessibilityLabel="Sync reports"
-          >
-            {isSyncing ? (
-              <ActivityIndicator size="small" color="#ffffff" />
-            ) : (
-              <Text style={styles.syncBtnText}>
-                🔄 Sync{pendingCount > 0 ? ` (${pendingCount})` : ''}
-              </Text>
-            )}
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -325,70 +351,89 @@ export default function App() {
         />
       ) : (
         <View style={styles.contentContainer}>
-          {/* TOP PRIMARY ACTION CARDS */}
-          <View style={styles.actionCardsRow}>
-            {/* 1. REPORT EMERGENCY BUTTON */}
+          {/* PROMINENT EMERGENCY ACTION HERO CARD */}
+          <View style={styles.actionHeroContainer}>
             <TouchableOpacity
-              style={styles.actionCardRed}
+              style={styles.actionHeroCard}
               onPress={() => setIsCreateModalOpen(true)}
               activeOpacity={0.85}
             >
-              <Text style={styles.actionCardIcon}>🚨</Text>
-              <Text style={styles.actionCardTitle}>Report Emergency</Text>
-              <Text style={styles.actionCardSub}>Send incident report to MDRRMO</Text>
-            </TouchableOpacity>
-
-            {/* 2. MUNICIPAL EVACUATION MAP BUTTON */}
-            <TouchableOpacity
-              style={styles.actionCardSlate}
-              onPress={() => setCurrentScreen('MAP')}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.actionCardIcon}>🗺️</Text>
-              <Text style={styles.actionCardTitle}>Evacuation Map</Text>
-              <Text style={styles.actionCardSub}>View municipal safe hubs & routes</Text>
+              <View style={styles.heroLeft}>
+                <Text style={styles.heroIcon}>🚨</Text>
+                <View>
+                  <Text style={styles.heroTitle}>REPORT AN EMERGENCY</Text>
+                  <Text style={styles.heroSub}>
+                    Dispatches incident details & GPS directly to MDRRMO
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.heroBtn}>
+                <Text style={styles.heroBtnText}>+ REPORT</Text>
+              </View>
             </TouchableOpacity>
           </View>
 
-          {/* SECTION HEADER & TABS */}
+          {/* SECTION HEADER & SYNC CONTROLS */}
           <View style={styles.sectionHeaderRow}>
             <View>
-              <Text style={styles.sectionTitle}>Community Incident Reports</Text>
-              <Text style={styles.sectionSub}>Stored safely on this device</Text>
+              <Text style={styles.sectionTitle}>Incident Reports</Text>
+              <Text style={styles.sectionSub}>Stored safely in device SQLite storage</Text>
             </View>
 
-            <View style={styles.filterTabs}>
-              <TouchableOpacity
-                style={[styles.filterTab, activeTab === 'ALL' && styles.filterTabActive]}
-                onPress={() => setActiveTab('ALL')}
-              >
-                <Text
-                  style={[
-                    styles.filterTabText,
-                    activeTab === 'ALL' && styles.filterTabTextActive,
-                  ]}
-                >
-                  All ({reports.length})
-                </Text>
-              </TouchableOpacity>
-
+            <View style={styles.controlsRight}>
+              {/* Sync Button */}
               <TouchableOpacity
                 style={[
-                  styles.filterTab,
-                  activeTab === 'PENDING' && styles.filterTabActive,
+                  styles.syncButton,
+                  pendingCount > 0 && styles.syncBtnPending,
                 ]}
-                onPress={() => setActiveTab('PENDING')}
+                onPress={handleSyncReports}
+                disabled={isSyncing}
+                activeOpacity={0.8}
               >
-                <Text
-                  style={[
-                    styles.filterTabText,
-                    activeTab === 'PENDING' && styles.filterTabTextActive,
-                  ]}
-                >
-                  Pending ({pendingCount})
-                </Text>
+                {isSyncing ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Text style={styles.syncBtnText}>
+                    🔄 Sync{pendingCount > 0 ? ` (${pendingCount})` : ''}
+                  </Text>
+                )}
               </TouchableOpacity>
             </View>
+          </View>
+
+          {/* FILTER TABS */}
+          <View style={styles.filterTabsRow}>
+            <TouchableOpacity
+              style={[styles.filterTab, activeTab === 'ALL' && styles.filterTabActive]}
+              onPress={() => setActiveTab('ALL')}
+            >
+              <Text
+                style={[
+                  styles.filterTabText,
+                  activeTab === 'ALL' && styles.filterTabTextActive,
+                ]}
+              >
+                All Reports ({reports.length})
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.filterTab,
+                activeTab === 'PENDING' && styles.filterTabActive,
+              ]}
+              onPress={() => setActiveTab('PENDING')}
+            >
+              <Text
+                style={[
+                  styles.filterTabText,
+                  activeTab === 'PENDING' && styles.filterTabTextActive,
+                ]}
+              >
+                Pending Sync ({pendingCount})
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* REPORT LIST OR EMPTY STATE */}
@@ -396,26 +441,19 @@ export default function App() {
             {isLoading ? (
               <View style={styles.centerBox}>
                 <ActivityIndicator size="small" color="#059669" />
-                <Text style={styles.loadingText}>Loading reports...</Text>
+                <Text style={styles.loadingText}>Loading incident reports...</Text>
               </View>
             ) : displayedReports.length === 0 ? (
               <View style={styles.centerBox}>
                 <Text style={styles.emptyIcon}>📋</Text>
                 <Text style={styles.emptyTitle}>
-                  {activeTab === 'PENDING' ? 'No Pending Reports' : 'No Reports Filed Yet'}
+                  {activeTab === 'PENDING' ? 'All Reports Synchronized' : 'No Incident Reports Yet'}
                 </Text>
                 <Text style={styles.emptySub}>
                   {activeTab === 'PENDING'
-                    ? 'All your emergency reports have been synced with MDRRMO Dispatch.'
-                    : 'When you file an incident report, it will be stored securely on your phone even without internet.'}
+                    ? 'All your emergency reports have been acknowledged by MDRRMO Central Dispatch.'
+                    : 'Tap "Report An Emergency" above to immediately submit a report with offline backup.'}
                 </Text>
-                <TouchableOpacity
-                  style={styles.emptyBtn}
-                  onPress={() => setIsCreateModalOpen(true)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.emptyBtnText}>+ File Incident Report</Text>
-                </TouchableOpacity>
               </View>
             ) : (
               <FlatList
@@ -430,10 +468,13 @@ export default function App() {
                 }
                 contentContainerStyle={styles.listContent}
                 renderItem={({ item }) => {
+                  const catConfig = CATEGORY_ICONS[item.category] || { icon: '📢', color: '#10b981' };
                   const formattedDate = new Date(item.createdAt).toLocaleTimeString([], {
                     hour: 'numeric',
                     minute: '2-digit',
                   });
+
+                  const isSynced = item.localStatus === 'SYNCED';
 
                   return (
                     <TouchableOpacity
@@ -441,25 +482,64 @@ export default function App() {
                       onPress={() => setSelectedReport(item)}
                       activeOpacity={0.8}
                     >
-                      <View style={styles.cardHeader}>
-                        <View style={styles.categoryWrap}>
-                          <Text style={styles.categoryName}>{item.category}</Text>
-                          <View style={[styles.sevPill, styles[`sev_${item.severity}`]]}>
-                            <Text style={styles.sevPillText}>{item.severity}</Text>
+                      {/* CARD TOP ROW */}
+                      <View style={styles.cardTopRow}>
+                        <View style={styles.categoryBadgeRow}>
+                          <View
+                            style={[
+                              styles.categoryIconWrap,
+                              { backgroundColor: `${catConfig.color}20`, borderColor: catConfig.color },
+                            ]}
+                          >
+                            <Text style={styles.categoryEmoji}>{catConfig.icon}</Text>
+                          </View>
+                          <Text style={styles.categoryTitleText}>{item.category}</Text>
+                          
+                          {/* Severity pill */}
+                          <View
+                            style={[
+                              styles.severityPill,
+                              item.severity === 'CRITICAL' && styles.sevCritical,
+                              item.severity === 'HIGH' && styles.sevHigh,
+                              item.severity === 'MEDIUM' && styles.sevMedium,
+                              item.severity === 'LOW' && styles.sevLow,
+                            ]}
+                          >
+                            <Text style={styles.severityPillText}>{item.severity}</Text>
                           </View>
                         </View>
-                        <Text style={styles.cardTime}>{formattedDate}</Text>
+
+                        <Text style={styles.cardTimeText}>{formattedDate}</Text>
                       </View>
 
-                      <Text style={styles.cardDesc} numberOfLines={2}>
+                      {/* DESCRIPTION */}
+                      <Text style={styles.cardDescText} numberOfLines={2}>
                         {item.description}
                       </Text>
 
-                      <View style={styles.cardFooter}>
-                        <ReportStatusBadge status={item.localStatus} size="small" />
-                        <Text style={styles.cardLocation}>
-                          📍 {item.nearestBuilding || 'Central Poblacion'}
-                        </Text>
+                      {/* CARD FOOTER */}
+                      <View style={styles.cardFooterRow}>
+                        <View style={styles.cardLocationBadge}>
+                          <Text style={styles.cardLocationText}>
+                            📍 {item.nearestBuilding || 'Central Poblacion'}
+                          </Text>
+                        </View>
+
+                        <View
+                          style={[
+                            styles.syncStatusBadge,
+                            isSynced ? styles.syncBadgeSynced : styles.syncBadgePending,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.syncStatusText,
+                              isSynced ? styles.syncTextSynced : styles.syncTextPending,
+                            ]}
+                          >
+                            {isSynced ? '✓ Synced with MDRRMO' : '⏳ Saved Locally'}
+                          </Text>
+                        </View>
                       </View>
                     </TouchableOpacity>
                   );
@@ -494,6 +574,38 @@ export default function App() {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* POP-UP DIRECT MESSAGE MODAL (GUARANTEED VISIBILITY ON ALL DEVICES) */}
+      <Modal
+        visible={isReplyModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsReplyModalVisible(false)}
+      >
+        <View style={styles.replyModalOverlay}>
+          <View style={styles.replyModalCard}>
+            <View style={styles.replyModalHeader}>
+              <Text style={styles.replyModalBadge}>🚨 MDRRMO CENTRAL COMMAND</Text>
+              <Text style={styles.replyModalTitle}>Direct Message to Your Device</Text>
+            </View>
+
+            <View style={styles.replyModalBody}>
+              <Text style={styles.replyModalQuote}>"{adminReply?.message}"</Text>
+              <Text style={styles.replyModalMeta}>
+                Sent at {adminReply ? new Date(adminReply.timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.replyModalButton}
+              onPress={() => setIsReplyModalVisible(false)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.replyModalBtnText}>✓ Acknowledge Message</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* MODALS */}
       <CreateReportModal
@@ -535,14 +647,28 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   brandSubtitle: {
-    fontSize: 12,
+    fontSize: 11.5,
     color: '#94a3b8',
     marginTop: 1,
   },
   headerRightGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
+  },
+  devicePill: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  devicePillText: {
+    color: '#38bdf8',
+    fontSize: 10,
+    fontFamily: 'monospace',
+    fontWeight: '700',
   },
   connectionBadge: {
     flexDirection: 'row',
@@ -571,12 +697,87 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
+  // ACTION HERO CONTAINER & CARD
+  actionHeroContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 6,
+  },
+  actionHeroCard: {
+    backgroundColor: '#991b1b',
+    borderRadius: 14,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1.5,
+    borderColor: '#ef4444',
+    shadowColor: '#ef4444',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  heroLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  heroIcon: {
+    fontSize: 30,
+  },
+  heroTitle: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+  },
+  heroSub: {
+    color: '#fecaca',
+    fontSize: 11,
+    marginTop: 2,
+    maxWidth: '92%',
+  },
+  heroBtn: {
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  heroBtnText: {
+    color: '#991b1b',
+    fontWeight: '900',
+    fontSize: 12,
+  },
+  // SECTION HEADER & SYNC
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 6,
+  },
+  sectionTitle: {
+    color: '#f8fafc',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  sectionSub: {
+    color: '#64748b',
+    fontSize: 10.5,
+  },
+  controlsRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   syncButton: {
     backgroundColor: '#1e293b',
     borderWidth: 1,
     borderColor: '#334155',
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 6,
     borderRadius: 8,
   },
   syncBtnPending: {
@@ -587,6 +788,34 @@ const styles = StyleSheet.create({
     color: '#f8fafc',
     fontSize: 11,
     fontWeight: '700',
+  },
+  // FILTER TABS
+  filterTabsRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    gap: 8,
+    marginBottom: 8,
+  },
+  filterTab: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  filterTabActive: {
+    backgroundColor: 'rgba(5, 150, 105, 0.2)',
+    borderColor: '#059669',
+  },
+  filterTabText: {
+    color: '#94a3b8',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  filterTabTextActive: {
+    color: '#34d399',
+    fontWeight: '800',
   },
   // TARGETED MDRRMO REPLY CARD
   replyCard: {
@@ -649,223 +878,160 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0f172a',
   },
-  // ACTION CARDS
-  actionCardsRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    gap: 10,
-  },
-  actionCardRed: {
-    flex: 1,
-    backgroundColor: '#b91c1c',
-    borderRadius: 14,
-    padding: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  actionCardSlate: {
-    flex: 1,
-    backgroundColor: '#1e293b',
-    borderWidth: 1,
-    borderColor: '#334155',
-    borderRadius: 14,
-    padding: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  actionCardIcon: {
-    fontSize: 22,
-    marginBottom: 6,
-  },
-  actionCardTitle: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  actionCardSub: {
-    color: '#cbd5e1',
-    fontSize: 10.5,
-    marginTop: 2,
-    lineHeight: 14,
-  },
-  // SECTION HEADER
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 18,
-    paddingBottom: 8,
-  },
-  sectionTitle: {
-    color: '#f8fafc',
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  sectionSub: {
-    color: '#64748b',
-    fontSize: 11,
-  },
-  filterTabs: {
-    flexDirection: 'row',
-    backgroundColor: '#1e293b',
-    borderRadius: 8,
-    padding: 2,
-  },
-  filterTab: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  filterTabActive: {
-    backgroundColor: '#334155',
-  },
-  filterTabText: {
-    color: '#94a3b8',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  filterTabTextActive: {
-    color: '#ffffff',
-  },
-  // LIST AREA
   listArea: {
     flex: 1,
-    paddingHorizontal: 16,
   },
   listContent: {
-    paddingTop: 4,
-    paddingBottom: 16,
-    gap: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+    gap: 10,
   },
   centerBox: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
+    alignItems: 'center',
+    padding: 30,
+    gap: 8,
   },
   loadingText: {
     color: '#94a3b8',
-    fontSize: 12,
-    marginTop: 8,
+    fontSize: 13,
   },
   emptyIcon: {
-    fontSize: 36,
-    marginBottom: 8,
+    fontSize: 40,
+    marginBottom: 4,
   },
   emptyTitle: {
-    color: '#f8fafc',
-    fontSize: 15,
-    fontWeight: '800',
-    marginBottom: 4,
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '700',
   },
   emptySub: {
     color: '#64748b',
     fontSize: 12,
     textAlign: 'center',
-    lineHeight: 17,
-    maxWidth: 280,
-    marginBottom: 14,
+    lineHeight: 18,
   },
-  emptyBtn: {
-    backgroundColor: '#059669',
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 8,
-  },
-  emptyBtnText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '700',
-  },
+  // REPORT CARD
   reportCard: {
-    backgroundColor: '#1e293b',
-    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
     borderWidth: 1,
-    borderColor: '#334155',
-    padding: 12,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 12,
+    padding: 14,
+    gap: 8,
   },
-  cardHeader: {
+  cardTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
   },
-  categoryWrap: {
+  categoryBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  categoryName: {
-    color: '#f8fafc',
+  categoryIconWrap: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryEmoji: {
+    fontSize: 14,
+  },
+  categoryTitleText: {
+    color: '#ffffff',
     fontSize: 13,
     fontWeight: '800',
+    letterSpacing: 0.3,
   },
-  sevPill: {
+  severityPill: {
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
-  sevPillText: {
-    fontSize: 9,
+  sevCritical: {
+    backgroundColor: 'rgba(239, 68, 68, 0.25)',
+  },
+  sevHigh: {
+    backgroundColor: 'rgba(249, 115, 22, 0.25)',
+  },
+  sevMedium: {
+    backgroundColor: 'rgba(234, 179, 8, 0.25)',
+  },
+  sevLow: {
+    backgroundColor: 'rgba(16, 185, 129, 0.25)',
+  },
+  severityPillText: {
+    fontSize: 9.5,
     fontWeight: '800',
-    textTransform: 'uppercase',
+    color: '#e2e8f0',
   },
-  sev_CRITICAL: {
-    backgroundColor: '#450a0a',
-  },
-  sev_HIGH: {
-    backgroundColor: '#431407',
-  },
-  sev_MEDIUM: {
-    backgroundColor: '#451a03',
-  },
-  sev_LOW: {
-    backgroundColor: '#064e3b',
-  },
-  cardTime: {
+  cardTimeText: {
     color: '#64748b',
     fontSize: 11,
+    fontFamily: 'monospace',
   },
-  cardDesc: {
+  cardDescText: {
     color: '#cbd5e1',
     fontSize: 12.5,
     lineHeight: 17,
-    marginBottom: 8,
   },
-  cardFooter: {
+  cardFooterRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingTop: 4,
     borderTopWidth: 1,
-    borderTopColor: '#334155',
-    paddingTop: 8,
+    borderTopColor: 'rgba(255, 255, 255, 0.05)',
   },
-  cardLocation: {
+  cardLocationBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cardLocationText: {
     color: '#94a3b8',
     fontSize: 11,
   },
+  syncStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  syncBadgeSynced: {
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+  },
+  syncBadgePending: {
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+  },
+  syncStatusText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  syncTextSynced: {
+    color: '#34d399',
+  },
+  syncTextPending: {
+    color: '#fbbf24',
+  },
   // BOTTOM NAVIGATION
   bottomNav: {
+    flexDirection: 'row',
     backgroundColor: '#0f172a',
     borderTopWidth: 1,
     borderTopColor: '#1e293b',
-    flexDirection: 'row',
     paddingVertical: 8,
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     justifyContent: 'space-around',
   },
   navItem: {
     alignItems: 'center',
     paddingVertical: 4,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     borderRadius: 8,
   },
   navItemActive: {
@@ -873,15 +1039,83 @@ const styles = StyleSheet.create({
   },
   navIcon: {
     fontSize: 18,
-    marginBottom: 2,
   },
   navText: {
-    color: '#64748b',
     fontSize: 11,
+    color: '#64748b',
     fontWeight: '600',
+    marginTop: 2,
   },
   navTextActive: {
-    color: '#34d399',
+    color: '#10b981',
+    fontWeight: '800',
+  },
+  // POP-UP DIRECT MESSAGE MODAL
+  replyModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  replyModalCard: {
+    width: '100%',
+    backgroundColor: '#0f172a',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#0284c7',
+    padding: 20,
+    gap: 14,
+    shadowColor: '#0284c7',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  replyModalHeader: {
+    gap: 4,
+  },
+  replyModalBadge: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#38bdf8',
+    letterSpacing: 1.5,
+  },
+  replyModalTitle: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: '#ffffff',
+  },
+  replyModalBody: {
+    backgroundColor: 'rgba(2, 132, 199, 0.1)',
+    borderRadius: 10,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(2, 132, 199, 0.25)',
+    gap: 8,
+  },
+  replyModalQuote: {
+    fontSize: 15,
     fontWeight: '700',
+    color: '#f0f9ff',
+    lineHeight: 22,
+    fontStyle: 'italic',
+  },
+  replyModalMeta: {
+    fontSize: 11,
+    color: '#94a3b8',
+    fontFamily: 'monospace',
+  },
+  replyModalButton: {
+    backgroundColor: '#0284c7',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  replyModalBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 0.5,
   },
 });

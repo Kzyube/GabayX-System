@@ -18,6 +18,7 @@ import {
   ReportSeverity,
   validateReportInput,
 } from '../types/report';
+import { COMMUNITY_FACILITIES } from '../constants/geoData';
 
 interface Props {
   visible: boolean;
@@ -25,21 +26,51 @@ interface Props {
   onSubmit: (data: CreateReportInput) => Promise<void>;
 }
 
-const CATEGORIES: { label: string; value: ReportCategory; icon: string }[] = [
-  { label: 'Earthquake', value: 'EARTHQUAKE', icon: '🏚️' },
-  { label: 'Fire', value: 'FIRE', icon: '🔥' },
-  { label: 'Flood', value: 'FLOOD', icon: '🌊' },
-  { label: 'Medical Emergency', value: 'MEDICAL', icon: '🚑' },
-  { label: 'Trapped / Debris', value: 'TRAPPED', icon: '🆘' },
-  { label: 'Hazard / Danger', value: 'HAZARD', icon: '⚠️' },
-  { label: 'General Assistance', value: 'GENERAL', icon: '📢' },
+const CATEGORIES: { label: string; value: ReportCategory; icon: string; color: string }[] = [
+  { label: 'Medical', value: 'MEDICAL', icon: '🚑', color: '#ef4444' },
+  { label: 'Fire', value: 'FIRE', icon: '🔥', color: '#f97316' },
+  { label: 'Flood', value: 'FLOOD', icon: '🌊', color: '#0284c7' },
+  { label: 'Earthquake', value: 'EARTHQUAKE', icon: '🏚️', color: '#d97706' },
+  { label: 'Trapped', value: 'TRAPPED', icon: '🆘', color: '#dc2626' },
+  { label: 'Hazard', value: 'HAZARD', icon: '⚠️', color: '#eab308' },
 ];
 
-const SEVERITIES: { label: string; value: ReportSeverity }[] = [
-  { label: 'Critical', value: 'CRITICAL' },
-  { label: 'High', value: 'HIGH' },
-  { label: 'Medium', value: 'MEDIUM' },
-  { label: 'Low', value: 'LOW' },
+const SEVERITIES: { label: string; value: ReportSeverity; color: string }[] = [
+  { label: 'Critical', value: 'CRITICAL', color: '#ef4444' },
+  { label: 'High', value: 'HIGH', color: '#f97316' },
+  { label: 'Medium', value: 'MEDIUM', color: '#eab308' },
+  { label: 'Low', value: 'LOW', color: '#10b981' },
+];
+
+const QUICK_PRESETS = [
+  {
+    icon: '🚑',
+    title: 'Medical Triage',
+    category: 'MEDICAL' as ReportCategory,
+    severity: 'CRITICAL' as ReportSeverity,
+    text: 'Injured resident requiring emergency ambulance and paramedic assistance.',
+  },
+  {
+    icon: '🔥',
+    title: 'Structure Fire',
+    category: 'FIRE' as ReportCategory,
+    severity: 'HIGH' as ReportSeverity,
+    text: 'Active structure fire spreading rapidly. Evacuation in progress.',
+  },
+  {
+    icon: '🌊',
+    title: 'Flood Rescue',
+    category: 'FLOOD' as ReportCategory,
+    severity: 'HIGH' as ReportSeverity,
+    text: 'Rising flood waters trapped residents. Need evacuation transport.',
+  },
+  {
+    icon: '🏚️',
+    title: 'Collapsed Wall',
+    category: 'EARTHQUAKE' as ReportCategory,
+    severity: 'HIGH' as ReportSeverity,
+    text: 'Structural damage and partial collapse from earthquake tremors.',
+  },
 ];
 
 export const CreateReportModal: React.FC<Props> = ({
@@ -47,17 +78,17 @@ export const CreateReportModal: React.FC<Props> = ({
   onClose,
   onSubmit,
 }) => {
-  const [category, setCategory] = useState<ReportCategory>('EARTHQUAKE');
+  const [category, setCategory] = useState<ReportCategory>('MEDICAL');
   const [severity, setSeverity] = useState<ReportSeverity>('HIGH');
   const [description, setDescription] = useState('');
-  const [nearestBuilding, setNearestBuilding] = useState('Central Poblacion Zone');
+  const [nearestBuilding, setNearestBuilding] = useState('Municipal Hall');
   
   // Location
   const [isLocating, setIsLocating] = useState(false);
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [accuracy, setAccuracy] = useState<number | null>(null);
-  const [locationStatus, setLocationStatus] = useState<string>('Location not acquired');
+  const [locationStatus, setLocationStatus] = useState<string>('GPS not acquired');
 
   // Contact Info
   const [isAnonymous, setIsAnonymous] = useState(true);
@@ -69,14 +100,14 @@ export const CreateReportModal: React.FC<Props> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const resetForm = () => {
-    setCategory('EARTHQUAKE');
+    setCategory('MEDICAL');
     setSeverity('HIGH');
     setDescription('');
-    setNearestBuilding('Central Poblacion Zone');
+    setNearestBuilding('Municipal Hall');
     setLatitude(null);
     setLongitude(null);
     setAccuracy(null);
-    setLocationStatus('Location not acquired');
+    setLocationStatus('GPS not acquired');
     setIsAnonymous(true);
     setReporterName('');
     setReporterPhone('');
@@ -85,7 +116,7 @@ export const CreateReportModal: React.FC<Props> = ({
 
   const handleAcquireLocation = async () => {
     setIsLocating(true);
-    setLocationStatus('Requesting GPS permission...');
+    setLocationStatus('Requesting GPS lock...');
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
@@ -94,7 +125,6 @@ export const CreateReportModal: React.FC<Props> = ({
         return;
       }
 
-      setLocationStatus('Acquiring hardware GPS fix...');
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
@@ -103,14 +133,19 @@ export const CreateReportModal: React.FC<Props> = ({
       setLongitude(location.coords.longitude);
       setAccuracy(location.coords.accuracy);
       setLocationStatus(
-        `GPS: ${location.coords.latitude.toFixed(5)}, ${location.coords.longitude.toFixed(5)} (±${Math.round(location.coords.accuracy || 0)}m)`
+        `📍 ${location.coords.latitude.toFixed(5)}, ${location.coords.longitude.toFixed(5)} (±${Math.round(location.coords.accuracy || 0)}m)`
       );
     } catch (err) {
-      console.warn('[Location] Failed to acquire GPS position:', err);
       setLocationStatus('GPS unavailable (report will save without coordinates)');
     } finally {
       setIsLocating(false);
     }
+  };
+
+  const handleApplyPreset = (preset: typeof QUICK_PRESETS[0]) => {
+    setCategory(preset.category);
+    setSeverity(preset.severity);
+    setDescription(preset.text);
   };
 
   const handleSubmit = async () => {
@@ -131,7 +166,6 @@ export const CreateReportModal: React.FC<Props> = ({
       },
     };
 
-    // Client-side validation
     const validation = validateReportInput(payload);
     if (!validation.valid) {
       setErrorMessage(validation.errors.join(' '));
@@ -162,8 +196,8 @@ export const CreateReportModal: React.FC<Props> = ({
           {/* HEADER */}
           <View style={styles.header}>
             <View>
-              <Text style={styles.headerSubtitle}>NEW INCIDENT REPORT</Text>
-              <Text style={styles.headerTitle}>File Emergency Report</Text>
+              <Text style={styles.headerSubtitle}>MUNICIPALITY OF KABACAN • MDRRMO</Text>
+              <Text style={styles.headerTitle}>🚨 Report Emergency Incident</Text>
             </View>
             <TouchableOpacity
               onPress={() => {
@@ -171,55 +205,69 @@ export const CreateReportModal: React.FC<Props> = ({
                 onClose();
               }}
               style={styles.closeButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <Text style={styles.closeButtonText}>✕</Text>
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
-            {/* OFFLINE NOTICE BANNER */}
-            <View style={styles.warningBanner}>
-              <Text style={styles.warningIcon}>⚠️</Text>
-              <Text style={styles.warningText}>
-                NOTICE: This report will be saved to your device's local database with status PENDING.
-                Because you are offline, it has NOT reached emergency responders yet until synced via
-                Bluetooth mesh or internet.
+            {/* STATUS ASSURANCE BANNER */}
+            <View style={styles.assuranceBanner}>
+              <Text style={styles.assuranceIcon}>🛡️</Text>
+              <Text style={styles.assuranceText}>
+                Offline-Ready: Saved permanently on device and auto-dispatched to MDRRMO Central Command.
               </Text>
             </View>
 
             {/* ERROR DISPLAY */}
             {errorMessage && (
               <View style={styles.errorBox}>
-                <Text style={styles.errorText}>❌ {errorMessage}</Text>
+                <Text style={styles.errorText}>⚠️ {errorMessage}</Text>
               </View>
             )}
 
+            {/* QUICK PRESET TEMPLATES */}
+            <View style={styles.formGroup}>
+              <Text style={styles.sectionLabel}>QUICK INCIDENT TEMPLATES</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.presetScroll}>
+                {QUICK_PRESETS.map((preset, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={styles.presetChip}
+                    onPress={() => handleApplyPreset(preset)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.presetChipIcon}>{preset.icon}</Text>
+                    <Text style={styles.presetChipText}>{preset.title}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
             {/* 1. INCIDENT CATEGORY */}
             <View style={styles.formGroup}>
-              <Text style={styles.label}>
-                INCIDENT CATEGORY <Text style={styles.required}>*</Text>
+              <Text style={styles.sectionLabel}>
+                INCIDENT TYPE <Text style={styles.required}>*</Text>
               </Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.categoryScroll}
-              >
+              <View style={styles.categoryGrid}>
                 {CATEGORIES.map((cat) => {
                   const isSelected = category === cat.value;
                   return (
                     <TouchableOpacity
                       key={cat.value}
                       style={[
-                        styles.categoryCard,
-                        isSelected && styles.categoryCardSelected,
+                        styles.categoryBtn,
+                        isSelected && { borderColor: cat.color, backgroundColor: `${cat.color}15` },
                       ]}
                       onPress={() => setCategory(cat.value)}
+                      activeOpacity={0.8}
                     >
-                      <Text style={styles.categoryIcon}>{cat.icon}</Text>
+                      <Text style={styles.categoryBtnIcon}>{cat.icon}</Text>
                       <Text
                         style={[
-                          styles.categoryLabel,
-                          isSelected && styles.categoryLabelSelected,
+                          styles.categoryBtnLabel,
+                          isSelected && { color: '#ffffff', fontWeight: '800' },
                         ]}
                       >
                         {cat.label}
@@ -227,12 +275,12 @@ export const CreateReportModal: React.FC<Props> = ({
                     </TouchableOpacity>
                   );
                 })}
-              </ScrollView>
+              </View>
             </View>
 
             {/* 2. SEVERITY */}
             <View style={styles.formGroup}>
-              <Text style={styles.label}>SEVERITY LEVEL</Text>
+              <Text style={styles.sectionLabel}>SEVERITY LEVEL</Text>
               <View style={styles.severityRow}>
                 {SEVERITIES.map((sev) => {
                   const isSelected = severity === sev.value;
@@ -241,14 +289,15 @@ export const CreateReportModal: React.FC<Props> = ({
                       key={sev.value}
                       style={[
                         styles.severityButton,
-                        isSelected && styles.severityButtonSelected,
+                        isSelected && { borderColor: sev.color, backgroundColor: `${sev.color}25` },
                       ]}
                       onPress={() => setSeverity(sev.value)}
+                      activeOpacity={0.8}
                     >
                       <Text
                         style={[
                           styles.severityButtonText,
-                          isSelected && styles.severityButtonTextSelected,
+                          isSelected && { color: sev.color, fontWeight: '800' },
                         ]}
                       >
                         {sev.label}
@@ -261,12 +310,12 @@ export const CreateReportModal: React.FC<Props> = ({
 
             {/* 3. INCIDENT DESCRIPTION */}
             <View style={styles.formGroup}>
-              <Text style={styles.label}>
+              <Text style={styles.sectionLabel}>
                 INCIDENT DESCRIPTION <Text style={styles.required}>*</Text>
               </Text>
               <TextInput
                 style={styles.textInputArea}
-                placeholder="Describe what happened, injuries, hazards, or immediate assistance needed..."
+                placeholder="Describe current situation, injuries, trapped residents, or assistance needed..."
                 placeholderTextColor="#64748b"
                 multiline
                 numberOfLines={4}
@@ -278,43 +327,63 @@ export const CreateReportModal: React.FC<Props> = ({
               </Text>
             </View>
 
-            {/* 4. LOCATION & PROXIMITY */}
+            {/* 4. LOCATION & LANDMARK */}
             <View style={styles.formGroup}>
-              <Text style={styles.label}>LOCATION & PROXIMITY</Text>
-              <View style={styles.locationContainer}>
-                <TouchableOpacity
-                  style={styles.locationBtn}
-                  onPress={handleAcquireLocation}
-                  disabled={isLocating}
-                >
-                  {isLocating ? (
-                    <ActivityIndicator size="small" color="#10b981" />
-                  ) : (
-                    <Text style={styles.locationBtnText}>📍 Acquire Current GPS Coordinates</Text>
-                  )}
-                </TouchableOpacity>
-                <Text style={styles.locationStatusText}>{locationStatus}</Text>
-              </View>
+              <Text style={styles.sectionLabel}>LOCATION & LANDMARK</Text>
+              
+              {/* GPS Button */}
+              <TouchableOpacity
+                style={styles.gpsButton}
+                onPress={handleAcquireLocation}
+                disabled={isLocating}
+                activeOpacity={0.8}
+              >
+                {isLocating ? (
+                  <ActivityIndicator size="small" color="#10b981" />
+                ) : (
+                  <Text style={styles.gpsButtonText}>📍 Pin Hardware GPS Coordinates</Text>
+                )}
+              </TouchableOpacity>
+              <Text style={styles.gpsStatusText}>{locationStatus}</Text>
 
-              <Text style={[styles.label, { marginTop: 10 }]}>COMMUNITY LANDMARK / FACILITY</Text>
+              {/* Landmark quick select */}
+              <Text style={[styles.sectionLabel, { marginTop: 12, marginBottom: 6 }]}>NEAREST MUNICIPAL FACILITY</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.facilityScroll}>
+                {COMMUNITY_FACILITIES.slice(0, 8).map((fac) => {
+                  const isSelected = nearestBuilding === fac.name;
+                  return (
+                    <TouchableOpacity
+                      key={fac.id}
+                      style={[styles.facilityChip, isSelected && styles.facilityChipActive]}
+                      onPress={() => setNearestBuilding(fac.name)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.facilityChipText, isSelected && styles.facilityChipTextActive]}>
+                        {fac.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
               <TextInput
-                style={styles.textInput}
-                placeholder="e.g. Municipal Hall, Rural Health Unit, Public Market"
+                style={[styles.textInput, { marginTop: 8 }]}
+                placeholder="Or type specific street, barangay, or landmark..."
                 placeholderTextColor="#64748b"
                 value={nearestBuilding}
                 onChangeText={setNearestBuilding}
               />
             </View>
 
-            {/* 5. OPTIONAL CONTACT INFORMATION */}
+            {/* 5. CONTACT INFO (OPTIONAL) */}
             <View style={styles.formGroup}>
               <View style={styles.anonymousRow}>
-                <View>
-                  <Text style={styles.label}>SUBMIT ANONYMOUSLY</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sectionLabel}>ANONYMOUS REPORT</Text>
                   <Text style={styles.sublabel}>
                     {isAnonymous
-                      ? 'No personal details attached'
-                      : 'Attach name/phone for emergency responders'}
+                      ? 'Protected: Only device ID attached for dispatch reply'
+                      : 'Attach name and phone for direct responder callback'}
                   </Text>
                 </View>
                 <Switch
@@ -327,7 +396,7 @@ export const CreateReportModal: React.FC<Props> = ({
 
               {!isAnonymous && (
                 <View style={styles.contactFieldsBox}>
-                  <Text style={styles.label}>FULL NAME</Text>
+                  <Text style={styles.miniLabel}>FULL NAME</Text>
                   <TextInput
                     style={styles.textInput}
                     placeholder="e.g. Juan dela Cruz"
@@ -336,7 +405,7 @@ export const CreateReportModal: React.FC<Props> = ({
                     onChangeText={setReporterName}
                   />
 
-                  <Text style={[styles.label, { marginTop: 8 }]}>CONTACT NUMBER</Text>
+                  <Text style={[styles.miniLabel, { marginTop: 8 }]}>PHONE NUMBER</Text>
                   <TextInput
                     style={styles.textInput}
                     placeholder="e.g. 0912-345-6789"
@@ -350,7 +419,7 @@ export const CreateReportModal: React.FC<Props> = ({
             </View>
           </ScrollView>
 
-          {/* FOOTER */}
+          {/* FOOTER ACTION BUTTONS */}
           <View style={styles.footer}>
             <TouchableOpacity
               style={styles.cancelBtn}
@@ -358,7 +427,7 @@ export const CreateReportModal: React.FC<Props> = ({
                 resetForm();
                 onClose();
               }}
-              disabled={isSubmitting}
+              activeOpacity={0.7}
             >
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </TouchableOpacity>
@@ -367,11 +436,12 @@ export const CreateReportModal: React.FC<Props> = ({
               style={styles.submitBtn}
               onPress={handleSubmit}
               disabled={isSubmitting}
+              activeOpacity={0.85}
             >
               {isSubmitting ? (
-                <ActivityIndicator size="small" color="#060d09" />
+                <ActivityIndicator size="small" color="#ffffff" />
               ) : (
-                <Text style={styles.submitBtnText}>Save Report Locally</Text>
+                <Text style={styles.submitBtnText}>🚨 SEND TO MDRRMO</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -388,84 +458,89 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContainer: {
-    backgroundColor: '#0c1712',
+    backgroundColor: '#0f172a',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+    height: '92%',
+    display: 'flex',
+    flexDirection: 'column',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
-    maxHeight: '92%',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 18,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.08)',
   },
   headerSubtitle: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#10b981',
+    color: '#059669',
     letterSpacing: 1,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
-    color: '#f1f5f9',
+    color: '#ffffff',
     marginTop: 2,
   },
   closeButton: {
     padding: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
   },
   closeButtonText: {
+    fontSize: 16,
     color: '#94a3b8',
-    fontSize: 18,
     fontWeight: '700',
   },
   body: {
-    paddingHorizontal: 18,
+    flex: 1,
   },
   bodyContent: {
-    paddingVertical: 16,
+    padding: 18,
     gap: 16,
   },
-  warningBanner: {
+  assuranceBanner: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(245, 158, 11, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.4)',
-    borderRadius: 10,
-    padding: 12,
     alignItems: 'center',
-    gap: 10,
+    backgroundColor: 'rgba(5, 150, 105, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(5, 150, 105, 0.3)',
+    borderRadius: 10,
+    padding: 10,
+    gap: 8,
   },
-  warningIcon: {
-    fontSize: 18,
+  assuranceIcon: {
+    fontSize: 16,
   },
-  warningText: {
+  assuranceText: {
     flex: 1,
-    color: '#fef3c7',
-    fontSize: 11,
+    fontSize: 11.5,
+    color: '#a7f3d0',
     lineHeight: 16,
   },
   errorBox: {
     backgroundColor: 'rgba(239, 68, 68, 0.15)',
     borderWidth: 1,
-    borderColor: '#ef4444',
-    borderRadius: 8,
+    borderColor: 'rgba(239, 68, 68, 0.4)',
     padding: 10,
+    borderRadius: 8,
   },
   errorText: {
     color: '#fca5a5',
-    fontSize: 11.5,
+    fontSize: 12,
     fontWeight: '600',
   },
   formGroup: {
     gap: 6,
   },
-  label: {
-    fontSize: 10,
+  sectionLabel: {
+    fontSize: 11,
     fontWeight: '800',
     color: '#94a3b8',
     letterSpacing: 0.8,
@@ -475,38 +550,60 @@ const styles = StyleSheet.create({
     color: '#64748b',
     marginTop: 2,
   },
+  miniLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#64748b',
+  },
   required: {
     color: '#ef4444',
   },
-  categoryScroll: {
+  presetScroll: {
     gap: 8,
-    paddingVertical: 4,
+    paddingVertical: 2,
   },
-  categoryCard: {
-    backgroundColor: '#060d09',
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+  presetChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    gap: 6,
+  },
+  presetChipIcon: {
+    fontSize: 13,
+  },
+  presetChipText: {
+    fontSize: 11.5,
+    color: '#e2e8f0',
+    fontWeight: '600',
+  },
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  categoryBtn: {
+    width: '31%',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 10,
+    paddingVertical: 10,
     alignItems: 'center',
-    minWidth: 90,
+    justifyContent: 'center',
+    gap: 4,
   },
-  categoryCardSelected: {
-    borderColor: '#10b981',
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+  categoryBtnIcon: {
+    fontSize: 22,
   },
-  categoryIcon: {
-    fontSize: 20,
-    marginBottom: 4,
-  },
-  categoryLabel: {
-    fontSize: 10.5,
-    color: '#94a3b8',
+  categoryBtnLabel: {
+    fontSize: 11,
     fontWeight: '700',
-  },
-  categoryLabelSelected: {
-    color: '#10b981',
+    color: '#94a3b8',
   },
   severityRow: {
     flexDirection: 'row',
@@ -514,82 +611,92 @@ const styles = StyleSheet.create({
   },
   severityButton: {
     flex: 1,
-    backgroundColor: '#060d09',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
     borderRadius: 8,
-    paddingVertical: 10,
+    paddingVertical: 9,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  severityButtonSelected: {
-    borderColor: '#10b981',
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
   },
   severityButtonText: {
     color: '#94a3b8',
     fontSize: 11,
     fontWeight: '700',
   },
-  severityButtonTextSelected: {
-    color: '#10b981',
-  },
   textInput: {
-    backgroundColor: '#060d09',
+    backgroundColor: '#020617',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     borderRadius: 8,
-    padding: 12,
-    color: '#f1f5f9',
+    padding: 11,
+    color: '#f8fafc',
     fontSize: 13,
   },
   textInputArea: {
-    backgroundColor: '#060d09',
+    backgroundColor: '#020617',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     borderRadius: 8,
     padding: 12,
-    color: '#f1f5f9',
+    color: '#f8fafc',
     fontSize: 13,
-    minHeight: 90,
+    minHeight: 85,
     textAlignVertical: 'top',
   },
   characterCount: {
     fontSize: 9.5,
     color: '#64748b',
     textAlign: 'right',
-    marginTop: 2,
   },
-  locationContainer: {
-    backgroundColor: '#060d09',
+  gpsButton: {
+    backgroundColor: 'rgba(5, 150, 105, 0.15)',
+    borderWidth: 1,
+    borderColor: '#059669',
     borderRadius: 8,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    gap: 6,
-  },
-  locationBtn: {
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-    borderWidth: 1,
-    borderColor: '#10b981',
-    borderRadius: 6,
-    paddingVertical: 8,
+    paddingVertical: 9,
     alignItems: 'center',
   },
-  locationBtnText: {
+  gpsButtonText: {
     color: '#10b981',
     fontWeight: '700',
-    fontSize: 11.5,
+    fontSize: 12,
   },
-  locationStatusText: {
+  gpsStatusText: {
     color: '#94a3b8',
-    fontSize: 10,
+    fontSize: 10.5,
     fontFamily: 'monospace',
+    marginTop: 3,
+  },
+  facilityScroll: {
+    gap: 6,
+    paddingVertical: 2,
+  },
+  facilityChip: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  facilityChipActive: {
+    borderColor: '#059669',
+    backgroundColor: 'rgba(5, 150, 105, 0.2)',
+  },
+  facilityChipText: {
+    fontSize: 10.5,
+    color: '#94a3b8',
+    fontWeight: '600',
+  },
+  facilityChipTextActive: {
+    color: '#34d399',
+    fontWeight: '700',
   },
   anonymousRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#060d09',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     padding: 12,
     borderRadius: 8,
     borderWidth: 1,
@@ -597,7 +704,7 @@ const styles = StyleSheet.create({
   },
   contactFieldsBox: {
     marginTop: 8,
-    backgroundColor: '#060d09',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     padding: 12,
     borderRadius: 8,
     borderWidth: 1,
@@ -610,31 +717,37 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.08)',
     gap: 12,
+    backgroundColor: '#0f172a',
   },
   cancelBtn: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 13,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   cancelBtnText: {
     color: '#94a3b8',
     fontWeight: '700',
-    fontSize: 12,
+    fontSize: 13,
   },
   submitBtn: {
     flex: 2,
-    paddingVertical: 12,
+    paddingVertical: 13,
     borderRadius: 8,
-    backgroundColor: '#10b981',
+    backgroundColor: '#dc2626',
     alignItems: 'center',
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 4,
   },
   submitBtnText: {
-    color: '#060d09',
-    fontWeight: '800',
+    color: '#ffffff',
+    fontWeight: '900',
     fontSize: 13,
     letterSpacing: 0.5,
   },

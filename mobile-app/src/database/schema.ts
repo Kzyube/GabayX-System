@@ -3,7 +3,7 @@
  * Uses parameterized DDL and structured versioned migrations.
  */
 
-export const CURRENT_SCHEMA_VERSION = 1;
+export const CURRENT_SCHEMA_VERSION = 2;
 
 export const CREATE_MIGRATIONS_TABLE = `
 CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -35,5 +35,11 @@ export const MIGRATIONS: Record<number, string[]> = {
     `CREATE INDEX IF NOT EXISTS idx_reports_status ON emergency_reports(local_status);`,
     `CREATE INDEX IF NOT EXISTS idx_reports_created ON emergency_reports(created_at DESC);`,
     `CREATE INDEX IF NOT EXISTS idx_reports_category ON emergency_reports(category);`,
+  ],
+  2: [
+    `CREATE TABLE IF NOT EXISTS app_settings (
+      key TEXT PRIMARY KEY NOT NULL,
+      value TEXT NOT NULL
+    );`,
   ],
 };
