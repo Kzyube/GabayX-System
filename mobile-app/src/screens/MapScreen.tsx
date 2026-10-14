@@ -10,9 +10,9 @@ import {
 import { WebView } from 'react-native-webview';
 import * as Location from 'expo-location';
 import {
-  CAMPUS_CENTER,
+  MUNICIPAL_CENTER,
   SAFE_ASSEMBLY_ZONES,
-  CAMPUS_BUILDINGS,
+  COMMUNITY_FACILITIES,
   SafeAssemblyZone,
   LatLng,
 } from '../constants/geoData';
@@ -208,26 +208,26 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   );
 
   const handleTriggerEvacuate = useCallback(() => {
-    let origin = CAMPUS_CENTER;
-    let title = 'Campus Grounds';
+    let origin = MUNICIPAL_CENTER;
+    let title = 'Municipal Center';
 
     if (userCoords) {
-      const distFromCampus = calculateDistanceMeters(
+      const distFromCenter = calculateDistanceMeters(
         userCoords.latitude,
         userCoords.longitude,
-        CAMPUS_CENTER.latitude,
-        CAMPUS_CENTER.longitude
+        MUNICIPAL_CENTER.latitude,
+        MUNICIPAL_CENTER.longitude
       );
-      if (distFromCampus < 2500) {
+      if (distFromCenter < 2500) {
         origin = userCoords;
         title = 'Your Location';
       } else {
-        origin = { latitude: CAMPUS_BUILDINGS[0].latitude, longitude: CAMPUS_BUILDINGS[0].longitude };
-        title = `${CAMPUS_BUILDINGS[0].name}`;
+        origin = { latitude: COMMUNITY_FACILITIES[0].latitude, longitude: COMMUNITY_FACILITIES[0].longitude };
+        title = `${COMMUNITY_FACILITIES[0].name}`;
       }
     } else {
-      origin = { latitude: CAMPUS_BUILDINGS[0].latitude, longitude: CAMPUS_BUILDINGS[0].longitude };
-      title = `${CAMPUS_BUILDINGS[0].name}`;
+      origin = { latitude: COMMUNITY_FACILITIES[0].latitude, longitude: COMMUNITY_FACILITIES[0].longitude };
+      title = `${COMMUNITY_FACILITIES[0].name}`;
     }
 
     startEvacuationRoute(origin, title);
@@ -269,8 +269,8 @@ export const MapScreen: React.FC<MapScreenProps> = ({
     }
   };
 
-  const handleRecenterCampus = () => {
-    postMessageToWeb({ type: 'RECENTER_CAMPUS' });
+  const handleRecenterCenter = () => {
+    postMessageToWeb({ type: 'RECENTER_CENTER' });
   };
 
   const handleRecenterUser = () => {
@@ -278,8 +278,8 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       if (locationPermission === 'denied') {
         Alert.alert('Location Disabled', 'Please enable location in phone settings to see your position.');
       } else {
-        Alert.alert('Acquiring GPS', 'Looking for GPS fix. Centering on campus grounds.');
-        handleRecenterCampus();
+        Alert.alert('Acquiring GPS', 'Looking for GPS fix. Centering on Municipal Center.');
+        handleRecenterCenter();
       }
       return;
     }
@@ -346,8 +346,8 @@ export const MapScreen: React.FC<MapScreenProps> = ({
 <body>
   <div id="map"></div>
   <script>
-    const CAMPUS = [${CAMPUS_CENTER.latitude}, ${CAMPUS_CENTER.longitude}];
-    const map = L.map('map', { zoomControl: false }).setView(CAMPUS, 18);
+    const MUNICIPAL_CENTER_POS = [${MUNICIPAL_CENTER.latitude}, ${MUNICIPAL_CENTER.longitude}];
+    const map = L.map('map', { zoomControl: false }).setView(MUNICIPAL_CENTER_POS, 18);
 
     const osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
     const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 });
@@ -357,7 +357,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
     let zoneLayer = L.layerGroup().addTo(map);
     let dynamicRouteGroup = L.layerGroup().addTo(map);
 
-    const BUILDINGS = ${JSON.stringify(CAMPUS_BUILDINGS)};
+    const BUILDINGS = ${JSON.stringify(COMMUNITY_FACILITIES)};
     const SAFE_ZONES = ${JSON.stringify(SAFE_ASSEMBLY_ZONES)};
 
     BUILDINGS.forEach(b => {
@@ -370,7 +370,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
             type: 'building',
             title: b.name,
             subtitle: b.category,
-            description: 'Campus facility. Tap Evacuate to see path to nearest safe hub.',
+            description: 'Community facility. Tap Evacuate to see path to nearest safe hub.',
             latitude: b.latitude,
             longitude: b.longitude,
             badge: b.shortLetter
@@ -415,8 +415,8 @@ export const MapScreen: React.FC<MapScreenProps> = ({
           map.removeLayer(satLayer);
           map.addLayer(osmLayer);
         }
-      } else if (data.type === 'RECENTER_CAMPUS') {
-        map.setView(CAMPUS, 18, { animate: true });
+      } else if (data.type === 'RECENTER_CENTER') {
+        map.setView(MUNICIPAL_CENTER_POS, 18, { animate: true });
       } else if (data.type === 'RECENTER_USER' && data.coords) {
         map.setView([data.coords.latitude, data.coords.longitude], 18, { animate: true });
       } else if (data.type === 'UPDATE_USER_LOCATION' && data.coords) {
@@ -497,7 +497,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       {/* CLEAN TOP HEADER CONTROLS */}
       <View style={styles.topBar}>
         <View style={styles.titlePill}>
-          <Text style={styles.titlePillText}>Campus Map</Text>
+          <Text style={styles.titlePillText}>Municipal Evacuation Map</Text>
         </View>
 
         <View style={styles.quickControls}>
@@ -601,7 +601,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
                 <Text style={styles.placeSubtitle}>
                   {selectedPlace.subtitle}
                   {selectedPlace.latitude && selectedPlace.longitude
-                    ? ` • ${getDistanceFromUser(selectedPlace.latitude, selectedPlace.longitude) || 'Campus'}`
+                    ? ` • ${getDistanceFromUser(selectedPlace.latitude, selectedPlace.longitude) || 'Nearby'}`
                     : ''}
                 </Text>
               </View>

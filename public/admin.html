@@ -391,7 +391,7 @@
         <div class="nav-item" id="nav-logs" onclick="switchTab('logs')" data-tooltip="Event Logs">
             <i class="fas fa-database"></i>
         </div>
-        <div class="nav-item" id="nav-directory" onclick="switchTab('students')" data-tooltip="Student Directory">
+        <div class="nav-item" id="nav-directory" onclick="switchTab('students')" data-tooltip="Resident Directory">
             <i class="fas fa-users-viewfinder"></i>
         </div>
         
@@ -418,7 +418,7 @@
         <div id="tab-map" class="tab-content active">
             <div class="telemetry-grid">
                 <div class="glass-panel stat-card stat-total">
-                    <span>Connected Students</span>
+                    <span>Connected Residents</span>
                     <h3 id="count-total">0</h3>
                 </div>
                 <div class="glass-panel stat-card stat-safe">
@@ -491,7 +491,7 @@
         <div id="tab-students" class="tab-content">
             <div class="glass-panel" style="flex:1; display: flex; flex-direction: column; min-height: 0;">
                 <div class="panel-header">
-                    <span><i class="fas fa-users-viewfinder"></i> Student Directory</span>
+                    <span><i class="fas fa-users-viewfinder"></i> Community Resident Directory</span>
                     <div class="search-box">
                         <i class="fas fa-search"></i>
                         <input type="text" id="roster-search" class="search-input" placeholder="Search by name or email..." onkeyup="filterRoster()" />
@@ -525,16 +525,25 @@
         const TAMBAI_LOC = [7.100265815095807, 124.82402407212273];
 
         const BUILDINGS = [
-            { name: "BLDG A", coords: [7.100767, 124.824077] }, { name: "BLDG B", coords: [7.100636, 124.824271] },
-            { name: "BLDG C", coords: [7.100458, 124.824615] }, { name: "BLDG D", coords: [7.100415, 124.824701] },
-            { name: "BLDG E", coords: [7.100423, 124.824379] }, { name: "BLDG F", coords: [7.100282, 124.824365] },
-            { name: "BLDG G", coords: [7.100051, 124.824532] }, { name: "BLDG H", coords: [7.09991, 124.82414] },
-            { name: "BLDG I", coords: [7.099777, 124.824108] }, { name: "BLDG J", coords: [7.099643, 124.824357] },
-            { name: "BLDG K", coords: [7.09963, 124.824164] }, { name: "BLDG L", coords: [7.099713, 124.823939] },
-            { name: "BLDG M", coords: [7.099851, 124.823724] }, { name: "BLDG N", coords: [7.100224, 124.824046] },
-            { name: "BLDG O", coords: [7.100439, 124.823966] }, { name: "BLDG P", coords: [7.100232, 124.82388] },
-            { name: "BLDG Q", coords: [7.100362, 124.823746] }, { name: "BLDG R", coords: [7.100351, 124.823617] },
-            { name: "BLDG S", coords: [7.100532, 124.823703] },
+            { name: "Municipal Hall", coords: [7.100767, 124.824077], short: "A" },
+            { name: "Rural Health Unit (RHU)", coords: [7.100636, 124.824271], short: "B" },
+            { name: "MDRRMO Operations Center", coords: [7.100458, 124.824615], short: "C" },
+            { name: "Bureau of Fire Protection (BFP)", coords: [7.100415, 124.824701], short: "D" },
+            { name: "PNP Municipal Police Station", coords: [7.100423, 124.824379], short: "E" },
+            { name: "Public Market Complex", coords: [7.100282, 124.824365], short: "F" },
+            { name: "Community Civic Center", coords: [7.100051, 124.824532], short: "G" },
+            { name: "MSWDO Relief Office", coords: [7.099910, 124.824140], short: "H" },
+            { name: "Municipal District Office", coords: [7.099777, 124.824108], short: "I" },
+            { name: "Barangay Poblacion Hall", coords: [7.099643, 124.824357], short: "J" },
+            { name: "Barangay Health Post", coords: [7.099630, 124.824164], short: "K" },
+            { name: "Community Public Library", coords: [7.099713, 124.823939], short: "L" },
+            { name: "General Services Depot", coords: [7.099851, 124.823724], short: "M" },
+            { name: "Senior Citizens & PWD Center", coords: [7.100224, 124.824046], short: "N" },
+            { name: "Municipal Agriculture Office", coords: [7.100439, 124.823966], short: "O" },
+            { name: "Emergency Medical Station", coords: [7.100232, 124.823880], short: "P" },
+            { name: "Social Action Center", coords: [7.100362, 124.823746], short: "Q" },
+            { name: "Municipal Auditorium Annex", coords: [7.100351, 124.823617], short: "R" },
+            { name: "Public Safety Outpost", coords: [7.100532, 124.823703], short: "S" },
         ];
 
         let bldgMarkers = [];
@@ -629,15 +638,15 @@
 
         async function loadSafeZones() {
             const zones = [
-                { name: "Primary Front", coords: [7.100589893149529, 124.82393056927546] },
-                { name: "Secondary Court", coords: [7.100077551009359, 124.82369094608939] },
-                { name: "Tertiary Sector", coords: [7.1001461901808565, 124.82430112059413] },
+                { name: "Kabacan Municipal Gymnasium Hub", coords: [7.100589893149529, 124.82393056927546], capacity: "1,500+ Residents" },
+                { name: "Central Municipal Plaza Safe Zone", coords: [7.100077551009359, 124.82369094608939], capacity: "800 Residents" },
+                { name: "Barangay Poblacion Civic Hub", coords: [7.1001461901808565, 124.82430112059413], capacity: "600 Residents" },
             ];
             const shieldIcon = L.divIcon({
                 html: `<div style="display:flex; justify-content:center; align-items:center; width:30px; height:30px; background:#0f172a; border-radius:8px; border: 2.5px solid #10b981; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);"><i class="fas fa-shield-halved" style="color:#10b981; font-size:14px;"></i></div>`,
                 className: "custom-shield-marker", iconSize: [30, 30],
             });
-            zones.forEach((z) => L.marker(z.coords, { icon: shieldIcon }).addTo(map).bindPopup(`<div class="map-popup"><h3 style="color:#10b981;">Safe Assembly Zone</h3><p>${z.name}</p></div>`));
+            zones.forEach((z) => L.marker(z.coords, { icon: shieldIcon }).addTo(map).bindPopup(`<div class="map-popup"><h3 style="color:#10b981;">Municipal Safe Hub</h3><p><b>${z.name}</b></p><p style="color:#64748b; font-size:10px;">Capacity: ${z.capacity}</p></div>`));
         }
 
         async function toggleAllRoutes() {
@@ -930,20 +939,20 @@
                         <img src="${report.attachment}" alt="Incident attachment" style="width: 100%; max-height: 140px; object-fit: cover; border-radius: 8px; border: 1px solid var(--glass-border); cursor: pointer;" onclick="window.open(this.src)">
                     </div>` : '';
 
-                const locText = report.lat && report.lng ? `${report.lat.toFixed(5)}, ${report.lng.toFixed(5)} (${report.nearest_building || 'Campus'})` : (report.nearest_building || 'Location unknown');
+                const locText = report.lat && report.lng ? `${report.lat.toFixed(5)}, ${report.lng.toFixed(5)} (${report.nearest_building || 'Central Poblacion'})` : (report.nearest_building || 'Location unknown');
 
                 item.innerHTML = `
                     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
                         <div>
                             <span class="sos-badge">${report.incident_type || 'EMERGENCY'}</span>
-                            <span style="font-family:var(--font-data); font-size:0.8rem; color:var(--accent-cyan); margin-left:6px;">${report.student_name || 'Student'} (${report.student_id || 'ID'})</span>
+                            <span style="font-family:var(--font-data); font-size:0.8rem; color:var(--accent-cyan); margin-left:6px;">${report.student_name || 'Resident'} (${report.student_id || 'ID'})</span>
                         </div>
                         <small class="data-mono" style="font-size:9px;">${report.id ? report.id.substring(0, 10) : 'JUST NOW'}</small>
                     </div>
                     <div style="color:var(--text-main); font-size: 0.85rem; line-height: 1.4; margin-bottom: 6px; font-weight:600;">"${report.description || 'Emergency incident reported'}"</div>
                     <div style="font-size:10px; color:var(--text-dim); margin-bottom:6px;"><i class="fas fa-location-dot" style="color:var(--accent-red);"></i> ${locText}</div>
                     ${photoHTML}
-                    <button id="btn-${tempId}" onclick="replyTo('${report.student_id}', '${tempId}')" style="background: var(--btn-glass); border: 1px solid var(--glass-border); color: var(--text-main); font-size:9px; font-weight:800; font-family:var(--font-ui); padding:6px 10px; border-radius:6px; cursor:pointer; transition: 0.3s; width:100%; text-transform:uppercase; letter-spacing:1px;">Reply to Student</button>`;
+                    <button id="btn-${tempId}" onclick="replyTo('${report.student_id}', '${tempId}')" style="background: var(--btn-glass); border: 1px solid var(--glass-border); color: var(--text-main); font-size:9px; font-weight:800; font-family:var(--font-ui); padding:6px 10px; border-radius:6px; cursor:pointer; transition: 0.3s; width:100%; text-transform:uppercase; letter-spacing:1px;">Reply to Resident</button>`;
 
                 list.prepend(item);
 
@@ -1019,7 +1028,7 @@
                             </td>
                         </tr>`;
                 });
-            } else { body.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text-dim);">No students connected.</td></tr>`; }
+            } else { body.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text-dim);">No residents connected.</td></tr>`; }
         }
 
         function focusStudentOnMap(sid) {
@@ -1041,7 +1050,7 @@
         function fitAllDevices() {
             const markers = Object.values(studentMarkers);
             if (markers.length === 0) {
-                showToast("No active student devices reporting GPS yet.");
+                showToast("No active resident devices reporting GPS yet.");
                 return;
             }
             if (markers.length === 1) {
@@ -1208,7 +1217,7 @@
                             <span style="display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; background:#f59e0b; color:#000; font-weight:900; font-size:11px; border-radius:50%;">${shortLetter}</span>
                             <b style="font-size:13px; color:#0f172a;">${b.name}</b>
                         </div>
-                        <div style="font-size:11px; color:#64748b;">Designated Campus Evacuation Sector</div>
+                        <div style="font-size:11px; color:#64748b;">Designated Community Evacuation Sector</div>
                     </div>
                 `);
 

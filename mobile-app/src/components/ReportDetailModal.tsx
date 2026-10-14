@@ -87,7 +87,7 @@ export const ReportDetailModal: React.FC<Props> = ({
               <Text style={styles.label}>LOCATION & PROXIMITY</Text>
               <View style={styles.infoBox}>
                 <View style={styles.infoRow}>
-                  <Text style={styles.infoKey}>Nearest Campus Zone:</Text>
+                  <Text style={styles.infoKey}>Community Landmark:</Text>
                   <Text style={styles.infoVal}>{report.nearestBuilding}</Text>
                 </View>
                 <View style={styles.infoRow}>

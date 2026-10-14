@@ -1,33 +1,47 @@
 /**
- * GabayX Mobile - Real-time Disaster Alert Service
- * Connects to the GabayX Render Socket.io backend to receive live disaster broadcasts.
+ * GabayX Mobile - Real-time Disaster Alert & Two-Way Command Messaging Service
+ * Connects to the GabayX Render Socket.io backend to receive:
+ * 1. Live community disaster broadcasts.
+ * 2. Targeted private direct replies from MDRRMO Dispatch to this specific device.
  */
 
 import { io, Socket } from 'socket.io-client';
 import { Vibration } from 'react-native';
 import { DisasterAlert } from '../types/alert';
+import { getResidentDeviceId } from '../utils/deviceIdentity';
 
 const DEFAULT_API_BASE = 'https://gabayx-system.onrender.com';
+
+export interface AdminReplyMessage {
+  message: string;
+  sender: string;
+  timestamp: string;
+}
 
 type AlertListener = (alert: DisasterAlert) => void;
 type ClearListener = () => void;
 type StatusListener = (connected: boolean) => void;
+type ReplyListener = (reply: AdminReplyMessage) => void;
 
 class AlertService {
   private socket: Socket | null = null;
   private alertListeners: Set<AlertListener> = new Set();
   private clearListeners: Set<ClearListener> = new Set();
   private statusListeners: Set<StatusListener> = new Set();
+  private replyListeners: Set<ReplyListener> = new Set();
   private isConnected: boolean = false;
   private currentAlert: DisasterAlert | null = null;
+  private residentId: string | null = null;
 
   /**
-   * Connect to Render Socket.io server
+   * Connect to Render Socket.io server and register unique device room
    */
-  connect(apiBase: string = DEFAULT_API_BASE): void {
+  async connect(apiBase: string = DEFAULT_API_BASE): Promise<void> {
     if (this.socket) {
       return;
     }
+
+    this.residentId = await getResidentDeviceId();
 
     try {
       this.socket = io(apiBase, {
@@ -42,6 +56,13 @@ class AlertService {
         console.log('[AlertService] Socket connected to Render backend:', this.socket?.id);
         this.isConnected = true;
         this.notifyStatus(true);
+
+        // Register unique resident device room with server so replies reach ONLY this device
+        if (this.residentId) {
+          this.socket?.emit('register-student', this.residentId);
+          this.socket?.emit('register-resident', this.residentId);
+          console.log(`[AlertService] Registered device room: ${this.residentId}`);
+        }
       });
 
       this.socket.on('disconnect', (reason) => {
@@ -56,7 +77,7 @@ class AlertService {
         this.notifyStatus(false);
       });
 
-      // Listen for incoming disaster broadcasts from Incident Command
+      // 1. Listen for incoming community-wide disaster broadcasts from MDRRMO
       this.socket.on('receive-alert', (data: any) => {
         console.log('[AlertService] Broadcast received:', data);
         if (!data || !data.type) return;
@@ -68,22 +89,41 @@ class AlertService {
         } else {
           const alertObj: DisasterAlert = {
             type: data.type,
-            message: data.message || `EMERGENCY: ${data.type} declared. Proceed to the nearest safe zone.`,
+            message: data.message || `EMERGENCY: ${data.type} declared. Proceed to the nearest municipal safe zone.`,
             lat: data.lat || null,
             lng: data.lng || null,
             createdAt: new Date().toISOString(),
           };
           this.currentAlert = alertObj;
 
-          // Urgent emergency tactile vibration pattern
           try {
             Vibration.vibrate([0, 600, 250, 600, 250, 600]);
           } catch {
-            // Non-critical vibration fallback
+            // Fallback
           }
 
           this.notifyAlert(alertObj);
         }
+      });
+
+      // 2. Listen for targeted private reply from MDRRMO Dispatch to this user
+      this.socket.on('receive-reply', (data: any) => {
+        console.log('[AlertService] Private dispatch message received:', data);
+        if (!data || !data.message) return;
+
+        try {
+          Vibration.vibrate([0, 400, 200, 400]);
+        } catch {
+          // Fallback
+        }
+
+        const replyObj: AdminReplyMessage = {
+          message: data.message,
+          sender: data.sender || 'MDRRMO Central Dispatch',
+          timestamp: new Date().toISOString(),
+        };
+
+        this.notifyReply(replyObj);
       });
     } catch (err) {
       console.error('[AlertService] Failed to initialize socket:', err);
@@ -157,6 +197,11 @@ class AlertService {
     return () => this.statusListeners.delete(listener);
   }
 
+  subscribeReply(listener: ReplyListener): () => void {
+    this.replyListeners.add(listener);
+    return () => this.replyListeners.delete(listener);
+  }
+
   private notifyAlert(alert: DisasterAlert) {
     this.alertListeners.forEach((l) => {
       try {
@@ -181,6 +226,16 @@ class AlertService {
     this.statusListeners.forEach((l) => {
       try {
         l(connected);
+      } catch (e) {
+        console.error(e);
+      }
+    });
+  }
+
+  private notifyReply(reply: AdminReplyMessage) {
+    this.replyListeners.forEach((l) => {
+      try {
+        l(reply);
       } catch (e) {
         console.error(e);
       }

@@ -8,6 +8,7 @@
 
 import { reportRepository } from '../database/reportRepository';
 import { GabayXReport } from '../types/report';
+import { getResidentDeviceId } from '../utils/deviceIdentity';
 
 export interface SyncResult {
   totalPending: number;
@@ -43,12 +44,17 @@ export const syncService = {
         // Mark as SYNCING locally during in-flight network dispatch
         await reportRepository.updateReportStatus(report.id, 'SYNCING');
 
+        // Obtain unique persistent resident device ID for this phone
+        const residentId = await getResidentDeviceId();
+        const residentName = report.contactInformation.isAnonymous
+          ? `Resident (${residentId.slice(-4)})`
+          : report.contactInformation.name || `Resident (${residentId.slice(-4)})`;
+
         // Format payload to match server.js /api/reports/submit contract
         const payload = {
           id: report.id,
-          student_id: report.contactInformation.isAnonymous
-            ? 'anonymous'
-            : report.contactInformation.name || 'Mobile Resident',
+          student_id: residentId, // Unique targetId for targeted two-way admin replies
+          student_name: residentName,
           incident_type: report.category,
           severity: report.severity,
           description: report.description,

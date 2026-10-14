@@ -416,7 +416,7 @@ app.post('/api/reports/submit', async (req, res) => {
         });
     }
 
-    const formattedMsg = `[${report.incident_type}]: ${report.description || 'Emergency reported'} (${report.nearest_building || 'Campus'})`;
+    const formattedMsg = `[${report.incident_type}]: ${report.description || 'Emergency reported'} (${report.nearest_building || 'Central Poblacion'})`;
     const newSos = {
         id: Date.now(),
         student_id: report.student_id || 'anonymous',
@@ -506,16 +506,19 @@ const activeSockets = new Map();
 const activeHotspotPeers = new Map();
 const activeHotspotHosts = new Map();
 
-io.on('connection', async (socket) => {
+io.on('connection', (socket) => {
     console.log(`[SOCKET] User connected: ${socket.id}`);
 
-    let logs = [];
-    try {
-        const { data: dbLogs } = await supabase.from('disaster_logs').select('*').order('created_at', { ascending: false });
-        if (dbLogs && dbLogs.length) logs = dbLogs;
-    } catch (e) {}
-    if (!logs.length) logs = localStore.disaster_logs;
-    socket.emit('log-history', logs);
+    // Asynchronously fetch logs in background without blocking immediate listener attachment
+    (async () => {
+        let logs = [];
+        try {
+            const { data: dbLogs } = await supabase.from('disaster_logs').select('*').order('created_at', { ascending: false });
+            if (dbLogs && dbLogs.length) logs = dbLogs;
+        } catch (e) {}
+        if (!logs.length) logs = localStore.disaster_logs;
+        socket.emit('log-history', logs);
+    })();
 
     socket.on('broadcast-alert', async (data) => {
         console.log("📢 GABAYX ALERT TRIGGERED:", data.type);
@@ -567,7 +570,15 @@ io.on('connection', async (socket) => {
         if(studentId) {
             socket.join(studentId);
             activeSockets.set(socket.id, studentId);
-            console.log(`[ONLINE] Student ${studentId}`);
+            console.log(`[ONLINE] User/Resident ${studentId}`);
+        }
+    });
+
+    socket.on('register-resident', (residentId) => {
+        if(residentId) {
+            socket.join(residentId);
+            activeSockets.set(socket.id, residentId);
+            console.log(`[ONLINE] Resident ${residentId}`);
         }
     });
 
@@ -610,7 +621,12 @@ io.on('connection', async (socket) => {
     });
 
     socket.on('admin-reply', (data) => { 
-        io.to(data.targetId).emit('receive-reply', { message: data.message }); 
+        io.to(data.targetId).emit('receive-reply', { 
+            message: data.message,
+            sender: 'MDRRMO Central Dispatch',
+            targetId: data.targetId,
+            timestamp: new Date().toISOString()
+        }); 
     });
 
     // --- HOTSPOT / LOCAL PEER-TO-PEER MESSAGING (Zero Internet LAN) ---
@@ -625,7 +641,7 @@ io.on('connection', async (socket) => {
             socketId: socket.id,
             id: peerId,
             name: peer.name || 'Resident',
-            sector: peer.sector || 'Campus Zone',
+            sector: peer.sector || 'Community Zone',
             coords: peer.coords || null,
             isHost: !!peer.isHost,
             joinedAt: Date.now()
@@ -650,7 +666,7 @@ io.on('connection', async (socket) => {
             host_name: hostData.host_name || hostData.name || 'Resident',
             host_id: hostId,
             role: hostData.role || 'Victim Relay',
-            sector: hostData.sector || 'Campus Zone',
+            sector: hostData.sector || 'Community Zone',
             coords: hostData.coords || null,
             created_at: Date.now()
         };
@@ -686,7 +702,7 @@ io.on('connection', async (socket) => {
             recipient_id: data.recipient_id || null,
             recipient_name: data.recipient_name || null,
             text: data.text || '',
-            sector: data.sector || 'Campus Zone',
+            sector: data.sector || 'Community Zone',
             coords: data.coords || null,
             is_emergency: !!data.is_emergency,
             created_at: new Date().toISOString()

@@ -50,7 +50,7 @@ export const CreateReportModal: React.FC<Props> = ({
   const [category, setCategory] = useState<ReportCategory>('EARTHQUAKE');
   const [severity, setSeverity] = useState<ReportSeverity>('HIGH');
   const [description, setDescription] = useState('');
-  const [nearestBuilding, setNearestBuilding] = useState('Campus Zone');
+  const [nearestBuilding, setNearestBuilding] = useState('Central Poblacion Zone');
   
   // Location
   const [isLocating, setIsLocating] = useState(false);
@@ -72,7 +72,7 @@ export const CreateReportModal: React.FC<Props> = ({
     setCategory('EARTHQUAKE');
     setSeverity('HIGH');
     setDescription('');
-    setNearestBuilding('Campus Zone');
+    setNearestBuilding('Central Poblacion Zone');
     setLatitude(null);
     setLongitude(null);
     setAccuracy(null);
@@ -296,10 +296,10 @@ export const CreateReportModal: React.FC<Props> = ({
                 <Text style={styles.locationStatusText}>{locationStatus}</Text>
               </View>
 
-              <Text style={[styles.label, { marginTop: 10 }]}>CAMPUS ZONE / REFERENCE</Text>
+              <Text style={[styles.label, { marginTop: 10 }]}>COMMUNITY LANDMARK / FACILITY</Text>
               <TextInput
                 style={styles.textInput}
-                placeholder="e.g. BLDG A, Main Quad, Mendoza Court"
+                placeholder="e.g. Municipal Hall, Rural Health Unit, Public Market"
                 placeholderTextColor="#64748b"
                 value={nearestBuilding}
                 onChangeText={setNearestBuilding}

@@ -336,16 +336,16 @@
             const currentZones = await getSafeZones();
             if (currentZones.length === 0) {
                 await cacheSafeZones([
-                    { name: 'PRINCIPAL FRONT', coords: [7.100589893149529, 124.82393056927546], description: 'Primary Assembly Zone (Open Ground)', type: 'PRIMARY' },
-                    { name: 'MENDOZA COURT', coords: [7.100077551009359, 124.82369094608939], description: 'Covered Court, West Sector Safe Zone', type: 'SECONDARY' },
-                    { name: 'TEJADA COURT', coords: [7.1001461901808565, 124.82430112059413], description: 'East Sector Gymnasium Evacuation Hub', type: 'TERTIARY' }
+                    { name: 'Kabacan Municipal Gymnasium Hub', coords: [7.100589893149529, 124.82393056927546], description: 'Primary Municipal Evacuation & Triage Hub', type: 'PRIMARY' },
+                    { name: 'Central Municipal Plaza Safe Zone', coords: [7.100077551009359, 124.82369094608939], description: 'Central Plaza Park, West Sector Safe Zone', type: 'SECONDARY' },
+                    { name: 'Barangay Poblacion Civic Hub', coords: [7.1001461901808565, 124.82430112059413], description: 'East Sector Civic Gymnasium Evacuation Hub', type: 'TERTIARY' }
                 ]);
             }
 
             const currentContacts = await getContacts();
             if (currentContacts.length === 0) {
                 await cacheContacts([
-                    { id: 'clinic', name: 'KNHS Campus Clinic', number: '0912-345-6789', role: 'Medical Triage' },
+                    { id: 'clinic', name: 'Kabacan Municipal Health Center / RHU', number: '0912-345-6789', role: 'Medical Triage' },
                     { id: 'emergency911', name: 'National Emergency Hotline', number: '911', role: 'General Emergency' },
                     { id: 'police', name: 'Kabacan PNP Station', number: '0998-598-6721', role: 'Law Enforcement' },
                     { id: 'fire', name: 'Bureau of Fire Protection (BFP)', number: '0922-832-1142', role: 'Fire & Rescue' },
@@ -365,7 +365,7 @@
                             'COVER your head and neck under a sturdy desk or table.',
                             'HOLD ON until shaking stops.',
                             'Evacuate via marked corridors once safe; avoid glass windows and elevators.',
-                            'Proceed to Principal Front open grounds.'
+                            'Proceed to Kabacan Municipal Gymnasium Hub or Central Plaza safe grounds.'
                         ],
                         cachedAt: new Date().toISOString()
                     },

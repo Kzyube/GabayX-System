@@ -1,10 +1,10 @@
 /**
- * GabayX Campus Geographic Data & Authoritative Evacuation Catalog
+ * GabayX Community & Municipal Geographic Data (LGU Kabacan DRRM)
  * 
- * Sourced directly from KNHS Campus reference coordinates in student.html:
- * - 3 Official Safe Assembly Zones
- * - 19 Designated Campus Buildings (A through S)
- * - 3 Pre-verified Evacuation Route Polylines
+ * Sourced directly for LGU / Municipal Disaster Risk Reduction & Management (MDRRMO):
+ * - 3 Official Municipal Safe Assembly Zones
+ * - 19 Designated Community & Municipal Facilities
+ * - 3 Pre-verified Municipal Evacuation Route Corridors
  */
 
 export interface LatLng {
@@ -12,7 +12,7 @@ export interface LatLng {
   longitude: number;
 }
 
-export interface CampusBuilding {
+export interface CommunityFacility {
   id: string;
   name: string;
   shortLetter: string;
@@ -44,88 +44,87 @@ export interface EvacuationRoute {
   estimatedMinutes: number;
 }
 
-// KNHS Campus Center & Evacuation Hub
-export const CAMPUS_CENTER: LatLng = {
+// Kabacan Municipal DRRM Command Center & Evacuation Hub
+export const MUNICIPAL_CENTER: LatLng = {
   latitude: 7.100589893149529,
   longitude: 124.82393056927546,
 };
 
-// Campus Perimeter Bounds (KNHS & Kabacan vicinity)
-export const CAMPUS_BOUNDS = {
+// Municipal Perimeter Bounds (LGU Kabacan)
+export const MUNICIPAL_BOUNDS = {
   south: 7.0980,
   west: 124.8210,
   north: 7.1030,
   east: 124.8270,
 };
 
-// 3 Designated Safe Assembly Zones
+// 3 Designated Municipal Safe Assembly Zones
 export const SAFE_ASSEMBLY_ZONES: SafeAssemblyZone[] = [
   {
     id: 'zone_principal_front',
-    name: 'Principal Front Hub',
+    name: 'Kabacan Municipal Gymnasium Hub',
     shortLabel: 'Hub 1',
-    description: 'Primary campus command & disaster relief assembly area.',
+    description: 'Primary municipal command, triage & disaster relief assembly area.',
     isPrimaryHub: true,
     disasterTypes: ['EARTHQUAKE', 'FIRE'],
     latitude: 7.100589893149529,
     longitude: 124.82393056927546,
-    capacity: '500+ Persons',
+    capacity: '1,500+ Residents',
   },
   {
     id: 'zone_mendoza_court',
-    name: 'Mendoza Court Safe Zone',
+    name: 'Central Municipal Plaza Safe Zone',
     shortLabel: 'Hub 2',
-    description: 'Open-air athletic court designated for southern wing classrooms.',
+    description: 'Open-air municipal park grounds designated for community evacuation.',
     isPrimaryHub: false,
     disasterTypes: ['FIRE', 'FLOOD'],
     latitude: 7.100077551009359,
     longitude: 124.82369094608939,
-    capacity: '350 Persons',
+    capacity: '800 Residents',
   },
   {
     id: 'zone_tejada_court',
-    name: 'Tejada Court Safe Zone',
+    name: 'Barangay Poblacion Civic Hub',
     shortLabel: 'Hub 3',
-    description: 'Elevated court safe assembly for science & technology buildings.',
+    description: 'Elevated multi-purpose civic center for eastern sector residents.',
     isPrimaryHub: false,
     disasterTypes: ['FLOOD', 'FIRE'],
     latitude: 7.1001461901808565,
     longitude: 124.82430112059413,
-    capacity: '300 Persons',
+    capacity: '600 Residents',
   },
 ];
 
-// 19 Campus Buildings (A through S)
-export const CAMPUS_BUILDINGS: CampusBuilding[] = [
-  { id: 'bldg_a', name: 'Building A', shortLetter: 'A', category: 'Administrative Wing', latitude: 7.100767, longitude: 124.824077 },
-  { id: 'bldg_b', name: 'Building B', shortLetter: 'B', category: 'Classrooms Block', latitude: 7.100636, longitude: 124.824271 },
-  { id: 'bldg_c', name: 'Building C', shortLetter: 'C', category: 'Senior High Hall', latitude: 7.100458, longitude: 124.824615 },
-  { id: 'bldg_d', name: 'Building D', shortLetter: 'D', category: 'Laboratories', latitude: 7.100415, longitude: 124.824701 },
-  { id: 'bldg_e', name: 'Building E', shortLetter: 'E', category: 'Classrooms Block', latitude: 7.100423, longitude: 124.824379 },
-  { id: 'bldg_f', name: 'Building F', shortLetter: 'F', category: 'Junior High Hall', latitude: 7.100282, longitude: 124.824365 },
-  { id: 'bldg_g', name: 'Building G', shortLetter: 'G', category: 'Academic Wing', latitude: 7.100051, longitude: 124.824532 },
-  { id: 'bldg_h', name: 'Building H', shortLetter: 'H', category: 'Classrooms Block', latitude: 7.099910, longitude: 124.824140 },
-  { id: 'bldg_i', name: 'Building I', shortLetter: 'I', category: 'Academic Wing', latitude: 7.099777, longitude: 124.824108 },
-  { id: 'bldg_j', name: 'Building J', shortLetter: 'J', category: 'Southern Hall', latitude: 7.099643, longitude: 124.824357 },
-  { id: 'bldg_k', name: 'Building K', shortLetter: 'K', category: 'Classrooms Block', latitude: 7.099630, longitude: 124.824164 },
-  { id: 'bldg_l', name: 'Building L', shortLetter: 'L', category: 'Library & Learning', latitude: 7.099713, longitude: 124.823939 },
-  { id: 'bldg_m', name: 'Building M', shortLetter: 'M', category: 'Faculty Office', latitude: 7.099851, longitude: 124.823724 },
-  { id: 'bldg_n', name: 'Building N', shortLetter: 'N', category: 'Central Classrooms', latitude: 7.100224, longitude: 124.824046 },
-  { id: 'bldg_o', name: 'Building O', shortLetter: 'O', category: 'Principal Annex', latitude: 7.100439, longitude: 124.823966 },
-  { id: 'bldg_p', name: 'Building P', shortLetter: 'P', category: 'Health Clinic', latitude: 7.100232, longitude: 124.823880 },
-  { id: 'bldg_q', name: 'Building Q', shortLetter: 'Q', category: 'Student Services', latitude: 7.100362, longitude: 124.823746 },
-  { id: 'bldg_r', name: 'Building R', shortLetter: 'R', category: 'Auditorium Annex', latitude: 7.100351, longitude: 124.823617 },
-  { id: 'bldg_s', name: 'Building S', shortLetter: 'S', category: 'Gatehouse & Guard', latitude: 7.100532, longitude: 124.823703 },
+// 19 Community & Municipal Facilities
+export const COMMUNITY_FACILITIES: CommunityFacility[] = [
+  { id: 'bldg_a', name: 'Municipal Hall', shortLetter: 'A', category: 'Executive Administration', latitude: 7.100767, longitude: 124.824077 },
+  { id: 'bldg_b', name: 'Rural Health Unit (RHU)', shortLetter: 'B', category: 'Public Health Clinic', latitude: 7.100636, longitude: 124.824271 },
+  { id: 'bldg_c', name: 'MDRRMO Operations Center', shortLetter: 'C', category: 'Disaster Command Post', latitude: 7.100458, longitude: 124.824615 },
+  { id: 'bldg_d', name: 'Bureau of Fire Protection (BFP)', shortLetter: 'D', category: 'Emergency Rescue Station', latitude: 7.100415, longitude: 124.824701 },
+  { id: 'bldg_e', name: 'PNP Municipal Police Station', shortLetter: 'E', category: 'Public Safety & Security', latitude: 7.100423, longitude: 124.824379 },
+  { id: 'bldg_f', name: 'Public Market Complex', shortLetter: 'F', category: 'Commercial Center', latitude: 7.100282, longitude: 124.824365 },
+  { id: 'bldg_g', name: 'Community Civic Center', shortLetter: 'G', category: 'Civic Assembly Hall', latitude: 7.100051, longitude: 124.824532 },
+  { id: 'bldg_h', name: 'MSWDO Relief Office', shortLetter: 'H', category: 'Social Welfare & Relief', latitude: 7.099910, longitude: 124.824140 },
+  { id: 'bldg_i', name: 'Municipal District Office', shortLetter: 'I', category: 'Public Services Branch', latitude: 7.099777, longitude: 124.824108 },
+  { id: 'bldg_j', name: 'Barangay Poblacion Hall', shortLetter: 'J', category: 'Local Barangay Government', latitude: 7.099643, longitude: 124.824357 },
+  { id: 'bldg_k', name: 'Barangay Health Post', shortLetter: 'K', category: 'Primary Medical Station', latitude: 7.099630, longitude: 124.824164 },
+  { id: 'bldg_l', name: 'Community Public Library', shortLetter: 'L', category: 'Information Resource Center', latitude: 7.099713, longitude: 124.823939 },
+  { id: 'bldg_m', name: 'General Services Depot', shortLetter: 'M', category: 'Municipal Logistics Base', latitude: 7.099851, longitude: 124.823724 },
+  { id: 'bldg_n', name: 'Senior Citizens & PWD Center', shortLetter: 'N', category: 'Vulnerable Care Shelter', latitude: 7.100224, longitude: 124.824046 },
+  { id: 'bldg_o', name: 'Municipal Agriculture Office', shortLetter: 'O', category: 'Food Security Division', latitude: 7.100439, longitude: 124.823966 },
+  { id: 'bldg_p', name: 'Emergency Medical Station', shortLetter: 'P', category: 'First Aid & Triage Post', latitude: 7.100232, longitude: 124.823880 },
+  { id: 'bldg_q', name: 'Social Action Center', shortLetter: 'Q', category: 'Volunteer Mobilization', latitude: 7.100362, longitude: 124.823746 },
+  { id: 'bldg_r', name: 'Municipal Auditorium Annex', shortLetter: 'R', category: 'Emergency Staging Area', latitude: 7.100351, longitude: 124.823617 },
 ];
 
-// Pre-verified Authoritative Evacuation Routes
+// Pre-verified Authoritative Municipal Evacuation Routes
 export const EVACUATION_ROUTES: EvacuationRoute[] = [
   {
     id: 'route_principal_front',
-    name: 'Primary Evacuation Route (Principal Front)',
+    name: 'Primary Evacuation Route (Municipal Gym)',
     targetSafeZoneId: 'zone_principal_front',
-    description: 'Main campus corridor leading to the Primary Evacuation Hub.',
-    color: '#10b981', // Emerald green
+    description: 'Central municipal road corridor leading to the Primary Evacuation Gym.',
+    color: '#059669', // Emerald
     coordinates: [
       { latitude: 7.09985, longitude: 124.82372 },
       { latitude: 7.10005, longitude: 124.82370 },
@@ -137,10 +136,10 @@ export const EVACUATION_ROUTES: EvacuationRoute[] = [
   },
   {
     id: 'route_mendoza_court',
-    name: 'Secondary Evacuation Route (Mendoza Court)',
+    name: 'Secondary Evacuation Route (Central Plaza)',
     targetSafeZoneId: 'zone_mendoza_court',
-    description: 'Fast exit pathway towards outdoor Mendoza Court athletic grounds.',
-    color: '#06b6d4', // Cyan
+    description: 'Fast exit pathway towards outdoor Central Municipal Plaza grounds.',
+    color: '#0284c7', // Sky Blue
     coordinates: [
       { latitude: 7.09965, longitude: 124.82420 },
       { latitude: 7.09980, longitude: 124.82410 },
@@ -151,10 +150,10 @@ export const EVACUATION_ROUTES: EvacuationRoute[] = [
   },
   {
     id: 'route_tejada_court',
-    name: 'Tertiary Evacuation Route (Tejada Court)',
+    name: 'Tertiary Evacuation Route (Barangay Civic Hub)',
     targetSafeZoneId: 'zone_tejada_court',
-    description: 'Elevated route towards Tejada Court for eastern campus sector.',
-    color: '#f59e0b', // Amber
+    description: 'Elevated route towards Barangay Poblacion Civic Hub for eastern sector.',
+    color: '#d97706', // Amber
     coordinates: [
       { latitude: 7.10045, longitude: 124.82460 },
       { latitude: 7.10035, longitude: 124.82445 },

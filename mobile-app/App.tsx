@@ -18,7 +18,7 @@ import { CreateReportModal } from './src/components/CreateReportModal';
 import { ReportDetailModal } from './src/components/ReportDetailModal';
 import { MapScreen } from './src/screens/MapScreen';
 import { syncService } from './src/sync/syncService';
-import { alertService } from './src/services/alertService';
+import { alertService, AdminReplyMessage } from './src/services/alertService';
 import { DisasterAlert } from './src/types/alert';
 import { DisasterAlertBanner } from './src/components/DisasterAlertBanner';
 
@@ -40,17 +40,21 @@ export default function App() {
   const [isSocketConnected, setIsSocketConnected] = useState(false);
   const [autoRouteRequested, setAutoRouteRequested] = useState(false);
 
+  // Targeted private direct replies from MDRRMO Dispatch to this user
+  const [adminReply, setAdminReply] = useState<AdminReplyMessage | null>(null);
+
   /**
-   * Connect to Central Dispatch via Socket.io for live disaster alerts
+   * Connect to Central Dispatch via Socket.io for live disaster alerts and private two-way replies
    */
   useEffect(() => {
     alertService.connect();
 
+    // 1. Listen for community-wide broadcasts
     const unsubAlert = alertService.subscribeAlert((alert) => {
       setActiveAlert(alert);
       Alert.alert(
         `🚨 ${String(alert.type).toUpperCase()} BROADCAST`,
-        `${alert.message}\n\nPlease proceed immediately to the nearest designated Safe Assembly Hub.`,
+        `${alert.message}\n\nPlease proceed immediately to the nearest designated Municipal Safe Hub.`,
         [
           {
             text: '🗺️ View Routes',
@@ -68,13 +72,23 @@ export default function App() {
       setActiveAlert(null);
       Alert.alert(
         '🛡️ Incident All Clear',
-        'Incident Command has marked the situation SAFE / ALL CLEAR.',
+        'MDRRMO Incident Command has marked the situation SAFE / ALL CLEAR.',
         [{ text: 'OK' }]
       );
     });
 
     const unsubStatus = alertService.subscribeStatus((connected) => {
       setIsSocketConnected(connected);
+    });
+
+    // 2. Listen for private targeted direct reply from MDRRMO to this device
+    const unsubReply = alertService.subscribeReply((reply) => {
+      setAdminReply(reply);
+      Alert.alert(
+        `📩 Direct Message from ${reply.sender}`,
+        `"${reply.message}"\n\nSent at ${new Date(reply.timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`,
+        [{ text: 'Acknowledge', style: 'default' }]
+      );
     });
 
     // Check on startup if an active disaster was already declared
@@ -88,6 +102,7 @@ export default function App() {
       unsubAlert();
       unsubClear();
       unsubStatus();
+      unsubReply();
     };
   }, []);
 
@@ -143,16 +158,16 @@ export default function App() {
       await loadReports();
       if (res.syncedCount > 0) {
         Alert.alert(
-          '✅ Synced to Dispatch',
-          `Successfully uploaded ${res.syncedCount} report(s) to Central Command.`,
+          '✅ Synced to MDRRMO',
+          `Successfully uploaded ${res.syncedCount} report(s) to MDRRMO Central Dispatch.`,
           [{ text: 'OK' }]
         );
       } else if (res.totalPending === 0) {
-        Alert.alert('Up to Date', 'All your reports are already synced with Central Command.');
+        Alert.alert('Up to Date', 'All your incident reports are already synced with MDRRMO Dispatch.');
       } else {
         Alert.alert(
-          'Saved Locally',
-          'Could not reach server. Your reports remain safely stored on this phone and can be synced later.',
+          'Saved on Device',
+          'Could not reach server. Your reports remain safely stored on this phone and will sync once connected.',
           [{ text: 'OK' }]
         );
       }
@@ -173,7 +188,7 @@ export default function App() {
       await loadReports();
       Alert.alert(
         '🛡️ Report Saved on Phone',
-        'Your report has been saved to your device. It will upload to dispatch once online or when you tap Sync.',
+        'Your incident report has been saved locally. It will upload to MDRRMO Dispatch once online or when you tap Sync.',
         [{ text: 'OK' }]
       );
     } catch (err) {
@@ -228,7 +243,7 @@ export default function App() {
       <View style={styles.header}>
         <View>
           <Text style={styles.brandTitle}>GabayX</Text>
-          <Text style={styles.brandSubtitle}>Kabacan National High School</Text>
+          <Text style={styles.brandSubtitle}>Municipality of Kabacan • MDRRMO</Text>
         </View>
 
         <View style={styles.headerRightGroup}>
@@ -276,6 +291,31 @@ export default function App() {
         }}
       />
 
+      {/* TARGETED PRIVATE DIRECT MESSAGE FROM MDRRMO DISPATCH */}
+      {adminReply && (
+        <View style={styles.replyCard}>
+          <View style={styles.replyCardHeader}>
+            <View style={styles.replyTitleRow}>
+              <Text style={styles.replyIcon}>📩</Text>
+              <View>
+                <Text style={styles.replySenderText}>{adminReply.sender}</Text>
+                <Text style={styles.replyTimeText}>
+                  Direct Message • {new Date(adminReply.timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.replyDismissBtn}
+              onPress={() => setAdminReply(null)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.replyDismissText}>Dismiss ✕</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.replyBodyText}>"{adminReply.message}"</Text>
+        </View>
+      )}
+
       {/* SCREEN CONTENT: REPORTS OR MAP */}
       {currentScreen === 'MAP' ? (
         <MapScreen
@@ -295,10 +335,10 @@ export default function App() {
             >
               <Text style={styles.actionCardIcon}>🚨</Text>
               <Text style={styles.actionCardTitle}>Report Emergency</Text>
-              <Text style={styles.actionCardSub}>File incident report (works offline)</Text>
+              <Text style={styles.actionCardSub}>Send incident report to MDRRMO</Text>
             </TouchableOpacity>
 
-            {/* 2. CAMPUS EVACUATION MAP BUTTON */}
+            {/* 2. MUNICIPAL EVACUATION MAP BUTTON */}
             <TouchableOpacity
               style={styles.actionCardSlate}
               onPress={() => setCurrentScreen('MAP')}
@@ -306,14 +346,14 @@ export default function App() {
             >
               <Text style={styles.actionCardIcon}>🗺️</Text>
               <Text style={styles.actionCardTitle}>Evacuation Map</Text>
-              <Text style={styles.actionCardSub}>View safe hubs & routes</Text>
+              <Text style={styles.actionCardSub}>View municipal safe hubs & routes</Text>
             </TouchableOpacity>
           </View>
 
           {/* SECTION HEADER & TABS */}
           <View style={styles.sectionHeaderRow}>
             <View>
-              <Text style={styles.sectionTitle}>Filed Reports</Text>
+              <Text style={styles.sectionTitle}>Community Incident Reports</Text>
               <Text style={styles.sectionSub}>Stored safely on this device</Text>
             </View>
 
@@ -366,8 +406,8 @@ export default function App() {
                 </Text>
                 <Text style={styles.emptySub}>
                   {activeTab === 'PENDING'
-                    ? 'All your emergency reports have been synced with Central Command.'
-                    : 'When you file a report, it will be stored securely on your phone even without internet.'}
+                    ? 'All your emergency reports have been synced with MDRRMO Dispatch.'
+                    : 'When you file an incident report, it will be stored securely on your phone even without internet.'}
                 </Text>
                 <TouchableOpacity
                   style={styles.emptyBtn}
@@ -418,7 +458,7 @@ export default function App() {
                       <View style={styles.cardFooter}>
                         <ReportStatusBadge status={item.localStatus} size="small" />
                         <Text style={styles.cardLocation}>
-                          📍 {item.nearestBuilding || 'Campus Grounds'}
+                          📍 {item.nearestBuilding || 'Central Poblacion'}
                         </Text>
                       </View>
                     </TouchableOpacity>
@@ -450,7 +490,7 @@ export default function App() {
         >
           <Text style={styles.navIcon}>🗺️</Text>
           <Text style={[styles.navText, currentScreen === 'MAP' && styles.navTextActive]}>
-            Campus Map
+            Evacuation Map
           </Text>
         </TouchableOpacity>
       </View>
@@ -547,6 +587,63 @@ const styles = StyleSheet.create({
     color: '#f8fafc',
     fontSize: 11,
     fontWeight: '700',
+  },
+  // TARGETED MDRRMO REPLY CARD
+  replyCard: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 6,
+    backgroundColor: '#0c4a6e',
+    borderColor: '#0284c7',
+    borderWidth: 1.5,
+    borderRadius: 12,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  replyCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  replyTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  replyIcon: {
+    fontSize: 18,
+  },
+  replySenderText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  replyTimeText: {
+    color: '#bae6fd',
+    fontSize: 10.5,
+  },
+  replyDismissBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  replyDismissText: {
+    color: '#f0f9ff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  replyBodyText: {
+    color: '#ffffff',
+    fontSize: 13.5,
+    fontWeight: '600',
+    lineHeight: 18,
   },
   contentContainer: {
     flex: 1,
