@@ -18,6 +18,9 @@ import { CreateReportModal } from './src/components/CreateReportModal';
 import { ReportDetailModal } from './src/components/ReportDetailModal';
 import { MapScreen } from './src/screens/MapScreen';
 import { syncService } from './src/sync/syncService';
+import { alertService } from './src/services/alertService';
+import { DisasterAlert } from './src/types/alert';
+import { DisasterAlertBanner } from './src/components/DisasterAlertBanner';
 
 export default function App() {
   const [reports, setReports] = useState<GabayXReport[]>([]);
@@ -31,6 +34,58 @@ export default function App() {
   // Modals
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedReport, setSelectedReport] = useState<GabayXReport | null>(null);
+
+  // Real-time Disaster Alerts from Central Command
+  const [activeAlert, setActiveAlert] = useState<DisasterAlert | null>(null);
+  const [isSocketConnected, setIsSocketConnected] = useState(false);
+
+  /**
+   * Connect to Central Dispatch via Socket.io for live disaster alerts
+   */
+  useEffect(() => {
+    alertService.connect();
+
+    const unsubAlert = alertService.subscribeAlert((alert) => {
+      setActiveAlert(alert);
+      Alert.alert(
+        `🚨 ${String(alert.type).toUpperCase()} BROADCAST`,
+        `${alert.message}\n\nPlease proceed immediately to the nearest designated Safe Assembly Hub.`,
+        [
+          {
+            text: '🗺️ View Routes',
+            onPress: () => setCurrentScreen('MAP'),
+          },
+          { text: 'Understood', style: 'cancel' },
+        ]
+      );
+    });
+
+    const unsubClear = alertService.subscribeClear(() => {
+      setActiveAlert(null);
+      Alert.alert(
+        '🛡️ Incident All Clear',
+        'Incident Command has marked the situation SAFE / ALL CLEAR.',
+        [{ text: 'OK' }]
+      );
+    });
+
+    const unsubStatus = alertService.subscribeStatus((connected) => {
+      setIsSocketConnected(connected);
+    });
+
+    // Check on startup if an active disaster was already declared
+    alertService.fetchActiveDisaster().then((existing) => {
+      if (existing) {
+        setActiveAlert(existing);
+      }
+    });
+
+    return () => {
+      unsubAlert();
+      unsubClear();
+      unsubStatus();
+    };
+  }, []);
 
   /**
    * Load reports from local SQLite database
@@ -182,12 +237,23 @@ export default function App() {
         </View>
 
         <View style={styles.statusIndicator}>
-          <View style={styles.statusDot} />
+          <View
+            style={[
+              styles.statusDot,
+              isSocketConnected ? styles.statusDotLive : styles.statusDotOffline,
+            ]}
+          />
           <Text style={styles.statusIndicatorText}>
-            {currentScreen === 'REPORTS' ? 'SQLite Active' : 'Map Scaffold'}
+            {isSocketConnected ? 'Dispatch Live' : 'Offline Safe'}
           </Text>
         </View>
       </View>
+
+      {/* REAL-TIME DISASTER ALERT BANNER */}
+      <DisasterAlertBanner
+        alert={activeAlert}
+        onPressViewMap={() => setCurrentScreen('MAP')}
+      />
 
       {/* SCREEN CONTENT: REPORTS OR MAP */}
       {currentScreen === 'MAP' ? (
@@ -449,6 +515,16 @@ const styles = StyleSheet.create({
     height: 7,
     borderRadius: 4,
     backgroundColor: '#10b981',
+  },
+  statusDotLive: {
+    backgroundColor: '#10b981',
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+  },
+  statusDotOffline: {
+    backgroundColor: '#f59e0b',
   },
   statusIndicatorText: {
     color: '#f1f5f9',
