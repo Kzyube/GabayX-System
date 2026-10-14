@@ -3,364 +3,312 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <title>GabayX | Community Public Safety Portal</title>
     <link rel="icon" type="image/png" href="/icons/icon-192.png">
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#020806">
+    <meta name="theme-color" content="#0F766E">
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="GabayX">
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
     <style>
         :root {
-            --base-bg: #020806;
-            --surface: rgba(12, 24, 18, 0.45);
-            --surface-hover: rgba(20, 35, 27, 0.6);
-            --border-subtle: rgba(255, 255, 255, 0.08);
-            --border-highlight: rgba(16, 185, 129, 0.4);
-            --emerald-500: #10b981;
-            --emerald-400: #34d399;
-            --emerald-600: #059669;
-            --accent-cyan: #00f0ff;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
+            --bg-canvas: #f8fafc;
+            --bg-card: #ffffff;
+            --border-color: #cbd5e1;
+            --border-subtle: #e2e8f0;
+            --primary: #0f766e;
+            --primary-hover: #115e59;
+            --text-title: #0f172a;
+            --text-body: #334155;
+            --text-muted: #64748b;
+            --danger: #dc2626;
+            --danger-bg: #fef2f2;
+            --danger-border: #fecaca;
+            --success: #16a34a;
+            --success-bg: #f0fdf4;
+            --success-border: #bbf7d0;
         }
 
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: 'Outfit', sans-serif;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
 
         body {
-            background-color: var(--base-bg);
-            color: var(--text-main);
+            background-color: var(--bg-canvas);
+            color: var(--text-body);
             min-height: 100vh;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
-            overflow: hidden;
             padding: 1.5rem;
         }
 
-        /* --- ALIVE & DYNAMIC MESH BACKGROUND --- */
-        .mesh-bg {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100vw; height: 100vh;
-            z-index: -1;
-            overflow: hidden;
-            background: #020806;
-        }
-
-        .mesh-blob {
-            position: absolute;
-            filter: blur(120px);
-            border-radius: 50%;
-            animation: float-blob 20s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
-            opacity: 0.5;
-        }
-
-        .blob-1 {
-            background: var(--emerald-600);
-            width: 50vw; height: 50vw;
-            top: -20%; right: -10%;
-        }
-
-        .blob-2 {
-            background: #064e3b; 
-            width: 60vw; height: 60vw;
-            bottom: -20%; left: -20%;
-            animation-delay: -5s;
-        }
-
-        .blob-3 {
-            background: var(--emerald-400);
-            width: 30vw; height: 30vw;
-            top: 40%; left: 40%;
-            opacity: 0.2;
-            animation-delay: -10s;
-        }
-
-        @keyframes float-blob {
-            0% { transform: translate(0, 0) scale(1); }
-            50% { transform: translate(-5%, 5%) scale(1.1); }
-            100% { transform: translate(5%, -5%) scale(0.9); }
-        }
-
-        /* --- PREMIUM GLASS SAAS CARD --- */
-        .auth-card {
-            background: var(--surface);
-            backdrop-filter: blur(32px);
-            -webkit-backdrop-filter: blur(32px);
-            border: 1px solid var(--border-subtle);
-            border-radius: 28px;
-            padding: 3.5rem 3rem;
+        .auth-container {
             width: 100%;
-            max-width: 460px;
-            box-shadow: 0 40px 80px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-            position: relative;
+            max-width: 440px;
         }
 
-        /* Header / Logo Area */
-        .brand-logo {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 16px;
-            margin-bottom: 2.5rem;
+        .header-branding {
+            text-align: center;
+            margin-bottom: 1.75rem;
         }
 
-        .logo-mark {
-            width: 50px;
-            height: 50px;
+        .brand-logo-img {
+            width: 68px;
+            height: 68px;
             border-radius: 12px;
             object-fit: cover;
-            box-shadow: 0 0 25px rgba(16, 185, 129, 0.5);
-            border: 1px solid var(--border-highlight);
+            border: 1px solid var(--border-subtle);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            margin-bottom: 0.75rem;
         }
 
-        .brand-text {
-            font-size: 2.4rem;
+        .app-title {
+            font-size: 1.75rem;
             font-weight: 800;
-            letter-spacing: 1px;
-            background: linear-gradient(135deg, #ffffff 0%, var(--emerald-400) 50%, var(--accent-cyan) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-transform: uppercase;
-            filter: drop-shadow(0 0 12px rgba(52, 211, 153, 0.4));
-        }
-
-        .header-title {
-            font-size: 1.8rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
+            color: var(--text-title);
             letter-spacing: -0.5px;
-            text-align: center;
         }
 
-        .header-subtitle {
+        .app-subtitle {
+            font-size: 0.95rem;
             color: var(--text-muted);
-            font-size: 1rem;
-            font-weight: 400;
-            margin-bottom: 2.5rem;
-            text-align: center;
+            margin-top: 0.25rem;
         }
 
-        /* --- FORMS & INPUTS --- */
-        .form-group {
+        .auth-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+            padding: 2rem;
+        }
+
+        .card-heading {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-title);
+            margin-bottom: 0.25rem;
+        }
+
+        .card-desc {
+            font-size: 0.875rem;
+            color: var(--text-muted);
             margin-bottom: 1.5rem;
-            position: relative;
+        }
+
+        .notification-box {
+            display: none;
+            padding: 0.875rem 1rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 1.25rem;
+            line-height: 1.4;
+        }
+
+        .notification-box.error {
+            background-color: var(--danger-bg);
+            color: var(--danger);
+            border: 1px solid var(--danger-border);
+        }
+
+        .notification-box.success {
+            background-color: var(--success-bg);
+            color: var(--success);
+            border: 1px solid var(--success-border);
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
         }
 
         label {
             display: block;
-            margin-bottom: 8px;
-            font-size: 0.8rem;
+            font-size: 0.875rem;
             font-weight: 600;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            color: var(--text-title);
+            margin-bottom: 0.375rem;
         }
 
-        input {
+        input[type="text"],
+        input[type="password"] {
             width: 100%;
-            padding: 16px 20px;
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid var(--border-subtle);
-            border-radius: 14px;
+            height: 48px;
+            padding: 0 0.875rem;
             font-size: 1rem;
-            color: var(--text-main);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: var(--text-title);
+            background-color: #ffffff;
+            border: 1.5px solid var(--border-color);
+            border-radius: 8px;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
         }
 
-        input:focus {
+        input[type="text"]:focus,
+        input[type="password"]:focus {
             outline: none;
-            background: rgba(0, 0, 0, 0.5);
-            border-color: var(--border-highlight);
-            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
         }
 
-        input::placeholder {
-            color: rgba(255, 255, 255, 0.2);
-        }
-
-        /* --- BUTTONS --- */
         .btn-primary {
             width: 100%;
-            padding: 16px;
-            background: var(--text-main);
-            color: var(--base-bg);
+            height: 48px;
+            background-color: var(--primary);
+            color: #ffffff;
             border: none;
-            border-radius: 14px;
-            font-size: 1.05rem;
+            border-radius: 8px;
+            font-size: 1rem;
             font-weight: 700;
             cursor: pointer;
-            transition: all 0.3s ease;
-            margin-top: 1rem;
             display: flex;
-            justify-content: center;
             align-items: center;
-            gap: 10px;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: background-color 0.15s ease;
         }
 
         .btn-primary:hover {
-            transform: translateY(-2px);
-            background: var(--emerald-400);
-            box-shadow: 0 10px 25px rgba(52, 211, 153, 0.3);
+            background-color: var(--primary-hover);
         }
 
-        /* Quick Access Button */
-        #btn-quick-access {
-            background: var(--surface-hover);
-            color: var(--text-main);
-            border: 1px solid var(--border-subtle);
-            margin-top: 0;
-        }
-        #btn-quick-access:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: #fff;
-            transform: translateY(-2px);
+        .btn-primary:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.3);
         }
 
-        /* --- UTILITIES --- */
         .divider {
-            display: flex;
-            align-items: center;
-            margin: 2rem 0;
-            color: var(--text-muted);
-            font-size: 0.8rem;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
-        .divider::before, .divider::after {
-            content: "";
-            flex: 1;
-            height: 1px;
-            background: var(--border-subtle);
-        }
-        .divider::before { margin-right: 15px; }
-        .divider::after { margin-left: 15px; }
-
-        .auth-link {
             text-align: center;
-            margin-top: 1.5rem;
-            font-size: 0.95rem;
+            position: relative;
+            margin: 1.25rem 0;
             color: var(--text-muted);
-        }
-
-        .auth-link a {
-            color: var(--emerald-400);
-            text-decoration: none;
+            font-size: 0.8125rem;
             font-weight: 600;
-            transition: color 0.2s;
+            text-transform: uppercase;
         }
 
-        .auth-link a:hover {
-            color: var(--emerald-500);
-            text-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+        .divider::before,
+        .divider::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            width: 42%;
+            height: 1px;
+            background-color: var(--border-subtle);
         }
 
-        .error {
-            background: rgba(239, 68, 68, 0.1);
-            color: #fca5a5;
-            padding: 16px;
-            border-radius: 12px;
-            font-size: 0.95rem;
-            font-weight: 500;
-            margin-bottom: 24px;
-            border: 1px solid rgba(239, 68, 68, 0.2);
-            display: none;
+        .divider::before { left: 0; }
+        .divider::after { right: 0; }
+
+        .auth-footer-links {
+            margin-top: 1.5rem;
             text-align: center;
+            font-size: 0.875rem;
+            color: var(--text-muted);
         }
 
-        .footer {
-            margin-top: 2.5rem;
+        .auth-footer-links a {
+            color: var(--primary);
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .auth-footer-links a:hover {
+            text-decoration: underline;
+        }
+
+        .public-notice {
+            margin-top: 1.5rem;
             text-align: center;
-            font-size: 0.8rem;
-            color: rgba(255, 255, 255, 0.3);
-            font-weight: 400;
+            font-size: 0.8125rem;
+            color: var(--text-muted);
+            line-height: 1.5;
         }
 
-        @media (max-width: 480px) {
-            .auth-card { padding: 2.5rem 1.5rem; }
-            .header-title { font-size: 1.5rem; }
-            .brand-text { font-size: 2rem; }
+        .admin-hint {
+            display: inline-block;
+            margin-top: 0.35rem;
+            padding: 0.2rem 0.6rem;
+            background-color: var(--bg-subtle);
+            border-radius: 4px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
         }
     </style>
 </head>
 <body>
 
-    <div class="mesh-bg">
-        <div class="mesh-blob blob-1"></div>
-        <div class="mesh-blob blob-2"></div>
-        <div class="mesh-blob blob-3"></div>
-    </div>
-
-    <div class="auth-card">
-        <div class="brand-logo">
-            <img src="GabayXLOGO.jpg" class="logo-mark" alt="GabayX Logo">
-            <div class="brand-text">GABAYX</div>
+    <div class="auth-container">
+        <div class="header-branding">
+            <img src="GabayXLOGO.jpg" class="brand-logo-img" alt="GabayX Logo">
+            <h1 class="app-title">GABAYX</h1>
+            <p class="app-subtitle">Community & LGU Emergency Response System</p>
         </div>
 
-        <h2 class="header-title">Welcome back</h2>
-        <p class="header-subtitle">Please log in to continue.</p>
+        <div class="auth-card">
+            <h2 class="card-heading">Sign In to Your Account</h2>
+            <p class="card-desc">Enter your registered email address or official ID.</p>
 
-        <div id="error-msg" class="error"></div>
-        
-        <form action="/auth/login" method="POST">
-            <div class="form-group">
-                <label for="login-id">Email Address / Admin ID</label>
-                <input type="text" id="login-id" name="username" placeholder="e.g. student@example.com" required>
+            <div id="error-msg" class="notification-box error"></div>
+
+            <form action="/auth/login" method="POST">
+                <div class="form-group">
+                    <label for="login-id">Email Address or Admin ID</label>
+                    <input type="text" id="login-id" name="username" placeholder="e.g. resident@domain.com or admin" required autocomplete="username">
+                </div>
+
+                <div class="form-group">
+                    <label for="login-pass">Password</label>
+                    <input type="password" id="login-pass" name="password" placeholder="Enter your password" required autocomplete="current-password">
+                </div>
+
+                <button type="submit" class="btn-primary">
+                    Sign In
+                </button>
+            </form>
+
+            <div id="quick-access-section" style="display:none; margin-top: 1rem;">
+                <div class="divider">Or</div>
+                <button id="btn-quick-access" class="btn-primary" style="background-color: #0284c7;" onclick="loginUser(localStorage.getItem('knhs_student_email'))">
+                    Continue as <span id="quick-name" style="margin-left: 5px;"></span>
+                </button>
             </div>
-            
-            <div class="form-group">
-                <label for="login-pass">Password</label>
-                <input type="password" id="login-pass" name="password" placeholder="••••••••" required>
+
+            <div class="auth-footer-links">
+                New resident or student? <a href="register.html">Sign up now</a>
             </div>
-            
-            <button type="submit" class="btn-primary">
-                Sign In
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
-            </button>
-        </form>
-
-        <div id="quick-access-section" style="display:none;">
-            <div class="divider">Or</div>
-            <button id="btn-quick-access" class="btn-primary" onclick="loginUser(localStorage.getItem('knhs_student_email'))">
-                Continue as <span id="quick-name" style="margin-left: 5px;"></span>
-            </button>
         </div>
 
-        <div class="auth-link">
-            Don't have an account? <a href="register.html">Sign up now</a>
-        </div>
-
-        <div class="footer">
-            Powered by Tambai
+        <div class="public-notice">
+            Municipal Disaster Risk Reduction & Safety Network
+            <br>
+            <span class="admin-hint">Administrators sign in with official dispatch credentials</span>
         </div>
     </div>
 
     <script>
         const urlParams = new URLSearchParams(window.location.search);
+        const errorDiv = document.getElementById('error-msg');
+
         if (urlParams.has('error')) {
-            const errorDiv = document.getElementById('error-msg');
             errorDiv.style.display = 'block';
+            errorDiv.className = 'notification-box error';
             if (urlParams.get('error') === 'invalid_credentials') {
-                errorDiv.innerText = "Login failed: Incorrect Email or password.";
+                errorDiv.innerText = "Login failed: The email or password entered does not match our records.";
+            } else {
+                errorDiv.innerText = "An error occurred during login. Please try again.";
             }
         }
 
         if (urlParams.get('success') === 'registered') {
-            const errorDiv = document.getElementById('error-msg');
             errorDiv.style.display = 'block';
-            errorDiv.style.background = 'rgba(16, 185, 129, 0.1)'; 
-            errorDiv.style.color = '#6ee7b7';       
-            errorDiv.style.borderColor = 'rgba(16, 185, 129, 0.2)';
-            errorDiv.innerText = "Account created successfully. You may now log in.";
+            errorDiv.className = 'notification-box success';
+            errorDiv.innerText = "Registration complete. You may now sign in with your credentials.";
         }
 
         window.onload = function() {

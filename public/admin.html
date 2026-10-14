@@ -318,9 +318,32 @@
         .map-popup p { font-family: var(--font-data); font-size: 10px; color: var(--text-dim); margin: 0 0 8px 0;}
         .map-btn { background: var(--text-main); color: var(--bg-base); border: none; padding: 6px; width: 100%; border-radius: 6px; font-weight: 800; cursor: pointer; text-transform: uppercase; font-size: 9px;}
 
-        .bldg-dot { opacity: 0; pointer-events: auto; background: rgba(0,0,0,0.7); border: 1px solid var(--accent-cyan); border-radius: 4px; padding: 2px 4px; color: var(--accent-cyan); font-weight: 800; font-size: 9px; font-family: var(--font-data); transition: 0.3s; }
-        .bldg-text { opacity: 0; pointer-events: auto; color: var(--accent-cyan); font-weight: 800; font-family: var(--font-data); text-shadow: 0 2px 5px #000; transition: 0.3s; }
-        .label-visible { opacity: 1 !important; }
+        /* --- SMALL LETTERS-ONLY BUILDING BADGE (CLEAN & UN-CROWDED) --- */
+        .bldg-badge-letter {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 20px !important;
+            height: 20px !important;
+            background: #f59e0b !important; /* Vivid safety amber */
+            color: #000000 !important;      /* Deep black bold letter */
+            border: 1.5px solid #0f172a !important; /* Crisp dark boundary */
+            border-radius: 50% !important;
+            font-family: system-ui, -apple-system, sans-serif !important;
+            font-weight: 900 !important;
+            font-size: 11px !important;
+            line-height: 1 !important;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35) !important;
+            cursor: pointer !important;
+            pointer-events: auto !important;
+            transition: transform 0.15s ease-out, box-shadow 0.15s !important;
+            user-select: none !important;
+        }
+        .bldg-badge-letter:hover {
+            transform: scale(1.3) !important;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5) !important;
+            z-index: 10000 !important;
+        }
 
         .dest-pin { display: flex; justify-content: center; align-items: center; }
         .pin-circle { width: 35px; height: 35px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 16px; }
@@ -413,6 +436,9 @@
                     <div class="panel-header">
                         <span style="display:flex; align-items:center; gap:8px;"><i class="fas fa-map"></i> Live Map</span>
                         <div style="display:flex; gap: 8px;">
+                            <button class="route-btn" onclick="fitAllDevices()" title="Fit all active devices on map"><i class="fas fa-expand"></i> Fit Devices</button>
+                            <button class="route-btn" onclick="locateAdminDevice()" title="Detect Admin Location"><i class="fas fa-crosshairs"></i> Admin GPS</button>
+                            <button class="route-btn" onclick="toggleBasemap()" title="Toggle map view (Daylight / Satellite)"><i class="fas fa-layer-group"></i> Toggle Satellite</button>
                             <button class="route-btn" onclick="toggleAllRoutes()"><i class="fas fa-route"></i> Show Routes</button>
                             <button class="route-btn supply-btn" onclick="enableSupplyMarkerMode()"><i class="fas fa-box-open"></i> Mark Available Supply</button>
                         </div>
@@ -479,7 +505,7 @@
                                 <th>Phone Number</th>
                                 <th>Account Status</th>
                                 <th>Current Status</th>
-                                <th>Last Seen</th>
+                                <th>Last Seen & Real-Time GPS</th>
                             </tr>
                         </thead>
                         <tbody id="roster-table-body"></tbody>
@@ -553,9 +579,27 @@
             document.getElementById('theme-icon').className = isLight ? 'fas fa-moon' : 'fas fa-sun';
         }
 
+        let currentBasemap = 'street';
+        let streetLayer = null;
+        let satelliteLayer = null;
+
         function initMap() {
-            map = L.map("admin-map", { zoomControl: false }).setView(TAMBAI_LOC, 18);
-            L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}").addTo(map);
+            map = L.map("admin-map", { zoomControl: false, maxZoom: 20 }).setView(TAMBAI_LOC, 18);
+            
+            // Clean Daylight Basemap (OpenStreetMap - Daylight, reliable, 100% Free, NO API KEY REQUIRED)
+            streetLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                maxZoom: 19,
+                subdomains: 'abc',
+                attribution: '&copy; OpenStreetMap contributors'
+            });
+
+            // Aerial Satellite Layer
+            satelliteLayer = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+                maxZoom: 19,
+                attribution: '&copy; Esri World Imagery'
+            });
+
+            streetLayer.addTo(map);
             L.control.zoom({ position: "bottomright" }).addTo(map);
             
             // Supply Drop Click Listener
@@ -569,6 +613,20 @@
             loadBuildingLabels();
         }
 
+        function toggleBasemap() {
+            if (currentBasemap === 'street') {
+                map.removeLayer(streetLayer);
+                satelliteLayer.addTo(map);
+                currentBasemap = 'satellite';
+                showToast("🛰️ Aerial Satellite View Enabled");
+            } else {
+                map.removeLayer(satelliteLayer);
+                streetLayer.addTo(map);
+                currentBasemap = 'street';
+                showToast("🗺️ Daylight Street View Enabled");
+            }
+        }
+
         async function loadSafeZones() {
             const zones = [
                 { name: "Primary Front", coords: [7.100589893149529, 124.82393056927546] },
@@ -576,10 +634,10 @@
                 { name: "Tertiary Sector", coords: [7.1001461901808565, 124.82430112059413] },
             ];
             const shieldIcon = L.divIcon({
-                html: `<div style="display:flex; justify-content:center; align-items:center; width:28px; height:28px; background:rgba(0,0,0,0.8); border-radius:8px; border: 2px solid var(--accent-cyan); box-shadow: 0 0 10px rgba(0, 132, 199, 0.5);"><i class="fas fa-shield-halved" style="color:var(--accent-cyan); font-size:12px;"></i></div>`,
-                className: "custom-shield-marker", iconSize: [28, 28],
+                html: `<div style="display:flex; justify-content:center; align-items:center; width:30px; height:30px; background:#0f172a; border-radius:8px; border: 2.5px solid #10b981; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);"><i class="fas fa-shield-halved" style="color:#10b981; font-size:14px;"></i></div>`,
+                className: "custom-shield-marker", iconSize: [30, 30],
             });
-            zones.forEach((z) => L.marker(z.coords, { icon: shieldIcon }).addTo(map).bindPopup(`<div class="map-popup"><h3>Safe Zone</h3><p>${z.name}</p></div>`));
+            zones.forEach((z) => L.marker(z.coords, { icon: shieldIcon }).addTo(map).bindPopup(`<div class="map-popup"><h3 style="color:#10b981;">Safe Assembly Zone</h3><p>${z.name}</p></div>`));
         }
 
         async function toggleAllRoutes() {
@@ -592,7 +650,7 @@
                 const bbox = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`;
                 const query = `[out:json];way[highway](${bbox});out geom;`;
                 
-                showToast("Fetching road network...");
+                showToast("Scanning evacuation road network...");
                 try {
                     const response = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`);
                     const data = await response.json();
@@ -601,14 +659,15 @@
                         if(el.type === 'way' && el.geometry) {
                             const latlngs = el.geometry.map(g => [g.lat, g.lon]);
                             L.polyline(latlngs, {
-                                color: "#0ea5e9", 
+                                color: "#d97706", // High-visibility amber, NEVER blue!
                                 weight: 3, 
-                                opacity: 0.8
+                                opacity: 0.85,
+                                dashArray: "6, 4"
                             }).addTo(roadsLayer);
                             roadCount++;
                         }
                     });
-                    showToast(`Loaded ${roadCount} real roads`);
+                    showToast(`Loaded ${roadCount} evacuation pathways`);
                 } catch(e) {
                     console.error(e);
                     showToast("Failed to load routes. Check connection.");
@@ -691,9 +750,26 @@
         }
 
         async function fetchStudentRoster() {
-            if (supabaseAdmin) {
-                const { data, error } = await supabaseAdmin.from("students").select("email, name, phone_number, last_seen, last_status").order("name");
-                if (data) { fullRoster = data; document.getElementById("count-total").innerText = fullRoster.length; updateUI(); }
+            let data = null;
+            try {
+                const res = await fetch("/api/students");
+                if (res.ok) {
+                    const localData = await res.json();
+                    if (Array.isArray(localData) && localData.length > 0) data = localData;
+                }
+            } catch(e) {}
+
+            if (!data && supabaseAdmin) {
+                try {
+                    const res = await supabaseAdmin.from("students").select("email, name, phone_number, last_seen, last_status").order("name");
+                    if (res.data && res.data.length > 0) data = res.data;
+                } catch(e) {}
+            }
+
+            if (data) { 
+                fullRoster = data; 
+                document.getElementById("count-total").innerText = fullRoster.length; 
+                updateUI(); 
             }
         }
 
@@ -702,14 +778,31 @@
 
             socket.on("admin-dashboard-update", async (data) => {
                 const id = data.id.toString(); 
-                const { status, lat, lng } = data;
+                const { status, lat, lng, accuracy } = data;
                 const currentTime = new Date().toLocaleString();
                 let studentName = "Unknown Student";
 
                 const rosterMatch = fullRoster.find((s) => s.email === id);
-                if (rosterMatch) { studentName = rosterMatch.name; rosterMatch.last_seen = currentTime; rosterMatch.last_status = status; }
+                if (rosterMatch) { 
+                    studentName = rosterMatch.name; 
+                    rosterMatch.last_seen = currentTime; 
+                    rosterMatch.last_status = status;
+                    if (lat && lng) {
+                        rosterMatch.last_lat = lat;
+                        rosterMatch.last_lng = lng;
+                        rosterMatch.last_acc = accuracy;
+                    }
+                }
 
-                studentData.set(id, { status: status || "SAFE", time: currentTime, name: studentName, isOnline: true });
+                studentData.set(id, { 
+                    status: status || "SAFE", 
+                    time: currentTime, 
+                    name: studentName, 
+                    isOnline: true,
+                    lat: lat || null,
+                    lng: lng || null,
+                    accuracy: accuracy || null
+                });
 
                 if (supabaseAdmin) { await supabaseAdmin.from("students").update({ last_seen: currentTime, last_status: status }).eq("email", id); }
 
@@ -724,12 +817,31 @@
                     if (status === "SAFE") { statusColor = "var(--accent-green)"; statusText = "SAFE"; }
                     if (status === "DANGER") { statusColor = "var(--accent-red)"; statusText = "SOS ALERT"; }
 
-                    const popupContent = `<div class="map-popup"><div style="color:${statusColor}; font-weight:800; font-size:9px; letter-spacing:1px; margin-bottom:3px;">${statusText}</div><h3>${studentName}</h3><p>Email: ${id}</p><div class="data-mono" style="font-size:9px; color:var(--text-dim); margin-bottom:10px;">${lat.toFixed(5)}, ${lng.toFixed(5)}</div>${isDanger ? `<button class="map-btn" onclick="replyTo('${id}')">Send Message</button>` : ""}</div>`;
+                    const accText = accuracy ? `<div style="font-size:9px; color:var(--accent-cyan); margin-bottom:6px;">GPS Accuracy: ±${Math.round(accuracy)}m</div>` : '';
+
+                    const popupContent = `
+                        <div class="map-popup">
+                            <div style="color:${statusColor}; font-weight:800; font-size:9px; letter-spacing:1px; margin-bottom:3px;">${statusText}</div>
+                            <h3>${studentName}</h3>
+                            <p>Email: ${id}</p>
+                            <div class="data-mono" style="font-size:10px; color:var(--accent-green); margin-bottom:4px;">📍 ${lat.toFixed(6)}, ${lng.toFixed(6)}</div>
+                            ${accText}
+                            <div class="data-mono" style="font-size:8px; color:var(--text-dim); margin-bottom:10px;">Updated: ${new Date().toLocaleTimeString()}</div>
+                            ${isDanger ? `<button class="map-btn" onclick="replyTo('${id}')">Send Message</button>` : ""}
+                        </div>`;
+
+                    const isFirstMarker = !studentMarkers[id];
 
                     if (studentMarkers[id]) {
                         studentMarkers[id].setLatLng([lat, lng]); studentMarkers[id].setIcon(customIcon); studentMarkers[id].getPopup().setContent(popupContent);
                     } else {
                         studentMarkers[id] = L.marker([lat, lng], { icon: customIcon }).addTo(map).bindPopup(popupContent);
+                    }
+
+                    // Auto-focus on first device to immediately display the real location
+                    if (isFirstMarker && Object.keys(studentMarkers).length === 1) {
+                        map.setView([lat, lng], 17);
+                        showToast(`📍 Device connected: ${studentName} (${lat.toFixed(4)}, ${lng.toFixed(4)})`);
                     }
 
                     if (isDanger) {
@@ -849,7 +961,11 @@
                 const safeCount = parseInt(document.getElementById("count-safe").innerText) || 0;
                 const dangerCount = parseInt(document.getElementById("count-danger").innerText) || 0;
                 socket.emit("broadcast-alert", { type: type, message: msg });
-                if (supabaseAdmin) { await supabaseAdmin.from("disaster_history").insert([{ type: type, instructions: msg, count_safe: safeCount, count_danger: dangerCount, created_at: new Date().toISOString() }]); }
+                if (supabaseAdmin) { 
+                    try {
+                        await supabaseAdmin.from("disaster_history").insert([{ type: type, instructions: msg, count_safe: safeCount, count_danger: dangerCount, created_at: new Date().toISOString() }]); 
+                    } catch(e) {}
+                }
                 fetchDisasterLogs();
             }
         }
@@ -887,16 +1003,87 @@
                     else if (currentStatus === 'DANGER') statusBadge = `<span class="status-pill pill-danger">DANGER</span>`;
 
                     const lastSeenDisplay = isOnline ? liveInfo.time : (student.last_seen || "NO DATA");
+                    const hasCoords = (liveInfo && liveInfo.lat && liveInfo.lng) || (student.last_lat && student.last_lng);
+                    const coordsDisplay = liveInfo && liveInfo.lat 
+                        ? `📍 ${liveInfo.lat.toFixed(5)}, ${liveInfo.lng.toFixed(5)}${liveInfo.accuracy ? ` (±${Math.round(liveInfo.accuracy)}m)` : ''}` 
+                        : (student.last_lat ? `📍 ${student.last_lat.toFixed(5)}, ${student.last_lng.toFixed(5)}` : 'Awaiting GPS Lock');
 
                     body.innerHTML += `
-                        <tr>
+                        <tr style="cursor:${hasCoords ? 'pointer' : 'default'};" onclick="${hasCoords ? `focusStudentOnMap('${sid}')` : ''}" title="${hasCoords ? 'Click to locate real GPS on Live Map' : 'No GPS coordinates yet'}">
                             <td><div style="font-weight:600; font-size:0.95rem;">${student.name}</div><div class="data-mono" style="font-size:9px; margin-top:2px;">${sid}</div></td>
                             <td class="data-mono">${student.phone_number || 'UNKNOWN'}</td>
                             <td>${connBadge}</td><td>${statusBadge}</td>
-                            <td class="data-mono" style="font-size:0.75rem;">${lastSeenDisplay}</td>
+                            <td>
+                                <div class="data-mono" style="font-size:0.75rem;">${lastSeenDisplay}</div>
+                                <div class="data-mono" style="font-size:9px; color:${hasCoords ? 'var(--accent-cyan)' : 'var(--text-dim)'}; margin-top:3px; font-weight:700;">${coordsDisplay}</div>
+                            </td>
                         </tr>`;
                 });
             } else { body.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text-dim);">No students connected.</td></tr>`; }
+        }
+
+        function focusStudentOnMap(sid) {
+            switchTab('map');
+            const marker = studentMarkers[sid];
+            if (marker) {
+                map.flyTo(marker.getLatLng(), 18, { animate: true, duration: 1.2 });
+                setTimeout(() => marker.openPopup(), 1200);
+            } else {
+                const liveInfo = studentData.get(sid);
+                if (liveInfo && liveInfo.lat && liveInfo.lng) {
+                    map.flyTo([liveInfo.lat, liveInfo.lng], 18, { animate: true, duration: 1.2 });
+                } else {
+                    showToast(`No live GPS data yet for ${sid}`);
+                }
+            }
+        }
+
+        function fitAllDevices() {
+            const markers = Object.values(studentMarkers);
+            if (markers.length === 0) {
+                showToast("No active student devices reporting GPS yet.");
+                return;
+            }
+            if (markers.length === 1) {
+                map.flyTo(markers[0].getLatLng(), 18, { animate: true, duration: 1.2 });
+                markers[0].openPopup();
+                showToast("Centered on active device");
+                return;
+            }
+            const group = L.featureGroup(markers);
+            map.fitBounds(group.getBounds(), { padding: [60, 60], maxZoom: 18 });
+            showToast(`Showing ${markers.length} active device(s)`);
+        }
+
+        let adminMarker = null;
+        function locateAdminDevice() {
+            if (!navigator.geolocation) {
+                showToast("Geolocation not supported on this browser.");
+                return;
+            }
+            showToast("Acquiring Admin hardware GPS...");
+            navigator.geolocation.getCurrentPosition((pos) => {
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                const acc = pos.coords.accuracy || 10;
+                const adminIcon = L.divIcon({
+                    className: "custom-div-icon",
+                    html: `<div style="background:#0ea5e9; border:2px solid #ffffff; border-radius:50%; width:16px; height:16px; box-shadow:0 0 12px #0ea5e9;"></div>`,
+                    iconSize: [16, 16],
+                    iconAnchor: [8, 8]
+                });
+                if (!adminMarker) {
+                    adminMarker = L.marker([lat, lng], { icon: adminIcon }).addTo(map)
+                        .bindPopup(`<div class="map-popup"><h3>Admin HQ (This Device)</h3><p>Live GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)}</p><small style="color:var(--accent-cyan)">Accuracy: ±${Math.round(acc)}m</small></div>`);
+                } else {
+                    adminMarker.setLatLng([lat, lng]);
+                }
+                map.flyTo([lat, lng], 18, { animate: true, duration: 1.5 });
+                adminMarker.openPopup();
+                showToast(`📍 Admin GPS locked (±${Math.round(acc)}m)`);
+            }, (err) => {
+                showToast("⚠️ Could not acquire Admin GPS: " + err.message);
+            }, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
         }
 
         function switchTab(t) {
@@ -913,11 +1100,26 @@
         }
 
         async function fetchDisasterLogs() {
-            if (!supabaseAdmin) return;
             const logBody = document.getElementById("disaster-logs-body");
-            const { data, error } = await supabaseAdmin.from("disaster_history").select("*").order("created_at", { ascending: false });
+            let data = null;
+            try {
+                const res = await fetch("/api/disaster-history");
+                if (res.ok) {
+                    const localLogs = await res.json();
+                    if (Array.isArray(localLogs) && localLogs.length > 0) data = localLogs;
+                }
+            } catch(e) {}
 
-            if (error) { logBody.innerHTML = `<tr><td colspan="5">System error</td></tr>`; return; }
+            if (!data && supabaseAdmin) {
+                try {
+                    const res = await supabaseAdmin.from("disaster_history").select("*").order("created_at", { ascending: false });
+                    if (res.data && res.data.length > 0) data = res.data;
+                } catch(e) {}
+            }
+            if (!data || data.length === 0) { 
+                logBody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:1.5rem; color:var(--text-dim);">No disaster alerts recorded yet.</td></tr>`; 
+                return; 
+            }
             logBody.innerHTML = data.map((log) => {
                 const isSafe = log.type === "SAFE" || log.type === "CLEAR";
                 return `
@@ -946,10 +1148,23 @@
         }
 
         async function loadSavedMessages() {
-            if (!supabaseAdmin) return;
             const list = document.getElementById("list-danger"); if (!list) return;
-            const { data, error } = await supabaseAdmin.from("sos_messages").select("*").order("created_at", { ascending: false }).limit(50);
-            if (error) return;
+            let data = null;
+            try {
+                const res = await fetch("/api/sos-messages");
+                if (res.ok) {
+                    const localMsgs = await res.json();
+                    if (Array.isArray(localMsgs) && localMsgs.length > 0) data = localMsgs;
+                }
+            } catch(e) {}
+
+            if (!data && supabaseAdmin) {
+                try {
+                    const res = await supabaseAdmin.from("sos_messages").select("*").order("created_at", { ascending: false }).limit(50);
+                    if (res.data && res.data.length > 0) data = res.data;
+                } catch(e) {}
+            }
+            if (!data) return;
             list.innerHTML = "";
             data.forEach((msg) => {
                 const item = document.createElement("div"); const msgId = `msg-${msg.id}`; const isReplied = msg.replied === true;
@@ -983,24 +1198,43 @@
         function loadBuildingLabels() {
             bldgMarkers.forEach((m) => map.removeLayer(m)); bldgMarkers = [];
             BUILDINGS.forEach((b) => {
+                const shortLetter = b.name.replace("BLDG ", "").trim();
                 const marker = L.marker(b.coords, { interactive: true }).addTo(map);
-                marker.bldgData = { name: b.name, short: b.name.replace("BLDG ", "") };
-                marker.on('mouseover', function() { const el = this.getElement(); if (el) el.classList.add('label-visible'); });
-                marker.on('mouseout', function() { const el = this.getElement(); if (el) el.classList.remove('label-visible'); });
+                marker.bldgData = { name: b.name, short: shortLetter };
+                
+                marker.bindPopup(`
+                    <div style="font-family:system-ui,-apple-system,sans-serif; padding:4px 6px;">
+                        <div style="display:flex; align-items:center; gap:6px; margin-bottom:2px;">
+                            <span style="display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; background:#f59e0b; color:#000; font-weight:900; font-size:11px; border-radius:50%;">${shortLetter}</span>
+                            <b style="font-size:13px; color:#0f172a;">${b.name}</b>
+                        </div>
+                        <div style="font-size:11px; color:#64748b;">Designated Campus Evacuation Sector</div>
+                    </div>
+                `);
+
                 bldgMarkers.push(marker);
             });
-            updateLabels(); map.on("zoomend", updateLabels);
+            updateLabels(); 
+            map.on("zoomend", updateLabels);
         }
 
         function updateLabels() {
             const currentZoom = map.getZoom();
             bldgMarkers.forEach((marker) => {
-                let newIcon;
-                if (currentZoom >= 20) { newIcon = L.divIcon({ className: "bldg-text", html: marker.bldgData.name, iconSize: [60, 20], iconAnchor: [30, 10] }); } 
-                else { newIcon = L.divIcon({ className: "bldg-dot", html: marker.bldgData.short, iconSize: [24, 24], iconAnchor: [12, 12] }); }
+                const letter = marker.bldgData.short;
+                const newIcon = L.divIcon({
+                    className: "",
+                    html: `<div class="bldg-badge-letter" title="Building ${letter}">${letter}</div>`,
+                    iconSize: [20, 20],
+                    iconAnchor: [10, 10]
+                });
                 marker.setIcon(newIcon);
-                if (currentZoom < 16) marker.getElement()?.style.setProperty('display', 'none');
-                else marker.getElement()?.style.setProperty('display', 'block');
+                // Keep visible cleanly from zoom 14 and up
+                if (currentZoom < 14) {
+                    marker.getElement()?.style.setProperty('display', 'none');
+                } else {
+                    marker.getElement()?.style.setProperty('display', 'block');
+                }
             });
         }
     </script>

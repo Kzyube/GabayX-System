@@ -3,31 +3,85 @@ const http = require('http');
 const { Server } = require('socket.io');
 const session = require('express-session');
 const path = require('path');
+const fs = require('fs');
+const os = require('os');
 const { createClient } = require('@supabase/supabase-js');
 const webpush = require('web-push'); 
 const bodyParser = require('body-parser');
-const admin = require('firebase-admin'); 
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*", methods: ["GET", "POST"] } });
 
-// --- 1. CONFIGURATION (GABAYX DB) ---
-const SUPABASE_URL = 'https://pvmgvuvhhdvqhwfrejaf.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2bWd2dXZoaGR2cWh3ZnJlamFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyOTcyMjcsImV4cCI6MjA5MTg3MzIyN30.1nrc9_XupIDXpU4qXHKcTET-5pbtXSErs_MD31Z0RAM';
+// --- 1. CONFIGURATION (GABAYX DB & LOCAL STORE FALLBACK) ---
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://pvmgvuvhhdvqhwfrejaf.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2bWd2dXZoaGR2cWh3ZnJlamFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyOTcyMjcsImV4cCI6MjA5MTg3MzIyN30.1nrc9_XupIDXpU4qXHKcTET-5pbtXSErs_MD31Z0RAM';
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Persistent Local Store for offline / disconnected DB testing
+const STORE_FILE = path.join(__dirname, 'local_store.json');
+let localStore = {
+    students: [
+        {
+            email: 'student@gabayx.edu.ph',
+            password: 'student123',
+            name: 'Juan Dela Cruz',
+            phone_number: '09123456789',
+            last_seen: new Date().toLocaleString(),
+            last_status: 'SAFE'
+        },
+        {
+            email: 'maria@gabayx.edu.ph',
+            password: 'student123',
+            name: 'Maria Santos',
+            phone_number: '09987654321',
+            last_seen: new Date().toLocaleString(),
+            last_status: 'SAFE'
+        }
+    ],
+    donations: [],
+    disaster_logs: [
+        { type: 'SYSTEM TEST', created_at: new Date().toISOString() }
+    ],
+    disaster_history: [],
+    sos_messages: []
+};
+
+// Initialize / load stored data
+if (fs.existsSync(STORE_FILE)) {
+    try {
+        const raw = fs.readFileSync(STORE_FILE, 'utf-8');
+        const parsed = JSON.parse(raw);
+        localStore = { ...localStore, ...parsed };
+    } catch (e) {
+        console.warn('⚠️ Could not load local_store.json, using defaults:', e.message);
+    }
+}
+
+function saveLocalStore() {
+    try {
+        fs.writeFileSync(STORE_FILE, JSON.stringify(localStore, null, 2), 'utf-8');
+    } catch (e) {
+        console.error('❌ Failed to save local store:', e.message);
+    }
+}
 
 // --- 2. NOTIFICATIONS ---
 const publicVapidKey = 'BO2TCO8NgiwHgW9vd2eDfMv3xu5n68NHwseA2YntRGQH_KlUWp-47npfemKC7gNjcTUD_m7tazM19Gh9yAO-UUg';
 const privateVapidKey = 'XmYMsQ79u1ne_xu0PIKmk_d5FnqVHcleo6Q8vmeh2zE';
 
-webpush.setVapidDetails(
-  'mailto:admin@gabayx.edu.ph',
-  publicVapidKey,
-  privateVapidKey
-);
+try {
+    webpush.setVapidDetails(
+        'mailto:admin@gabayx.edu.ph',
+        publicVapidKey,
+        privateVapidKey
+    );
+} catch (e) {
+    console.warn("⚠️ VAPID details notice:", e.message);
+}
 
 // --- 3. MIDDLEWARE ---
+app.set('trust proxy', 1);
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json()); 
 app.use(bodyParser.json());
@@ -79,11 +133,26 @@ app.post('/auth/login', async (req, res) => {
     }
     
     // B. STUDENT LOGIN
-    const { data: student } = await supabase
-        .from('students')
-        .select('*')
-        .eq('email', username)
-        .single(); 
+    let student = null;
+    try {
+        const { data, error } = await supabase
+            .from('students')
+            .select('*')
+            .eq('email', username)
+            .single(); 
+        if (!error && data) {
+            student = data;
+        }
+    } catch (dbErr) {
+        // Fallback to local store
+    }
+
+    if (!student) {
+        student = localStore.students.find(s => 
+            s.email.toLowerCase() === username.toLowerCase() && 
+            (!password || !s.password || s.password === password)
+        );
+    }
 
     if (student) {
         req.session.loggedin = true;
@@ -109,53 +178,90 @@ app.post('/auth/register', async (req, res) => {
 
     if (!newId || !newPassword || !newPhone) return res.redirect('/register.html?error=missing_fields');
 
-    const { error } = await supabase
-        .from('students')
-        .insert([{ 
-            email: newId, 
-            password: newPassword, 
-            name: newName,
-            phone_number: newPhone
-        }]);
+    // Attempt Supabase insert
+    let supabaseSuccess = false;
+    try {
+        const { error } = await supabase
+            .from('students')
+            .insert([{ 
+                email: newId, 
+                password: newPassword, 
+                name: newName,
+                phone_number: newPhone
+            }]);
+        if (!error) supabaseSuccess = true;
+    } catch (e) {
+        // Supabase offline/error
+    }
 
-    if (error) {
-        console.error("Supabase Error:", error);
+    // Check duplicate in local store
+    const existsLocally = localStore.students.some(s => s.email.toLowerCase() === newId.toLowerCase());
+    if (existsLocally && !supabaseSuccess) {
+        // Already exists locally
         return res.redirect('/register.html?error=user_already_exists');
+    }
+
+    if (!existsLocally) {
+        localStore.students.push({
+            email: newId,
+            password: newPassword,
+            name: newName,
+            phone_number: newPhone,
+            last_seen: new Date().toLocaleString(),
+            last_status: 'SAFE'
+        });
+        saveLocalStore();
+        console.log(`✅ [REGISTER] New student registered: ${newName} (${newId})`);
     }
 
     res.redirect('/?success=registered');
 });
 
-// --- NEW GCASH DONATION ROUTE ---
+// --- GCASH DONATION ROUTE ---
 app.post('/api/donate', async (req, res) => {
     const donorName = req.body.donor_name ? req.body.donor_name.trim() : 'Anonymous Hero';
-    const amount = parseFloat(req.body.amount);
-    const targetZone = req.body.target_zone;
+    const amount = parseFloat(req.body.amount) || 0;
+    const targetZone = req.body.target_zone || 'ALL ZONES';
+    const targetLat = req.body.target_lat ? parseFloat(req.body.target_lat) : null;
+    const targetLng = req.body.target_lng ? parseFloat(req.body.target_lng) : null;
     
     // Generate a secure 8-character voucher code (e.g. GX-8F2B9A)
     const voucherCode = 'GX-' + Math.random().toString(36).substring(2, 8).toUpperCase();
 
-    const { error } = await supabase.from('donations').insert([{
+    try {
+        await supabase.from('donations').insert([{
+            donor_name: donorName,
+            amount: amount,
+            target_zone: targetZone,
+            voucher_code: voucherCode
+        }]);
+    } catch (e) {
+        // Supabase offline/error
+    }
+
+    localStore.donations.unshift({
         donor_name: donorName,
         amount: amount,
         target_zone: targetZone,
-        voucher_code: voucherCode
-    }]);
+        target_lat: targetLat,
+        target_lng: targetLng,
+        voucher_code: voucherCode,
+        created_at: new Date().toISOString()
+    });
+    saveLocalStore();
 
-    if (!error) {
-        console.log(`💰 DONATION SECURED: ₱${amount} to ${targetZone}`);
-        // Broadcast the voucher to the students live
-        io.emit('donation-dropped', {
-            donor: donorName,
-            amount: amount,
-            zone: targetZone,
-            voucher: voucherCode
-        });
-        res.redirect(`/donate.html?success=true&voucher=${voucherCode}`);
-    } else {
-        console.error("Donation DB Error:", error);
-        res.redirect('/donate.html?error=true');
-    }
+    console.log(`💰 DONATION SECURED: ₱${amount} to ${targetZone} (Voucher: ${voucherCode})`);
+    // Broadcast the voucher to the students live
+    io.emit('donation-dropped', {
+        donor: donorName,
+        amount: amount,
+        zone: targetZone,
+        target_lat: targetLat,
+        target_lng: targetLng,
+        voucher: voucherCode
+    });
+
+    res.redirect(`/donate.html?success=true&voucher=${voucherCode}`);
 });
 
 app.get('/api/me', (req, res) => {
@@ -177,6 +283,66 @@ const processedSyncHashes = new Set();
 // HEALTH CHECK ENDPOINT (Active connectivity verification for PWA)
 app.get('/api/health', (req, res) => {
     res.status(200).json({ ok: true, status: 'operational', timestamp: new Date().toISOString() });
+});
+
+// ROSTER & DATA API ENDPOINTS (Supports Admin fallback when Supabase is offline)
+app.get('/api/students', (req, res) => {
+    const roster = localStore.students.map(s => ({
+        email: s.email,
+        name: s.name,
+        phone_number: s.phone_number,
+        last_seen: s.last_seen || new Date().toLocaleString(),
+        last_status: s.last_status || 'SAFE'
+    }));
+    res.json(roster);
+});
+
+app.get('/api/disaster-history', (req, res) => {
+    res.json(localStore.disaster_history);
+});
+
+app.get('/api/sos-messages', (req, res) => {
+    res.json(localStore.sos_messages);
+});
+
+app.get('/api/hotspots', (req, res) => {
+    res.json(Array.from(activeHotspotHosts.values()));
+});
+
+function getLocalIp() {
+    const interfaces = os.networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+        for (const iface of interfaces[name]) {
+            if (iface.family === 'IPv4' && !iface.internal) {
+                return iface.address;
+            }
+        }
+    }
+    return '127.0.0.1';
+}
+
+app.get('/api/server-info', (req, res) => {
+    const hostHeader = req.get('host') || '';
+    const isLocalHost = hostHeader.includes('localhost') || hostHeader.includes('127.0.0.1');
+    const localIp = getLocalIp();
+    const proto = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+
+    let appBaseUrl = '';
+    if (isLocalHost) {
+        // If developer opened localhost on PC, return LAN IP so external phones on Wi-Fi can connect
+        appBaseUrl = `http://${localIp}:${PORT}`;
+    } else {
+        // Render cloud domain or direct IP
+        appBaseUrl = `${proto}://${hostHeader}`;
+    }
+
+    res.json({
+        ip: localIp,
+        port: PORT,
+        url: appBaseUrl,
+        hotspot_url: `${appBaseUrl}/student.html`,
+        is_cloud: !isLocalHost && !hostHeader.startsWith('192.168.') && !hostHeader.startsWith('10.') && !hostHeader.startsWith('172.')
+    });
 });
 
 // EMERGENCY INCIDENT REPORT SUBMISSION (Offline-first & Online reports)
@@ -213,18 +379,22 @@ app.post('/api/reports/submit', async (req, res) => {
         });
     }
 
-    // Persist to Supabase sos_messages
+    const formattedMsg = `[${report.incident_type}]: ${report.description || 'Emergency reported'} (${report.nearest_building || 'Campus'})`;
+    const newSos = {
+        id: Date.now(),
+        student_id: report.student_id || 'anonymous',
+        message: formattedMsg,
+        is_critical: true,
+        replied: false,
+        created_at: report.timestamp || new Date().toISOString()
+    };
+    localStore.sos_messages.unshift(newSos);
+    saveLocalStore();
+
     try {
-        const formattedMsg = `[${report.incident_type}]: ${report.description || 'Emergency reported'} (${report.nearest_building || 'Campus'})`;
-        await supabase.from('sos_messages').insert([{
-            student_id: report.student_id || 'anonymous',
-            message: formattedMsg,
-            is_critical: true,
-            replied: false,
-            created_at: report.timestamp || new Date().toISOString()
-        }]);
+        await supabase.from('sos_messages').insert([newSos]);
     } catch (dbErr) {
-        console.error('[REPORT DB ERROR]:', dbErr);
+        // Supabase offline/error
     }
 
     res.status(200).json({ status: 'success', id: report.id, receivedAt: new Date().toISOString() });
@@ -288,22 +458,45 @@ app.get('/logout', (req, res) => {
 
 // --- 5. SOCKET.IO & PUSH LOGIC ---
 const activeSockets = new Map();
+const activeHotspotPeers = new Map();
+const activeHotspotHosts = new Map();
 
 io.on('connection', async (socket) => {
-    
     console.log(`[SOCKET] User connected: ${socket.id}`);
 
-    const { data: logs } = await supabase.from('disaster_logs').select('*').order('created_at', { ascending: false });
-    socket.emit('log-history', logs || []);
+    let logs = [];
+    try {
+        const { data: dbLogs } = await supabase.from('disaster_logs').select('*').order('created_at', { ascending: false });
+        if (dbLogs && dbLogs.length) logs = dbLogs;
+    } catch (e) {}
+    if (!logs.length) logs = localStore.disaster_logs;
+    socket.emit('log-history', logs);
 
     socket.on('broadcast-alert', async (data) => {
         console.log("📢 GABAYX ALERT TRIGGERED:", data.type);
         
-        const { data: newLog, error } = await supabase.from('disaster_logs').insert([{ type: data.type }]).select().single();
-        if (!error) {
-            io.emit('update-logs', { type: newLog.type, time: new Date(newLog.created_at).toLocaleTimeString() });
+        let newLog = null;
+        try {
+            const { data: logRes, error } = await supabase.from('disaster_logs').insert([{ type: data.type }]).select().single();
+            if (!error && logRes) newLog = logRes;
+        } catch (e) {}
+
+        if (!newLog) {
+            newLog = { type: data.type, created_at: new Date().toISOString() };
+            localStore.disaster_logs.unshift(newLog);
+            saveLocalStore();
         }
 
+        localStore.disaster_history.unshift({
+            type: data.type,
+            instructions: data.message,
+            count_safe: 0,
+            count_danger: 0,
+            created_at: new Date().toISOString()
+        });
+        saveLocalStore();
+
+        io.emit('update-logs', { type: newLog.type, time: new Date(newLog.created_at).toLocaleTimeString() });
         io.emit('receive-alert', data);
 
         const payload = JSON.stringify({ 
@@ -336,16 +529,34 @@ io.on('connection', async (socket) => {
     socket.on('student-update', async (data) => {
         io.emit('admin-dashboard-update', data);
         
+        // update local roster last seen
+        const student = localStore.students.find(s => s.email === data.id);
+        if (student) {
+            student.last_seen = new Date().toLocaleString();
+            student.last_status = data.status || 'SAFE';
+            saveLocalStore();
+        }
+
         try {
             await supabase.rpc('update_last_seen', { student_id_param: data.id });
         } catch (err) {
-            console.error("DB Update Error:", err);
+            // DB Update Error catch
         }
     });
 
     socket.on('student-note', (data) => { 
         socket.join(data.id); 
         io.emit('admin-receive-note', data); 
+        const newSos = {
+            id: Date.now(),
+            student_id: data.id,
+            message: data.message,
+            is_critical: false,
+            replied: false,
+            created_at: new Date().toISOString()
+        };
+        localStore.sos_messages.unshift(newSos);
+        saveLocalStore();
     });
 
     socket.on('student-status', (data) => { 
@@ -357,7 +568,139 @@ io.on('connection', async (socket) => {
         io.to(data.targetId).emit('receive-reply', { message: data.message }); 
     });
 
+    // --- HOTSPOT / LOCAL PEER-TO-PEER MESSAGING (Zero Internet LAN) ---
+    if (!localStore.hotspot_messages) localStore.hotspot_messages = [];
+
+    socket.on('hotspot-join', (peer) => {
+        if (!peer) return;
+        const peerId = peer.id || peer.email || peer.studentEmail || socket.id;
+        socket.join('hotspot-room');
+        socket.join(peerId);
+        activeHotspotPeers.set(socket.id, {
+            socketId: socket.id,
+            id: peerId,
+            name: peer.name || 'Resident',
+            sector: peer.sector || 'Campus Zone',
+            coords: peer.coords || null,
+            isHost: !!peer.isHost,
+            joinedAt: Date.now()
+        });
+        io.emit('hotspot-peers-updated', Array.from(activeHotspotPeers.values()));
+        socket.emit('hotspot-history', localStore.hotspot_messages.slice(0, 50));
+        console.log(`[HOTSPOT] Peer joined: ${peer.name} (${peerId})`);
+    });
+
+    socket.on('hotspot-get-peers', () => {
+        socket.emit('hotspot-peers-updated', Array.from(activeHotspotPeers.values()));
+    });
+
+    // --- REAL HOTSPOT HOST REGISTRATION & DISCOVERY ---
+    socket.on('hotspot-register-host', (hostData) => {
+        if (!hostData) return;
+        const hostId = hostData.host_id || hostData.id || socket.id;
+        const hostRecord = {
+            socketId: socket.id,
+            ssid: hostData.ssid || `GABAYX-${(hostData.name || hostData.host_name || 'NODE').toUpperCase().replace(/[^A-Z0-9]/g, '')}-${socket.id.substring(0, 4)}`,
+            name: hostData.name || `${hostData.host_name || 'Resident'}'s Hotspot`,
+            host_name: hostData.host_name || hostData.name || 'Resident',
+            host_id: hostId,
+            role: hostData.role || 'Victim Relay',
+            sector: hostData.sector || 'Campus Zone',
+            coords: hostData.coords || null,
+            created_at: Date.now()
+        };
+        activeHotspotHosts.set(socket.id, hostRecord);
+        console.log(`[HOTSPOT] Real host registered: ${hostRecord.ssid} by ${hostRecord.host_name} (${hostRecord.role})`);
+        io.emit('hotspots-list-updated', Array.from(activeHotspotHosts.values()));
+    });
+
+    socket.on('hotspot-get-hosts', () => {
+        socket.emit('hotspots-list-updated', Array.from(activeHotspotHosts.values()));
+    });
+
+    socket.on('hotspot-stop-hosting', () => {
+        if (activeHotspotHosts.has(socket.id)) {
+            const h = activeHotspotHosts.get(socket.id);
+            console.log(`[HOTSPOT] Host stopped: ${h.ssid}`);
+            activeHotspotHosts.delete(socket.id);
+            io.emit('hotspots-list-updated', Array.from(activeHotspotHosts.values()));
+        }
+    });
+
+    socket.on('hotspot-get-history', () => {
+        socket.emit('hotspot-history', localStore.hotspot_messages.slice(0, 50));
+    });
+
+    socket.on('hotspot-send-msg', (data) => {
+        const channel = data.channel || 'broadcast';
+        const msg = {
+            id: 'HM-' + Date.now(),
+            sender: data.sender || 'Anonymous Resident',
+            sender_id: data.sender_id || 'unknown',
+            channel: channel,
+            recipient_id: data.recipient_id || null,
+            recipient_name: data.recipient_name || null,
+            text: data.text || '',
+            sector: data.sector || 'Campus Zone',
+            coords: data.coords || null,
+            is_emergency: !!data.is_emergency,
+            created_at: new Date().toISOString()
+        };
+        localStore.hotspot_messages.unshift(msg);
+        if (localStore.hotspot_messages.length > 100) localStore.hotspot_messages.pop();
+        saveLocalStore();
+
+        if (channel === 'broadcast' || !msg.recipient_id) {
+            io.emit('hotspot-receive-msg', msg);
+        } else {
+            // Direct message: emit to target peer and back to sender
+            io.to(msg.recipient_id).emit('hotspot-receive-msg', msg);
+            socket.emit('hotspot-receive-msg', msg);
+        }
+
+        // Also notify admin feed if it's an emergency
+        if (msg.is_emergency) {
+            io.emit('admin-receive-note', {
+                id: msg.sender_id,
+                message: `[HOTSPOT ${channel.toUpperCase()}]: ${msg.text} (${msg.sector})`,
+                timestamp: msg.created_at
+            });
+        }
+    });
+
+    socket.on('hotspot-sync-sos', (records) => {
+        if (Array.isArray(records)) {
+            records.forEach(r => {
+                localStore.sos_messages.unshift({
+                    id: Date.now() + Math.floor(Math.random() * 1000),
+                    student_id: r.student_id || r.id || 'Offline Student',
+                    message: r.content || r.message,
+                    coords: [r.lat, r.lng],
+                    is_critical: true,
+                    replied: false,
+                    created_at: r.timestamp || new Date().toISOString()
+                });
+            });
+            saveLocalStore();
+            io.emit('admin-dashboard-update', { type: 'OFFLINE_SYNC_BATCH', count: records.length });
+        }
+    });
+
     socket.on('disconnect', () => {
+        if (activeHotspotHosts.has(socket.id)) {
+            const h = activeHotspotHosts.get(socket.id);
+            console.log(`[HOTSPOT] Host disconnected: ${h.ssid}`);
+            activeHotspotHosts.delete(socket.id);
+            io.emit('hotspots-list-updated', Array.from(activeHotspotHosts.values()));
+        }
+
+        if (activeHotspotPeers.has(socket.id)) {
+            const peer = activeHotspotPeers.get(socket.id);
+            console.log(`[HOTSPOT] Peer left: ${peer.name}`);
+            activeHotspotPeers.delete(socket.id);
+            io.emit('hotspot-peers-updated', Array.from(activeHotspotPeers.values()));
+        }
+
         if (activeSockets.has(socket.id)) {
             const studentId = activeSockets.get(socket.id);
             io.emit('student-disconnected', { id: studentId });

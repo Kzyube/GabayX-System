@@ -1,7 +1,7 @@
 // GabayX Service Worker - Offline PWA Layer & Emergency Push Handler
-const CACHE_NAME = 'gabayx-shell-v1';
-const RUNTIME_CACHE = 'gabayx-runtime-v1';
-const TILE_CACHE = 'gabayx-tiles-v1';
+const CACHE_NAME = 'gabayx-shell-v2';
+const RUNTIME_CACHE = 'gabayx-runtime-v2';
+const TILE_CACHE = 'gabayx-tiles-v2';
 
 const STATIC_ASSETS = [
     '/',
@@ -28,7 +28,14 @@ const EXTERNAL_CRITICAL_ASSETS = [
     'https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js',
     'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
     'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap',
-    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'
+    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
+    'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js',
+    'https://a.tile.openstreetmap.org/18/221966/125888.png',
+    'https://b.tile.openstreetmap.org/18/221966/125887.png',
+    'https://c.tile.openstreetmap.org/18/221967/125888.png',
+    'https://a.tile.openstreetmap.org/18/221967/125887.png',
+    'https://b.tile.openstreetmap.org/17/110983/62944.png',
+    'https://c.tile.openstreetmap.org/16/55491/31472.png'
 ];
 
 // --- 1. INSTALLATION: Cache App Shell & Static Assets ---
@@ -128,8 +135,9 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // B. Map Tile Imagery (ArcGIS Tiles) -> Cache-First with update
-    if (url.hostname.includes('arcgisonline.com') && url.pathname.includes('/tile/')) {
+    // B. Map Tile Imagery (OpenStreetMap & ArcGIS Tiles) -> Cache-First with update
+    if ((url.hostname.includes('arcgisonline.com') && url.pathname.includes('/tile/')) ||
+        url.hostname.includes('openstreetmap.org')) {
         event.respondWith(
             caches.open(TILE_CACHE).then((cache) => {
                 return cache.match(request).then((cachedResponse) => {

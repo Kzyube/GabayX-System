@@ -3,406 +3,2364 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>GabayX | Student App</title>
+    <title>GabayX | Community Emergency Response</title>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
     
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="icon" type="image/png" href="/icons/icon-192.png" />
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#061912" />
+    <meta name="theme-color" content="#0F766E" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="GabayX" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
 
     <style>
         :root {
-            --bg-base: #010a07;
-            --bg-surface: rgba(6, 25, 18, 0.7);
-            --glass-border: rgba(16, 185, 129, 0.2);
-            --primary: #10b981;
-            --accent-cyan: #34d399;
-            --danger: #ff2a5f;
-            --warning: #f59e0b;
-            --accent-orange: #ff8c00;
-            --text-main: #f8fafc;
-            --text-sub: #94a3b8;
-            --font-ui: 'Outfit', sans-serif;
-            --font-data: 'Space Mono', monospace;
+            --bg-canvas: #f8fafc;
+            --bg-card: #ffffff;
+            --border-color: #cbd5e1;
+            --border-subtle: #e2e8f0;
+            --primary: #0f766e;
+            --primary-hover: #115e59;
+            --text-title: #0f172a;
+            --text-body: #334155;
+            --text-muted: #64748b;
+            --danger: #dc2626;
+            --danger-bg: #fef2f2;
+            --danger-border: #fecaca;
+            --success: #16a34a;
+            --success-bg: #f0fdf4;
+            --success-border: #bbf7d0;
+            --warning: #d97706;
+            --warning-bg: #fffbeb;
         }
 
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        * { 
+            box-sizing: border-box; 
+            margin: 0; 
+            padding: 0; 
+            -webkit-tap-highlight-color: transparent; 
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
 
         body {
-            font-family: var(--font-ui);
-            margin: 0;
-            background-color: var(--bg-base);
-            color: var(--text-main);
+            background-color: var(--bg-canvas);
+            color: var(--text-body);
             height: 100vh;
             display: flex;
             flex-direction: column;
             overflow: hidden;
         }
 
-        /* --- HEADER --- */
+        /* --- CLEAN CIVIC HEADER --- */
         header {
-            background: var(--bg-surface);
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            padding: 16px 20px;
-            display: flex; align-items: center; justify-content: space-between;
-            border-bottom: 1px solid var(--glass-border);
+            background: #ffffff;
+            border-bottom: 1px solid var(--border-subtle);
+            padding: 10px 16px;
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between;
             z-index: 1001;
-            box-shadow: 0 4px 30px rgba(0,0,0,0.5);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            height: 56px;
         }
 
         .app-logo {
-            display: flex; align-items: center; gap: 12px; cursor: pointer;
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 8px;
+            transition: background 0.15s;
+        }
+
+        .app-logo:hover {
+            background-color: #f1f5f9;
+        }
+
+        .menu-bar-icon {
+            font-size: 1.1rem;
+            color: var(--text-body);
         }
         
         .nav-logo-mark {
-            width: 28px; height: 28px; border-radius: 8px; object-fit: cover;
-            box-shadow: 0 0 10px rgba(16, 185, 129, 0.4); border: 1px solid var(--primary);
+            width: 30px; 
+            height: 30px; 
+            border-radius: 6px; 
+            object-fit: cover;
+            border: 1px solid var(--border-subtle);
         }
 
         .nav-brand-text {
-            font-weight: 800; font-size: 1.4rem; letter-spacing: 1px; text-transform: uppercase;
-            background: linear-gradient(135deg, #ffffff 0%, var(--primary) 50%, #00f0ff 100%);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.4));
+            font-weight: 800; 
+            font-size: 1.15rem; 
+            letter-spacing: -0.3px;
+            color: var(--text-title);
         }
 
-        .status-dot { width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 10px currentColor; }
-        .conn-container { display: flex; align-items: center; gap: 8px; font-family: var(--font-data); font-size: 10px; font-weight: 700; letter-spacing: 1px; color: var(--text-sub); }
+        .conn-container { 
+            display: flex; 
+            align-items: center; 
+            gap: 6px; 
+            font-size: 12px; 
+            font-weight: 700; 
+            color: var(--text-muted); 
+            background: #f1f5f9;
+            padding: 4px 10px;
+            border-radius: 20px;
+            border: 1px solid var(--border-subtle);
+        }
 
-        /* --- ENHANCED SIDEBAR --- */
+        .status-dot { 
+            width: 8px; 
+            height: 8px; 
+            border-radius: 50%; 
+            background-color: var(--success);
+        }
+
+        /* --- RECONSTRUCTED INTUITIVE SIDEBAR --- */
         #sidebar {
-            position: fixed; left: -300px; top: 0; bottom: 0; width: 300px;
-            background: rgba(3, 15, 10, 0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            z-index: 11000; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            padding: 30px 24px; display: flex; flex-direction: column;
-            border-right: 1px solid var(--glass-border);
+            position: fixed; 
+            left: -340px; 
+            top: 0; 
+            bottom: 0; 
+            width: 330px;
+            max-width: 88vw;
+            background: #ffffff;
+            z-index: 11000; 
+            transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 20px 16px; 
+            display: flex; 
+            flex-direction: column;
+            border-right: 1px solid var(--border-subtle);
+            box-shadow: 10px 0 30px rgba(0,0,0,0.12);
         }
-        #sidebar.active { left: 0; box-shadow: 20px 0 50px rgba(0,0,0,0.8); }
 
-        .sidebar-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 10999; display: none; opacity: 0; transition: opacity 0.3s; }
-        .sidebar-overlay.active { display: block; opacity: 1; }
+        #sidebar.active { 
+            transform: translateX(340px); 
+        }
+
+        .sidebar-overlay { 
+            position: fixed; 
+            inset: 0; 
+            background: rgba(15, 23, 42, 0.5); 
+            z-index: 10999; 
+            display: none; 
+            opacity: 0; 
+            transition: opacity 0.25s; 
+        }
+
+        .sidebar-overlay.active { 
+            display: block; 
+            opacity: 1; 
+        }
+
+        .sidebar-top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .sidebar-title-badge {
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--primary);
+            background: #f0fdfa;
+            border: 1px solid #ccfbf1;
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+
+        .sidebar-close-btn {
+            background: #f1f5f9;
+            border: 1px solid var(--border-subtle);
+            color: var(--text-title);
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .sidebar-close-btn:hover {
+            background: #e2e8f0;
+        }
 
         .sidebar-user-card {
-            background: rgba(16, 185, 129, 0.05); border: 1px solid var(--glass-border);
-            border-radius: 20px; padding: 24px 20px; margin-bottom: 25px;
-            display: flex; align-items: center; gap: 16px;
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            border-radius: 12px; 
+            padding: 12px 14px; 
+            margin-bottom: 14px;
+            display: flex; 
+            align-items: center; 
+            gap: 12px;
         }
-        .user-avatar { font-size: 42px; color: var(--primary); text-shadow: 0 0 15px rgba(16,185,129,0.4); }
-        .welcome-text { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-sub); }
-        #sidebar-name { font-weight: 800; margin: 0; font-size: 20px; color: #fff; line-height: 1.2; }
-        .mono-stat { font-family: var(--font-data); font-size: 10px; color: var(--primary); margin-top: 4px; display: flex; align-items: center; gap: 5px; }
 
-        .sidebar-label { font-size: 10px; font-weight: 800; text-transform: uppercase; color: var(--text-sub); letter-spacing: 1.5px; margin-bottom: 12px; display: block; }
-        
-        .guidelines-container { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 12px; margin-bottom: 20px; }
-        .tabs-header { display: flex; gap: 8px; margin-bottom: 15px; }
-        .tab-btn {
-            flex: 1; border: 1px solid transparent; background: rgba(255,255,255,0.05); color: var(--text-sub);
-            padding: 12px 5px; border-radius: 10px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; transition: 0.3s;
+        .user-avatar { 
+            font-size: 32px; 
+            color: var(--primary); 
+            flex-shrink: 0;
         }
-        .tab-btn span { font-family: var(--font-ui); font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;}
-        .tab-btn.active { background: rgba(16,185,129,0.1); border-color: var(--glass-border); color: var(--primary); }
 
-        .tab-pane { display: none; animation: fadeIn 0.4s ease; }
-        .tab-pane.active { display: block; }
-        .guide-content { background: rgba(0,0,0,0.5); padding: 16px; border-radius: 12px; font-size: 12px; color: #cbd5e1; line-height: 1.6; }
-        .guide-content b { color: var(--danger); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 8px;}
+        .welcome-text { 
+            font-size: 10px; 
+            font-weight: 800; 
+            text-transform: uppercase; 
+            color: var(--text-muted); 
+            letter-spacing: 0.5px;
+        }
 
-        .contact-item { background: rgba(0,0,0,0.4); padding: 14px; border-radius: 12px; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 12px; font-size: 13px; font-weight: 600;}
+        #sidebar-name { 
+            font-weight: 800; 
+            font-size: 1.05rem; 
+            color: var(--text-title); 
+            line-height: 1.2; 
+        }
 
-        /* Offline Toggle Area */
-        .offline-box { background: rgba(0,0,0,0.6); border: 1px solid var(--glass-border); border-radius: 16px; padding: 16px; margin-bottom: 15px; }
-        .switch { position: relative; display: inline-block; width: 46px; height: 26px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.1); transition: .4s; border-radius: 34px; border: 1px solid rgba(255,255,255,0.2); }
-        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: var(--text-sub); transition: .4s; border-radius: 50%; }
-        input:checked + .slider { background-color: rgba(245,158,11,0.2); border-color: var(--warning); }
-        input:checked + .slider:before { transform: translateX(20px); background-color: var(--warning); box-shadow: 0 0 10px var(--warning); }
+        .mono-stat { 
+            font-size: 11px; 
+            color: var(--text-muted); 
+            margin-top: 2px; 
+            display: flex; 
+            align-items: center; 
+            gap: 6px; 
+        }
 
-        /* BUTTONS */
-        .btn-voucher { width: 100%; padding: 14px; background: linear-gradient(135deg, var(--emerald-500), #00f0ff); color: #ffffff; border: none; border-radius: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; margin-bottom: 10px; display: flex; justify-content: center; align-items: center; gap: 8px; box-shadow: 0 0 15px rgba(0, 240, 255, 0.3); transition: 0.3s; }
-        .btn-voucher:active { transform: scale(0.96); }
+        /* --- INTUITIVE SIDEBAR ACTION BUTTONS --- */
+        .sidebar-actions-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 14px;
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 2px;
+        }
 
-        .btn-donate-sidebar { width: 100%; padding: 14px; background: transparent; color: var(--emerald-400); border: 1px solid var(--emerald-500); border-radius: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; margin-bottom: 10px; display: flex; justify-content: center; align-items: center; gap: 8px; transition: 0.3s; }
-        .btn-donate-sidebar:hover { background: rgba(16, 185, 129, 0.1); box-shadow: 0 0 15px rgba(16, 185, 129, 0.2); }
-        .btn-donate-sidebar:active { transform: scale(0.96); }
+        .sidebar-btn-card {
+            width: 100%;
+            min-height: 52px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1.5px solid var(--border-subtle);
+            background: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            text-align: left;
+            transition: transform 0.12s ease, border-color 0.15s, box-shadow 0.15s;
+            font-family: inherit;
+        }
+        .sidebar-btn-card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+        }
+        .sidebar-btn-card:active {
+            transform: scale(0.98);
+        }
 
-        .btn-logout { background: rgba(255,42,95,0.1); color: var(--danger); border: 1px solid rgba(255,42,95,0.2); padding: 16px; border-radius: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; width: 100%; cursor: pointer; display: flex; justify-content: center; gap: 10px;}
+        .sidebar-btn-card.primary {
+            border-color: #0f766e;
+            background: #f0fdfa;
+        }
+        .sidebar-btn-card.warning {
+            border-color: #d97706;
+            background: #fffbeb;
+        }
+        .sidebar-btn-card.info {
+            border-color: #0284c7;
+            background: #f0f9ff;
+        }
+        .sidebar-btn-card.outline {
+            border-color: var(--border-color);
+            background: #ffffff;
+        }
 
-        /* --- LOGIN MODAL --- */
-        #login-modal { position: fixed; inset: 0; background: var(--bg-base); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 24px; background-image: radial-gradient(circle at 50% 50%, rgba(16,185,129,0.05) 0%, transparent 60%); }
-        .login-box { background: rgba(10,25,20,0.8); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); padding: 40px 30px; border-radius: 24px; width: 100%; max-width: 400px; text-align: center; border: 1px solid var(--glass-border); box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
-        .login-input { width: 100%; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); padding: 16px 20px; border-radius: 14px; color: white; font-family: var(--font-data); font-size: 1rem; margin-bottom: 20px; outline: none; transition: 0.3s; text-align: center; letter-spacing: 2px;}
-        .login-input:focus { border-color: var(--primary); box-shadow: 0 0 15px rgba(16,185,129,0.2); }
-        .btn-login { width: 100%; background: var(--primary); color: var(--bg-base); border: none; padding: 16px; border-radius: 14px; font-weight: 800; font-size: 1rem; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; transition: 0.3s;}
+        .sidebar-card-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+        .sidebar-btn-card.primary .sidebar-card-icon { background: #0f766e; color: #ffffff; }
+        .sidebar-btn-card.warning .sidebar-card-icon { background: #d97706; color: #ffffff; }
+        .sidebar-btn-card.info .sidebar-card-icon { background: #0284c7; color: #ffffff; }
+        .sidebar-btn-card.outline .sidebar-card-icon { background: #f1f5f9; color: var(--text-title); }
 
-        /* --- ACTIONS TRAY (APP SHEET) --- */
-        #main-container { flex: 1; position: relative; display: flex; flex-direction: column; }
-        #map-container { flex: 1; width: 100%; z-index: 1; background: #000; }
-        #map { height: 100%; width: 100%; }
+        .sidebar-card-content {
+            flex: 1;
+            min-width: 0;
+        }
+        .sidebar-card-title {
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--text-title);
+            line-height: 1.25;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .sidebar-card-desc {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .sidebar-card-badge {
+            font-size: 9px;
+            font-weight: 800;
+            text-transform: uppercase;
+            padding: 2px 6px;
+            border-radius: 4px;
+            letter-spacing: 0.5px;
+        }
+        .sidebar-card-badge.amber { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
 
+        /* Quick Hotlines & Offline Toggle Box */
+        .sidebar-bottom-panel {
+            padding-top: 10px;
+            border-top: 1px solid var(--border-subtle);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .hotline-row {
+            display: flex;
+            gap: 8px;
+        }
+        .hotline-chip {
+            flex: 1;
+            padding: 8px 10px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            border: 1px solid var(--border-color);
+            transition: transform 0.12s;
+        }
+        .hotline-chip:active { transform: scale(0.96); }
+        .hotline-chip.danger { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+        .hotline-chip.info { background: #f0fdfa; color: #0f766e; border-color: #ccfbf1; }
+
+        .offline-toggle-card {
+            background: #f8fafc;
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            padding: 10px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .switch { 
+            position: relative; 
+            display: inline-block; 
+            width: 44px; 
+            height: 24px; 
+        }
+
+        .switch input { 
+            opacity: 0; 
+            width: 0; 
+            height: 0; 
+        }
+
+        .slider { 
+            position: absolute; 
+            cursor: pointer; 
+            top: 0; left: 0; right: 0; bottom: 0; 
+            background-color: #cbd5e1; 
+            transition: .3s; 
+            border-radius: 24px; 
+        }
+
+        .slider:before { 
+            position: absolute; 
+            content: ""; 
+            height: 18px; 
+            width: 18px; 
+            left: 3px; 
+            bottom: 3px; 
+            background-color: #ffffff; 
+            transition: .3s; 
+            border-radius: 50%; 
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+
+        input:checked + .slider { 
+            background-color: var(--warning); 
+        }
+
+        input:checked + .slider:before { 
+            transform: translateX(20px); 
+        }
+
+        .btn-logout { 
+            background: #ffffff; 
+            color: var(--danger); 
+            border: 1px solid var(--danger-border); 
+            padding: 10px; 
+            border-radius: 8px; 
+            font-weight: 700; 
+            font-size: 0.875rem;
+            width: 100%; 
+            cursor: pointer; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center;
+            gap: 8px;
+            transition: background 0.15s;
+        }
+
+        .btn-logout:hover {
+            background-color: var(--danger-bg);
+        }
+
+        /* --- HEADER MESSENGER SHORTCUT BUTTON --- */
+        .header-msg-btn {
+            position: relative;
+            background: #f1f5f9;
+            border: 1px solid var(--border-subtle);
+            color: var(--primary);
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            cursor: pointer;
+            margin-right: 8px;
+            transition: background 0.15s, transform 0.1s;
+        }
+        .header-msg-btn:hover { background: #e2e8f0; }
+        .header-msg-btn:active { transform: scale(0.92); }
+        .header-msg-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background: var(--danger);
+            color: #ffffff;
+            font-size: 9px;
+            font-weight: 800;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1.5px solid #ffffff;
+        }
+
+        /* --- DEDICATED FULL-SCREEN MESSENGER TAB (MESSENGER EXPERIENCE) --- */
+        .messenger-full-view {
+            position: fixed;
+            inset: 0;
+            background: #ffffff;
+            z-index: 12000;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            animation: gxFadeIn 0.2s ease-out;
+        }
+
+        .msg-screen-pane {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* --- GATEWAY SCREEN (STEP 1: DISCOVER & CONNECT) --- */
+        .msg-gateway-topbar {
+            height: 56px;
+            padding: 0 16px;
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #ffffff;
+        }
+        .msg-nav-back-btn {
+            background: #f1f5f9;
+            border: 1px solid var(--border-subtle);
+            color: var(--text-title);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.15s;
+        }
+        .msg-nav-back-btn:hover { background: #e2e8f0; }
+        .msg-brand-tag {
+            font-size: 11px;
+            font-weight: 800;
+            color: #d97706;
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            padding: 4px 10px;
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .msg-gateway-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px 16px;
+            max-width: 680px;
+            margin: 0 auto;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .msg-gateway-hero {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .msg-hero-icon-bubble {
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            background: #f0fdfa;
+            border: 1.5px solid #ccfbf1;
+            color: #0f766e;
+            font-size: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 12px auto;
+            box-shadow: 0 4px 12px rgba(15, 118, 110, 0.1);
+        }
+        .msg-hero-title {
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: var(--text-title);
+            margin-bottom: 6px;
+        }
+        .msg-hero-subtitle {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            max-width: 440px;
+            line-height: 1.45;
+            margin: 0 auto;
+        }
+
+        /* Two Prominent Choice Cards */
+        .gateway-choices-grid {
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        @media (max-width: 600px) {
+            .gateway-choices-grid { grid-template-columns: 1fr; }
+        }
+        .gateway-card {
+            background: #ffffff;
+            border: 2px solid var(--border-color);
+            border-radius: 14px;
+            padding: 20px 16px;
+            display: flex;
+            flex-direction: column;
+            cursor: pointer;
+            position: relative;
+            transition: transform 0.15s ease, border-color 0.15s, box-shadow 0.15s;
+        }
+        .gateway-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+        }
+        .gateway-card.host-card:hover { border-color: #0f766e; }
+        .gateway-card.join-card:hover { border-color: #0284c7; }
+
+        .gateway-card-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            font-size: 10px;
+            font-weight: 800;
+            padding: 2px 7px;
+            border-radius: 6px;
+            background: #f1f5f9;
+            color: var(--text-muted);
+        }
+        .gateway-card-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-bottom: 12px;
+        }
+        .host-card .gateway-card-icon { background: #f0fdfa; color: #0f766e; }
+        .join-card .gateway-card-icon { background: #f0f9ff; color: #0284c7; }
+
+        .gateway-card-title {
+            font-size: 1rem;
+            font-weight: 800;
+            color: var(--text-title);
+            margin-bottom: 4px;
+        }
+        .gateway-card-desc {
+            font-size: 11.5px;
+            color: var(--text-muted);
+            line-height: 1.4;
+            flex: 1;
+            margin-bottom: 14px;
+        }
+
+        .btn-gateway-action {
+            width: 100%;
+            height: 44px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: opacity 0.15s;
+        }
+        .btn-gateway-action.host { background: #0f766e; color: #ffffff; }
+        .btn-gateway-action.join { background: #0284c7; color: #ffffff; }
+        .btn-gateway-action:hover { opacity: 0.92; }
+
+        /* Gateway Drawers / Modals */
+        .gateway-drawer {
+            width: 100%;
+            background: #f8fafc;
+            border: 1.5px solid var(--border-color);
+            border-radius: 14px;
+            padding: 16px;
+            margin-top: 10px;
+            animation: gxFadeIn 0.2s ease-out;
+        }
+        .drawer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .drawer-header h4 {
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--text-title);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0;
+        }
+        .drawer-close {
+            background: transparent;
+            border: none;
+            font-size: 20px;
+            color: var(--text-muted);
+            cursor: pointer;
+        }
+        .drawer-instruction {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            margin-bottom: 14px;
+        }
+        .qr-canvas-holder {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            width: 170px;
+            height: 170px;
+            margin: 0 auto 14px auto;
+        }
+        .hotspot-info-pill {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 12px;
+            margin-bottom: 14px;
+            color: var(--text-title);
+            line-height: 1.5;
+        }
+        .btn-primary-block {
+            width: 100%;
+            height: 48px;
+            background: #0f766e;
+            color: #ffffff;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .btn-outline-block {
+            width: 100%;
+            height: 44px;
+            background: #ffffff;
+            color: var(--text-title);
+            border: 1.5px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        /* Radar scan view */
+        .radar-status-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #0369a1;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+        .radar-pulsing-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #0284c7;
+            box-shadow: 0 0 0 0 rgba(2, 132, 199, 0.7);
+            animation: radarPulse 1.4s infinite;
+        }
+        @keyframes radarPulse {
+            0% { box-shadow: 0 0 0 0 rgba(2, 132, 199, 0.7); }
+            70% { box-shadow: 0 0 0 8px rgba(2, 132, 199, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(2, 132, 199, 0); }
+        }
+        .hotspots-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 14px;
+            max-height: 240px;
+            overflow-y: auto;
+        }
+        .hotspot-node-item {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: border-color 0.15s;
+        }
+        .hotspot-node-item:hover { border-color: #0284c7; }
+        .node-info-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .node-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #f0f9ff;
+            color: #0284c7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        .node-title {
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--text-title);
+        }
+        .node-meta {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 1px;
+        }
+        .btn-node-connect {
+            padding: 7px 16px;
+            background: #0284c7;
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .btn-node-connect:hover { background: #0369a1; }
+
+        /* --- SCREEN 2: FULL MESSENGER INTERFACE --- */
+        .messenger-navbar {
+            height: 60px;
+            padding: 0 14px;
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #ffffff;
+            flex-shrink: 0;
+        }
+        .msg-nav-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+            flex: 1;
+        }
+        .msg-btn-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: #f1f5f9;
+            border: 1px solid var(--border-subtle);
+            color: var(--text-title);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: background 0.15s;
+        }
+        .msg-btn-icon:hover { background: #e2e8f0; }
+        .msg-header-user {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+        .msg-avatar-badge-wrap {
+            position: relative;
+            flex-shrink: 0;
+        }
+        .msg-avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: #f0fdfa;
+            border: 1.5px solid #0f766e;
+            color: #0f766e;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 800;
+        }
+        .msg-online-dot {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #16a34a;
+            border: 2px solid #ffffff;
+        }
+        .msg-header-info {
+            min-width: 0;
+        }
+        .msg-header-name {
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--text-title);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin: 0;
+        }
+        .msg-header-status {
+            font-size: 11px;
+            color: #16a34a;
+            font-weight: 600;
+            margin: 1px 0 0 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .msg-nav-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .msg-btn-pill {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 800;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .msg-btn-pill.emergency { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
+
+        /* 2-Column Messenger Layout */
+        .messenger-body-layout {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Left Column: Chats List */
+        .messenger-chats-sidebar {
+            width: 320px;
+            border-right: 1px solid var(--border-subtle);
+            background: #ffffff;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+        @media (max-width: 768px) {
+            .messenger-chats-sidebar {
+                width: 100%;
+                position: absolute;
+                inset: 0;
+                z-index: 5;
+                transition: transform 0.22s ease-out;
+            }
+            .messenger-chats-sidebar.hidden-mobile {
+                transform: translateX(-100%);
+            }
+        }
+
+        .messenger-search-wrap {
+            padding: 10px 14px;
+            position: relative;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .messenger-search-wrap i {
+            position: absolute;
+            left: 24px;
+            top: 21px;
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+        .messenger-search-wrap input {
+            width: 100%;
+            height: 36px;
+            background: #f1f5f9;
+            border: 1px solid transparent;
+            border-radius: 18px;
+            padding: 0 12px 0 34px;
+            font-size: 12px;
+            color: var(--text-title);
+        }
+        .messenger-search-wrap input:focus {
+            outline: none;
+            background: #ffffff;
+            border-color: #0f766e;
+        }
+
+        .msg-section-header {
+            padding: 10px 14px 4px 14px;
+            font-size: 10.5px;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .peers-counter {
+            font-size: 9.5px;
+            padding: 1px 6px;
+            border-radius: 10px;
+            background: #f0fdf4;
+            color: #16a34a;
+            font-weight: 800;
+        }
+
+        .msg-chat-item {
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: background 0.15s;
+            border-bottom: 1px solid #f8fafc;
+        }
+        .msg-chat-item:hover { background: #f8fafc; }
+        .msg-chat-item.active { background: #f0fdfa; border-left: 3px solid #0f766e; }
+
+        .msg-item-avatar {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+            background: #f1f5f9;
+            color: var(--text-title);
+        }
+        .msg-item-avatar.channel-broadcast { background: #f0fdfa; color: #0f766e; border: 1.5px solid #ccfbf1; }
+        .msg-item-avatar.channel-medical { background: #fef2f2; color: #dc2626; border: 1.5px solid #fecaca; }
+
+        .msg-item-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .msg-item-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 2px;
+        }
+        .msg-item-name {
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--text-title);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .msg-item-time {
+            font-size: 10px;
+            color: var(--text-muted);
+            flex-shrink: 0;
+            margin-left: 6px;
+        }
+        .msg-item-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .msg-item-snippet {
+            font-size: 11.5px;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .msg-unread-badge {
+            background: #0f766e;
+            color: #ffffff;
+            font-size: 9px;
+            font-weight: 800;
+            min-width: 16px;
+            height: 16px;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 4px;
+        }
+        .messenger-peers-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        /* Right Column: Chat Room Stream */
+        .messenger-chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #f8fafc;
+            overflow: hidden;
+            min-width: 0;
+        }
+        .messenger-messages-stream {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        /* Messenger Speech Bubbles */
+        .msg-row {
+            display: flex;
+            flex-direction: column;
+            max-width: 78%;
+        }
+        .msg-row.me {
+            align-self: flex-end;
+            align-items: flex-end;
+        }
+        .msg-row.peer {
+            align-self: flex-start;
+            align-items: flex-start;
+        }
+        .msg-meta-header {
+            font-size: 10.5px;
+            color: var(--text-muted);
+            margin-bottom: 2px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .msg-sector-tag {
+            font-size: 9px;
+            font-weight: 800;
+            background: #fef3c7;
+            color: #b45309;
+            padding: 1px 5px;
+            border-radius: 4px;
+        }
+        .msg-speech-bubble {
+            padding: 10px 14px;
+            font-size: 13.5px;
+            line-height: 1.45;
+            word-wrap: break-word;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            position: relative;
+        }
+        .msg-row.me .msg-speech-bubble {
+            background: #0f766e;
+            color: #ffffff;
+            border-radius: 18px 18px 4px 18px;
+        }
+        .msg-row.peer .msg-speech-bubble {
+            background: #ffffff;
+            color: var(--text-title);
+            border: 1px solid var(--border-subtle);
+            border-radius: 18px 18px 18px 4px;
+        }
+        .msg-speech-bubble.urgent {
+            border: 2px solid #dc2626 !important;
+            background: #fff8f8 !important;
+            color: #7f1d1d !important;
+        }
+        .msg-speech-bubble.urgent .msg-timestamp {
+            color: #991b1b !important;
+        }
+        .msg-timestamp {
+            font-size: 9.5px;
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 3px;
+            opacity: 0.8;
+        }
+        .msg-row.me .msg-timestamp { color: rgba(255, 255, 255, 0.85); }
+        .msg-row.peer .msg-timestamp { color: var(--text-muted); }
+
+        /* Quick Distress Carousel */
+        .messenger-quick-actions-bar {
+            display: flex;
+            gap: 6px;
+            padding: 6px 12px;
+            background: #ffffff;
+            border-top: 1px solid var(--border-subtle);
+            overflow-x: auto;
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
+        }
+        .messenger-quick-actions-bar::-webkit-scrollbar { display: none; }
+        .quick-chip {
+            padding: 6px 11px;
+            border-radius: 16px;
+            font-size: 11px;
+            font-weight: 700;
+            border: 1px solid var(--border-color);
+            background: #f8fafc;
+            color: var(--text-title);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            flex-shrink: 0;
+            transition: background 0.12s, transform 0.1s;
+        }
+        .quick-chip:hover { background: #e2e8f0; }
+        .quick-chip:active { transform: scale(0.95); }
+        .quick-chip.gps { background: #f0fdfa; border-color: #ccfbf1; color: #0f766e; }
+        .quick-chip.medical { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
+        .quick-chip.trapped { background: #fffbeb; border-color: #fde68a; color: #d97706; }
+        .quick-chip.supplies { background: #f0f9ff; border-color: #bae6fd; color: #0284c7; }
+        .quick-chip.safe { background: #f0fdf4; border-color: #bbf7d0; color: #16a34a; }
+
+        /* Messenger Bottom Input */
+        .messenger-input-tray {
+            padding: 10px 14px;
+            background: #ffffff;
+            border-top: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .messenger-input-tray input {
+            flex: 1;
+            height: 44px;
+            background: #f1f5f9;
+            border: 1px solid transparent;
+            border-radius: 22px;
+            padding: 0 16px;
+            font-size: 13.5px;
+            color: var(--text-title);
+            transition: border-color 0.15s, background 0.15s;
+        }
+        .messenger-input-tray input:focus {
+            outline: none;
+            background: #ffffff;
+            border-color: #0f766e;
+        }
+        .btn-messenger-send {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: #0f766e;
+            color: #ffffff;
+            border: none;
+            font-size: 15px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: background 0.15s, transform 0.1s;
+        }
+        .btn-messenger-send:hover { background: #115e59; }
+        .btn-messenger-send:active { transform: scale(0.92); }
+
+        /* --- LOGIN MODAL (FALLBACK) --- */
+        #login-modal { 
+            position: fixed; 
+            inset: 0; 
+            background: rgba(15, 23, 42, 0.6); 
+            z-index: 10000; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            padding: 20px; 
+        }
+
+        .login-box { 
+            background: #ffffff; 
+            padding: 2rem; 
+            border-radius: 12px; 
+            width: 100%; 
+            max-width: 380px; 
+            text-align: center; 
+            border: 1px solid var(--border-color); 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15); 
+        }
+
+        .login-input { 
+            width: 100%; 
+            background: #ffffff; 
+            border: 1.5px solid var(--border-color); 
+            padding: 12px; 
+            border-radius: 8px; 
+            color: var(--text-title); 
+            font-size: 0.95rem; 
+            margin-bottom: 16px; 
+            outline: none; 
+            text-align: center;
+        }
+
+        .login-input:focus { 
+            border-color: var(--primary); 
+            box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15); 
+        }
+
+        .btn-login { 
+            width: 100%; 
+            background: var(--primary); 
+            color: #ffffff; 
+            border: none; 
+            padding: 12px; 
+            border-radius: 8px; 
+            font-weight: 700; 
+            font-size: 0.95rem; 
+            cursor: pointer; 
+            transition: 0.15s;
+        }
+
+        /* --- MAIN MAP & ACTIONS TRAY --- */
+        #main-container { 
+            flex: 1; 
+            position: relative; 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden;
+        }
+
+        #map-container { 
+            flex: 1; 
+            width: 100%; 
+            z-index: 1; 
+            position: relative;
+        }
+
+        #map { 
+            height: 100%; 
+            width: 100%; 
+            background-color: #f1f5f9;
+        }
+
+        .map-gps-btn {
+            position: absolute;
+            right: 14px;
+            bottom: 140px;
+            z-index: 500;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: #ffffff;
+            color: #0f172a;
+            border: 1.5px solid var(--border-color);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .map-gps-btn:active {
+            transform: scale(0.92);
+            background: #f1f5f9;
+        }
+        .map-gps-btn.active {
+            color: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .map-layer-btn {
+            position: absolute;
+            right: 14px;
+            bottom: 194px;
+            z-index: 500;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: #ffffff;
+            color: #0f172a;
+            border: 1.5px solid var(--border-color);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .map-layer-btn:active {
+            transform: scale(0.92);
+            background: #f1f5f9;
+        }
+
+        /* --- SMALL LETTERS-ONLY BUILDING BADGE (CLEAN & UN-CROWDED) --- */
+        .bldg-badge-letter {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 20px !important;
+            height: 20px !important;
+            background: #f59e0b !important; /* Vivid safety amber */
+            color: #000000 !important;      /* Deep black bold letter */
+            border: 1.5px solid #0f172a !important; /* Crisp dark boundary */
+            border-radius: 50% !important;
+            font-family: system-ui, -apple-system, sans-serif !important;
+            font-weight: 900 !important;
+            font-size: 11px !important;
+            line-height: 1 !important;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35) !important;
+            cursor: pointer !important;
+            pointer-events: auto !important;
+            transition: transform 0.15s ease-out, box-shadow 0.15s !important;
+            user-select: none !important;
+        }
+        .bldg-badge-letter:hover {
+            transform: scale(1.3) !important;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5) !important;
+            z-index: 10000 !important;
+        }
+
+        /* BOTTOM ACTIONS TRAY */
         .actions-tray {
-            position: absolute; bottom: 0; left: 0; right: 0;
-            background: rgba(5,10,8,0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border-top: 1px solid var(--glass-border); border-radius: 30px 30px 0 0;
-            padding: 24px 24px 35px 24px; z-index: 1002; box-shadow: 0 -10px 40px rgba(0,0,0,0.8);
+            position: absolute; 
+            bottom: 0; 
+            left: 0; 
+            right: 0;
+            background: #ffffff;
+            border-top: 1.5px solid var(--border-color); 
+            border-radius: 16px 16px 0 0;
+            padding: 16px 16px 24px 16px; 
+            z-index: 1002; 
+            box-shadow: 0 -4px 16px rgba(0,0,0,0.08);
+            max-width: 600px;
+            margin: 0 auto;
         }
 
-        .location-badge { background: rgba(255,255,255,0.05); color: var(--text-main); padding: 6px 12px; border-radius: 8px; font-family: var(--font-data); font-size: 10px; font-weight: 700; border: 1px solid rgba(255,255,255,0.1); }
-        
-        .quick-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px; }
-        .btn-quick { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.05); color: var(--text-sub); border-radius: 12px; padding: 12px; font-size: 11px; font-weight: 700; cursor: pointer; transition: 0.2s;}
-        .btn-quick:active { background: rgba(255,255,255,0.1); color: #fff; }
+        .tray-top-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
 
-        .button-group { display: grid; grid-template-columns: 1fr 1.5fr; gap: 12px; margin-top: 20px; }
-        .btn-action { border: none; border-radius: 16px; font-weight: 800; padding: 16px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 1px; font-size: 11px; transition: 0.2s;}
-        .btn-safe { background: rgba(16,185,129,0.1); color: var(--primary); border: 1px solid rgba(16,185,129,0.3); }
-        .btn-danger { background: var(--danger); color: white; box-shadow: 0 0 20px rgba(255,42,95,0.4); }
-        .btn-action:active { transform: scale(0.96); }
+        .tray-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
 
-        .msg-bar { margin-top: 20px; background: rgba(0,0,0,0.5); border: 1px solid var(--glass-border); border-radius: 14px; display: flex; align-items: center; padding: 4px; }
-        .msg-bar input { flex: 1; border: none; background: transparent; padding: 12px 16px; color: white; outline: none; font-size: 13px; font-family: var(--font-ui);}
-        .btn-send { background: var(--primary); color: var(--bg-base); border: none; width: 38px; height: 38px; border-radius: 10px; cursor: pointer; font-size: 14px; }
+        .location-badge { 
+            background: #f1f5f9; 
+            color: var(--text-title); 
+            padding: 4px 10px; 
+            border-radius: 6px; 
+            font-size: 11px; 
+            font-weight: 700; 
+            border: 1px solid var(--border-subtle); 
+        }
 
-        /* --- NOTIFICATIONS & ROUTING --- */
-        .alert-banner { background: rgba(255,42,95,0.15); border: 1px solid var(--danger); backdrop-filter: blur(10px); padding: 16px; border-radius: 16px; margin: 15px; position: absolute; top: 0; left: 0; right: 0; display: none; z-index: 1003; text-align: center; box-shadow: 0 10px 30px rgba(255,42,95,0.3);}
-        
-        #route-info { position: absolute; top: 100px; left: 50%; transform: translateX(-50%); background: rgba(6,25,18,0.9); border: 1px solid var(--glass-border); backdrop-filter: blur(10px); color: white; padding: 12px 24px; border-radius: 30px; display: none; align-items: center; gap: 15px; z-index: 1005; box-shadow: 0 10px 30px rgba(0,0,0,0.5); font-family: var(--font-data); font-size: 12px; width: max-content; }
+        /* THE TWO CRITICAL EMERGENCY ACTIONS */
+        .button-group { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 10px; 
+            margin-bottom: 12px;
+        }
 
-        #toast-notification { position: fixed; top: -100px; left: 50%; transform: translateX(-50%); background: var(--primary); color: var(--bg-base); padding: 12px 24px; border-radius: 99px; font-weight: 800; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; z-index: 20000; transition: 0.5s; box-shadow: 0 10px 20px rgba(16,185,129,0.3);}
+        .btn-action { 
+            border: none; 
+            border-radius: 10px; 
+            font-weight: 800; 
+            height: 54px;
+            cursor: pointer; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 8px; 
+            font-size: 15px; 
+            transition: transform 0.1s, background 0.15s;
+        }
 
-        #admin-reply-modal { position: fixed; top: -400px; left: 50%; transform: translateX(-50%); background: rgba(10,25,20,0.95); backdrop-filter: blur(15px); color: white; width: 90%; max-width: 400px; padding: 24px; border-radius: 20px; z-index: 20001; box-shadow: 0 20px 50px rgba(0,0,0,0.6); border: 1px solid var(--primary); transition: top 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
-        #admin-reply-modal.active { top: 20px; }
+        .btn-action:active { 
+            transform: scale(0.97); 
+        }
 
-        /* --- TACTICAL PINS & TOOLS --- */
-        .dest-pin { display: flex; justify-content: center; align-items: center; }
-        .pin-circle { width: 45px; height: 45px; background: rgba(0,0,0,0.8); border-radius: 50%; border: 2px solid var(--primary); box-shadow: 0 0 20px rgba(16,185,129,0.6); display: flex; align-items: center; justify-content: center; color: var(--primary); font-size: 18px; animation: pulse-pin 1.5s infinite; }
-        @keyframes pulse-pin { 0% { box-shadow: 0 0 0 0 rgba(16,185,129,0.6); } 70% { box-shadow: 0 0 0 15px rgba(16,185,129,0); } 100% { box-shadow: 0 0 0 0 transparent; } }
+        .btn-safe { 
+            background: #f0fdf4; 
+            color: var(--success); 
+            border: 1.5px solid #86efac; 
+        }
 
-        .offline-toolbelt { position: fixed; bottom: 280px; right: 20px; display: none; flex-direction: column; gap: 15px; z-index: 2000; align-items: center; background: rgba(0,0,0,0.6); padding: 12px; border-radius: 40px; backdrop-filter: blur(10px); border: 1px solid var(--glass-border); touch-action: none; }
-        .drag-handle { width: 30px; height: 5px; background: rgba(255,255,255,0.3); border-radius: 10px; cursor: grab; margin-bottom: 5px; }
-        .tool-btn { width: 50px; height: 50px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); color: white; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.05); transition: 0.2s;}
-        .tool-btn:active { transform: scale(0.9); }
-        .tool-flashlight { color: #facc15; border-color: rgba(250,204,21,0.3); }
-        .tool-flashlight.flash-on { background: #facc15; color: #000; box-shadow: 0 0 30px rgba(250,204,21,0.6); }
-        .tool-sms { color: #38bdf8; border-color: rgba(56,189,248,0.3); }
+        .btn-safe:hover {
+            background: #dcfce7;
+        }
 
-        /* --- SOS OVERLAY --- */
-        #sos-overlay { display: none; position: fixed; inset: 0; z-index: 20000; background: #000; cursor: pointer; flex-direction: column; align-items: center; justify-content: center; }
-        .sos-text { font-family: var(--font-data); font-size: 80px; font-weight: 700; color: var(--danger); letter-spacing: 10px; text-shadow: 0 0 30px var(--danger); }
-        .sos-active { animation: strobe 0.1s infinite alternate; }
-        @keyframes strobe { from { background: #000; } to { background: #fff; } }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .btn-danger { 
+            background: var(--danger); 
+            color: #ffffff; 
+            border: 1.5px solid #b91c1c; 
+            box-shadow: 0 2px 4px rgba(220, 38, 38, 0.25);
+        }
 
-        .bldg-dot, .bldg-text { opacity: 0; transition: 0.2s; pointer-events: auto; color: var(--accent-cyan); font-family: var(--font-data); font-weight: 700; text-shadow: 0 2px 5px #000; }
-        .bldg-dot { background: rgba(0,0,0,0.8); border: 1px solid var(--accent-cyan); border-radius: 6px; padding: 2px 6px; white-space: nowrap; font-size: 10px;}
-        .label-visible { opacity: 1 !important; }
+        .btn-danger:hover {
+            background: #b91c1c;
+        }
+
+        .btn-secondary-row {
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 8px; 
+            margin-bottom: 10px;
+        }
+
+        .btn-quick { 
+            background: #f8fafc; 
+            border: 1px solid var(--border-color); 
+            color: var(--text-body); 
+            border-radius: 8px; 
+            height: 40px; 
+            font-size: 13px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 6px; 
+            transition: background 0.15s;
+        }
+
+        .btn-quick:hover {
+            background-color: #f1f5f9;
+        }
+
+        /* MESSAGE INPUT */
+        .msg-bar { 
+            background: #f8fafc; 
+            border: 1.5px solid var(--border-color); 
+            border-radius: 8px; 
+            display: flex; 
+            align-items: center; 
+            padding: 2px; 
+        }
+
+        .msg-bar input { 
+            flex: 1; 
+            border: none; 
+            background: transparent; 
+            padding: 8px 12px; 
+            color: var(--text-title); 
+            outline: none; 
+            font-size: 14px; 
+        }
+
+        .btn-send { 
+            background: var(--primary); 
+            color: #ffffff; 
+            border: none; 
+            width: 36px; 
+            height: 36px; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-size: 13px; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+        }
+
+        .btn-send:hover {
+            background-color: var(--primary-hover);
+        }
+
+        /* --- ROUTE GUIDANCE CARD --- */
+        #route-info { 
+            position: absolute; 
+            top: 14px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            background: #ffffff; 
+            border: 1.5px solid var(--border-color); 
+            color: var(--text-title); 
+            padding: 8px 16px; 
+            border-radius: 24px; 
+            display: none; 
+            align-items: center; 
+            gap: 12px; 
+            z-index: 1005; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
+            font-size: 13px; 
+            font-weight: 700;
+        }
+
+        /* --- ALERT BANNER --- */
+        .alert-banner { 
+            background: var(--danger-bg); 
+            border: 1.5px solid var(--danger); 
+            padding: 12px 16px; 
+            border-radius: 10px; 
+            margin: 10px 16px; 
+            position: absolute; 
+            top: 0; left: 0; right: 0; 
+            display: none; 
+            z-index: 1003; 
+            text-align: center; 
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.15);
+        }
+
+        /* --- TOAST NOTIFICATION --- */
+        #toast-notification { 
+            position: fixed; 
+            top: -100px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            background: var(--text-title); 
+            color: #ffffff; 
+            padding: 10px 20px; 
+            border-radius: 20px; 
+            font-weight: 700; 
+            font-size: 13px; 
+            z-index: 20000; 
+            transition: top 0.3s ease; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        /* --- ADMIN REPLY NOTIFICATION --- */
+        #admin-reply-modal { 
+            position: fixed; 
+            top: -400px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            background: #ffffff; 
+            color: var(--text-title); 
+            width: 90%; 
+            max-width: 400px; 
+            padding: 18px; 
+            border-radius: 12px; 
+            z-index: 20001; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15); 
+            border: 1.5px solid var(--primary); 
+            transition: top 0.4s ease; 
+        }
+
+        #admin-reply-modal.active { 
+            top: 20px; 
+        }
+
+        /* --- VOUCHER MODAL --- */
+        #vouchers-list-modal { 
+            display: none; 
+            position: fixed; 
+            inset: 0; 
+            background: rgba(15, 23, 42, 0.5); 
+            z-index: 30000; 
+            justify-content: center; 
+            align-items: center; 
+            padding: 20px; 
+        }
+
+        .modal-card {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            max-width: 400px;
+            width: 100%;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+
+        /* --- OFFLINE TOOLS TRAY --- */
+        .offline-toolbelt { 
+            position: fixed; 
+            bottom: 240px; 
+            right: 16px; 
+            display: none; 
+            flex-direction: column; 
+            gap: 10px; 
+            z-index: 2000; 
+            align-items: center; 
+            background: #ffffff; 
+            padding: 8px; 
+            border-radius: 24px; 
+            border: 1px solid var(--border-color); 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
+        }
+
+        .drag-handle { 
+            width: 20px; 
+            height: 4px; 
+            background: var(--border-color); 
+            border-radius: 4px; 
+            cursor: grab; 
+        }
+
+        .tool-btn { 
+            width: 42px; 
+            height: 42px; 
+            border-radius: 50%; 
+            border: 1px solid var(--border-color); 
+            color: var(--text-title); 
+            font-size: 16px; 
+            cursor: pointer; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            background: #f8fafc; 
+            transition: 0.15s;
+        }
+
+        .tool-btn:active { 
+            transform: scale(0.92); 
+        }
+
+        .tool-flashlight.flash-on { 
+            background: #fef08a; 
+            color: #854d0e; 
+            border-color: #facc15; 
+        }
+
+        /* --- S.O.S. FULLSCREEN STROBE --- */
+        #sos-overlay { 
+            display: none; 
+            position: fixed; 
+            inset: 0; 
+            z-index: 20000; 
+            background: #dc2626; 
+            cursor: pointer; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+        }
+
+        .sos-text { 
+            font-size: 72px; 
+            font-weight: 900; 
+            color: #ffffff; 
+            letter-spacing: 6px; 
+        }
+
+        .sos-active { 
+            animation: strobe 0.15s infinite alternate; 
+        }
+
+        @keyframes strobe { 
+            from { background: #dc2626; color: #ffffff; } 
+            to { background: #ffffff; color: #dc2626; } 
+        }
     </style>
 </head>
 
 <body>
     
-    <div id="donation-alert-modal" style="display:none; position:fixed; inset:0; background:rgba(255, 255, 255, 0.8); z-index:30000; justify-content:center; align-items:center; padding:20px; backdrop-filter:blur(5px);">
-        <div style="background:var(--surface); border:1px solid #00f0ff; border-radius:24px; padding:30px; text-align:center; max-width:400px; width:100%; box-shadow:0 0 40px rgba(0,240,255,0.3);">
-            <i class="fas fa-hand-holding-heart" style="font-size:45px; color:#00f0ff; margin-bottom:15px; filter: drop-shadow(0 0 10px rgba(0,240,255,0.5));"></i>
-            <h2 style="color:rgb(34, 32, 32); font-size:1.5rem; margin-bottom:10px;">Financial Aid Arrived!</h2>
-            <p style="color:var(--text-sub); font-size:0.95rem; margin-bottom:20px; line-height:1.5;">A generous donor has just sent financial aid directly to your area. We have secured your voucher.</p>
+    <!-- DONATION NOTIFICATION POPUP -->
+    <div id="donation-alert-modal" style="display:none; position:fixed; inset:0; background:rgba(15, 23, 42, 0.5); z-index:30000; justify-content:center; align-items:center; padding:20px;">
+        <div style="background:#ffffff; border:1px solid var(--border-color); border-radius:12px; padding:24px; text-align:center; max-width:380px; width:100%; box-shadow:0 10px 25px rgba(0,0,0,0.15);">
+            <div style="width:48px; height:48px; border-radius:50%; background:#f0fdf4; color:var(--success); display:flex; align-items:center; justify-content:center; font-size:22px; margin:0 auto 12px auto; border:1px solid #bbf7d0;">
+                <i class="fas fa-gift"></i>
+            </div>
+            <h2 style="color:var(--text-title); font-size:1.25rem; font-weight:700; margin-bottom:6px;">Relief Aid Voucher Received</h2>
+            <p style="color:var(--text-muted); font-size:0.875rem; margin-bottom:16px; line-height:1.4;">A community donor has deployed relief funds to your area. A unique claim voucher has been added to your account.</p>
             
-            <div style="background:rgba(255, 255, 255, 0.1); padding:15px; border-radius:12px; margin-bottom:20px; border:1px dashed #00f0ff; color: white; font-size: 0.9rem;">
-                Open your <b>Sidebar Menu</b> and click <br><b style="color: #00f0ff;">"Show GCash Vouchers"</b> to view and claim your code!
+            <div style="background:#f8fafc; padding:12px; border-radius:8px; margin-bottom:16px; border:1px dashed var(--border-color); color:var(--text-title); font-size:0.875rem;">
+                Open the <b>Menu</b> and select <b>"Show GCash Vouchers"</b> to view your code.
             </div>
 
-            <button onclick="closeDonationAlert()" style="width:100%; padding:14px; background:linear-gradient(135deg, var(--primary), #00f0ff); color:#ffffff; border:none; border-radius:12px; font-weight:800; text-transform:uppercase; cursor:pointer; box-shadow: 0 0 15px rgba(0,240,255,0.4);">I Understand</button>
+            <button onclick="closeDonationAlert()" style="width:100%; height:44px; background:var(--primary); color:#ffffff; border:none; border-radius:8px; font-weight:700; cursor:pointer;">Close</button>
         </div>
     </div>
 
-    <div id="vouchers-list-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:30000; justify-content:center; align-items:center; padding:20px; backdrop-filter:blur(5px);">
-        <div style="background:var(--surface); border:1px solid #00f0ff; border-radius:24px; padding:25px; max-width:400px; width:100%; box-shadow:0 0 40px rgba(0,240,255,0.3); max-height: 85vh; display: flex; flex-direction: column;">
-            
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px;">
-                <h2 style="color:white; font-size:1.4rem; margin:0;"><i class="fas fa-gift" style="color:#00f0ff; margin-right: 8px;"></i> My GCash Vouchers</h2>
-                <button onclick="closeVouchersModal()" style="background:transparent; border:none; color:var(--text-sub); font-size:24px; cursor:pointer; transition: 0.2s;">&times;</button>
+    <!-- VOUCHERS LIST MODAL -->
+    <div id="vouchers-list-modal">
+        <div class="modal-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px;">
+                <h2 style="color:var(--text-title); font-size:1.15rem; font-weight:700; margin:0;">
+                    <i class="fas fa-ticket-alt" style="color:var(--primary); margin-right: 6px;"></i> My GCash Vouchers
+                </h2>
+                <button onclick="closeVouchersModal()" style="background:transparent; border:none; color:var(--text-muted); font-size:20px; cursor:pointer;">&times;</button>
             </div>
             
-            <div id="vouchers-container" style="overflow-y: auto; flex: 1; padding-right: 5px;">
-                </div>
-            
+            <div id="vouchers-container" style="overflow-y: auto; flex: 1; padding-right: 4px;"></div>
         </div>
     </div>
 
+    <!-- FULLSCREEN SOS STROBE OVERLAY -->
     <div id="sos-overlay" onclick="toggleFlashlight(false)">
-        <i class="fas fa-satellite-dish" style="font-size: 60px; color: var(--danger); margin-bottom: 20px;"></i>
+        <i class="fas fa-exclamation-triangle" style="font-size: 54px; margin-bottom: 16px;"></i>
         <div class="sos-text">S.O.S</div>
-        <div style="font-size: 12px; font-weight: 800; color: var(--text-sub); margin-top: 20px; letter-spacing: 2px;">TAP SCREEN TO CANCEL</div>
+        <div style="font-size: 13px; font-weight: 700; margin-top: 16px; letter-spacing: 1px;">TAP SCREEN TO CANCEL</div>
     </div>
 
     <div id="toast-notification"><span id="toast-msg"></span></div>
 
+    <!-- ADMIN DISPATCH REPLY MODAL -->
     <div id="admin-reply-modal">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-            <span style="background: rgba(0,240,255,0.1); color: var(--accent-cyan); border: 1px solid rgba(0,240,255,0.2); padding: 4px 8px; border-radius: 6px; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Admin Message</span>
-            <button style="background: transparent; border: none; color: var(--text-sub); font-size: 20px; cursor: pointer;" onclick="closeAdminModal()">×</button>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <span style="background: #f0fdf4; color: var(--success); border: 1px solid #bbf7d0; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase;">Dispatch Reply</span>
+            <button style="background: transparent; border: none; color: var(--text-muted); font-size: 18px; cursor: pointer;" onclick="closeAdminModal()">×</button>
         </div>
-        <div style="font-size: 14px; line-height: 1.6; color: white; font-style: italic;" id="admin-msg-content"></div>
-        <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); font-family: var(--font-data); font-size: 10px; color: var(--text-sub); display: flex; justify-content: space-between;">
-            <span>TIME:</span>
+        <div style="font-size: 14px; line-height: 1.5; color: var(--text-title);" id="admin-msg-content"></div>
+        <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--border-subtle); font-size: 11px; color: var(--text-muted); display: flex; justify-content: space-between;">
+            <span>Received:</span>
             <span id="admin-msg-time">--</span>
         </div>
     </div>
 
     <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar(false)"></div>
     
-    <div id="sidebar">
+    <!-- RECONSTRUCTED INTUITIVE SIDEBAR -->
+    <div id="sidebar" role="dialog" aria-label="Emergency Navigation Menu">
+        <!-- Top Bar -->
+        <div class="sidebar-top-bar">
+            <span class="sidebar-title-badge"><i class="fas fa-shield-halved"></i> Resident Menu</span>
+            <button onclick="toggleSidebar(false)" class="sidebar-close-btn" aria-label="Close menu">&times;</button>
+        </div>
+
+        <!-- Resident Profile Card -->
         <div class="sidebar-user-card">
-            <div class="user-avatar"><i class="fas fa-user-circle"></i></div>
-            <div style="display: flex; flex-direction: column;">
-                <span class="welcome-text">Welcome</span>
-                <h2 id="sidebar-name">Student</h2>
+            <div class="user-avatar"><i class="fas fa-circle-user"></i></div>
+            <div style="display: flex; flex-direction: column; min-width: 0;">
+                <span class="welcome-text">Resident Profile</span>
+                <h2 id="sidebar-name">Resident</h2>
                 <p class="mono-stat" id="sidebar-email-display"><i class="fas fa-envelope"></i> Loading...</p>
-                <p class="mono-stat" id="sidebar-phone-display" style="color:var(--text-sub);"><i class="fas fa-phone"></i> Loading...</p>
+                <p class="mono-stat" id="sidebar-phone-display"><i class="fas fa-phone"></i> Loading...</p>
             </div>
         </div>
 
-        <div style="flex: 1; overflow-y: auto; padding-right: 5px;">
-            <span class="sidebar-label">Safety Guidelines</span>
-            <div class="guidelines-container">
-                <div class="tabs-header">
-                    <button class="tab-btn active" onclick="openTab(event, 'quake-tab')"><i class="fas fa-house-crack"></i><span>Quake</span></button>
-                    <button class="tab-btn" onclick="openTab(event, 'fire-tab')"><i class="fas fa-fire"></i><span>Fire</span></button>
-                    <button class="tab-btn" onclick="openTab(event, 'flood-tab')"><i class="fas fa-water"></i><span>Flood</span></button>
+        <!-- The 4 Core Actions (Un-crowded, intuitive, 48-52px targets) -->
+        <div class="sidebar-actions-list">
+            <!-- 1. File Incident Report -->
+            <button type="button" onclick="toggleSidebar(false); GabayXOfflineUI.openReportModal();" class="sidebar-btn-card primary">
+                <div class="sidebar-card-icon"><i class="fas fa-file-shield"></i></div>
+                <div class="sidebar-card-content">
+                    <div class="sidebar-card-title">
+                        File Incident Report
+                        <span id="sidebar-report-badge" class="sidebar-card-badge" style="display:none; background:#ccfbf1; color:#0f766e;">NEW</span>
+                    </div>
+                    <div class="sidebar-card-desc">Damage, hazard, casualty, or road block</div>
                 </div>
-                <div id="quake-tab" class="tab-pane active"><div class="guide-content"><b>DROP, COVER, HOLD</b><p>Avoid falling objects. Move to the Main Evacuation Zone when safe.</p></div></div>
-                <div id="fire-tab" class="tab-pane"><div class="guide-content"><b>EVACUATE IMMEDIATELY</b><p>Stay low to avoid smoke. Proceed to the nearest safe area.</p></div></div>
-                <div id="flood-tab" class="tab-pane"><div class="guide-content"><b>MOVE TO HIGH GROUND</b><p>Avoid floodwaters. Use Offline Mode if internet disconnects.</p></div></div>
-            </div>
+            </button>
 
-            <span class="sidebar-label" style="margin-top: 20px;">Emergency Contacts</span>
-            <div class="contact-item"><i class="fas fa-hospital" style="color: var(--primary);"></i> School Clinic: 0912-345-6789</div>
-            <div class="contact-item"><i class="fas fa-truck-medical" style="color: var(--danger);"></i> Public Emergency: 911</div>
-        </div>
-
-        <div class="offline-box">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <i class="fas fa-wifi-slash" style="color: var(--warning);"></i>
-                    <span style="font-size: 11px; font-weight: 800; color: white; text-transform: uppercase;">Offline Mode</span>
+            <!-- 2. Offline Messenger (Hotspot Mesh & Relay) -->
+            <button type="button" onclick="toggleSidebar(false); openMessengerView();" class="sidebar-btn-card warning">
+                <div class="sidebar-card-icon"><i class="fas fa-comment-dots"></i></div>
+                <div class="sidebar-card-content">
+                    <div class="sidebar-card-title">
+                        Offline Messenger
+                        <span class="sidebar-card-badge amber">HOTSPOT</span>
+                    </div>
+                    <div class="sidebar-card-desc">Popular chat UI over local Wi-Fi mesh</div>
                 </div>
-                <label class="switch"><input type="checkbox" id="offline-toggle" onchange="toggleOfflineMode()"><span class="slider"></span></label>
-            </div>
-            <div style="font-size: 10px; color: var(--text-sub); line-height: 1.4;">Turn on to save your data if the internet disconnects. Flashlight and SMS tools will become available.</div>
+            </button>
+
+            <!-- 3. Show GCash Vouchers -->
+            <button type="button" onclick="toggleSidebar(false); openVouchersModal();" class="sidebar-btn-card info">
+                <div class="sidebar-card-icon"><i class="fas fa-ticket-alt"></i></div>
+                <div class="sidebar-card-content">
+                    <div class="sidebar-card-title">Show GCash Vouchers</div>
+                    <div class="sidebar-card-desc">View and claim emergency relief funds</div>
+                </div>
+            </button>
+
+            <!-- 4. Donate to Relief -->
+            <button type="button" onclick="window.location.href='/donate.html'" class="sidebar-btn-card outline">
+                <div class="sidebar-card-icon"><i class="fas fa-hand-holding-heart" style="color:#e11d48;"></i></div>
+                <div class="sidebar-card-content">
+                    <div class="sidebar-card-title">Donate to Relief</div>
+                    <div class="sidebar-card-desc">Send immediate community disaster aid</div>
+                </div>
+            </button>
         </div>
-        
-        <button onclick="GabayXOfflineUI.openReportModal()" class="btn-voucher" style="background: linear-gradient(135deg, #10b981, #059669); margin-bottom: 8px;">
-            <i class="fas fa-file-shield"></i> File Incident Report
-        </button>
 
-        <button onclick="GabayXOfflineUI.openHistoryModal()" class="btn-voucher" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: #fff; box-shadow: none; margin-bottom: 8px;">
-            <i class="fas fa-clock-rotate-left"></i> My Reports & Status
-        </button>
+        <!-- Bottom Panel: Hotlines, Offline Toggle & Logout -->
+        <div class="sidebar-bottom-panel">
+            <div class="hotline-row">
+                <a href="tel:911" class="hotline-chip danger" title="Call National Emergency 911">
+                    <i class="fas fa-phone"></i> 911 National
+                </a>
+                <a href="tel:09123456789" class="hotline-chip info" title="Call Campus Emergency Clinic">
+                    <i class="fas fa-hospital"></i> Clinic Line
+                </a>
+            </div>
 
-        <button onclick="GabayXOfflineUI.openInfoModal()" class="btn-voucher" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: #fff; box-shadow: none; margin-bottom: 14px;">
-            <i class="fas fa-book-medical"></i> Offline Guides & Hotlines
-        </button>
+            <!-- Offline Mode Toggle (Clean, reliable, does not hide map) -->
+            <div class="offline-toggle-card">
+                <div>
+                    <b style="font-size: 12px; color: var(--text-title); display: block;">Offline Mode</b>
+                    <span style="font-size: 10px; color: var(--text-muted);">Local GPS & offline storage</span>
+                </div>
+                <label class="switch" aria-label="Toggle Offline Mode">
+                    <input type="checkbox" id="offline-toggle" onchange="toggleOfflineMode()">
+                    <span class="slider"></span>
+                </label>
+            </div>
 
-        <button onclick="openVouchersModal()" class="btn-voucher">
-            <i class="fas fa-ticket-alt"></i> Show GCash Vouchers
-        </button>
-
-        <button onclick="window.location.href='/donate.html'" class="btn-donate-sidebar">
-            <i class="fas fa-hand-holding-heart"></i> Donate to Relief
-        </button>
-
-        <button onclick="logoutUser()" class="btn-logout"><i class="fas fa-sign-out-alt"></i> Log Out</button>
+            <button type="button" onclick="logoutUser()" class="btn-logout">
+                <i class="fas fa-sign-out-alt"></i> Sign Out
+            </button>
+        </div>
     </div>
 
+    <!-- DEDICATED FULL-SCREEN HOTSPOT MESSENGER (SEPARATE TAB) -->
+    <div id="hotspot-messenger-view" class="messenger-full-view" style="display: none;" role="dialog" aria-label="Offline Hotspot Messenger">
+        
+        <!-- ============================================== -->
+        <!-- SCREEN 1: GATEWAY (STEP 1: DISCOVER & CONNECT) -->
+        <!-- ============================================== -->
+        <div id="msg-screen-gateway" class="msg-screen-pane">
+            <!-- Gateway Top Bar -->
+            <div class="msg-gateway-topbar">
+                <button type="button" class="msg-nav-back-btn" onclick="closeMessengerView()">
+                    <i class="fas fa-arrow-left"></i> Back to Map
+                </button>
+                <div class="msg-brand-tag">
+                    <i class="fas fa-tower-broadcast"></i> Local Wi-Fi Mesh
+                </div>
+            </div>
+
+            <!-- Gateway Body -->
+            <div class="msg-gateway-body">
+                <div class="msg-gateway-hero">
+                    <div class="msg-hero-icon-bubble">
+                        <i class="fas fa-comments"></i>
+                    </div>
+                    <h2 class="msg-hero-title">Offline Hotspot Messenger</h2>
+                    <p class="msg-hero-subtitle">
+                        Direct community messaging over local Wi-Fi when cellular networks and internet towers are down.
+                    </p>
+                </div>
+
+                <!-- Two Distinct Gateway Choice Cards -->
+                <div class="gateway-choices-grid">
+                    <!-- Option A: Host a Hotspot -->
+                    <div class="gateway-card host-card" id="gateway-card-host" onclick="openGatewayDrawer('host')">
+                        <span class="gateway-card-badge">Be a Relay</span>
+                        <div class="gateway-card-icon">
+                            <i class="fas fa-wifi"></i>
+                        </div>
+                        <h3 class="gateway-card-title">Turn On Hotspot</h3>
+                        <p class="gateway-card-desc">
+                            Share your phone hotspot so nearby victims and rescuers can connect to your local relay.
+                        </p>
+                        <button type="button" class="btn-gateway-action host">
+                            <i class="fas fa-broadcast-tower"></i> Host Network
+                        </button>
+                    </div>
+
+                    <!-- Option B: Connect to an Available Hotspot -->
+                    <div class="gateway-card join-card" id="gateway-card-join" onclick="openGatewayDrawer('join')">
+                        <span class="gateway-card-badge">Join Mesh</span>
+                        <div class="gateway-card-icon">
+                            <i class="fas fa-satellite-dish"></i>
+                        </div>
+                        <h3 class="gateway-card-title">Connect to Hotspot</h3>
+                        <p class="gateway-card-desc">
+                            Search and connect to Wi-Fi hotspots hosted by nearby victims, safe zones, or rescue units.
+                        </p>
+                        <button type="button" class="btn-gateway-action join">
+                            <i class="fas fa-search-location"></i> Search Hotspots
+                        </button>
+                    </div>
+                </div>
+
+                <!-- DRAWER A: HOST HOTSPOT DRAWER -->
+                <div id="drawer-host-hotspot" class="gateway-drawer" style="display: none;">
+                    <div class="drawer-header">
+                        <h4><i class="fas fa-wifi" style="color: #0f766e;"></i> Host Your Local Hotspot Relay</h4>
+                        <button type="button" class="drawer-close" onclick="closeGatewayDrawer()">&times;</button>
+                    </div>
+                    <!-- QR Type Selector -->
+                    <div style="display: flex; gap: 6px; margin-bottom: 12px;">
+                        <button type="button" id="btn-qr-tab-wifi" class="quick-chip active" onclick="switchHostQRType('wifi')" style="flex: 1; justify-content: center;">
+                            <i class="fas fa-wifi"></i> 1. Wi-Fi Connect QR
+                        </button>
+                        <button type="button" id="btn-qr-tab-app" class="quick-chip" onclick="switchHostQRType('app')" style="flex: 1; justify-content: center;">
+                            <i class="fas fa-mobile-screen-button"></i> 2. Open App QR
+                        </button>
+                    </div>
+
+                    <p class="drawer-instruction" id="host-drawer-instruction">
+                        1. Turn on <b>Personal Hotspot</b> in phone Settings.<br>
+                        2. Ask the second phone to scan this QR code to join your Wi-Fi instantly:
+                    </p>
+                    <div id="hotspot-host-qr" class="qr-canvas-holder">
+                        <!-- QR Code Canvas dynamically injected -->
+                    </div>
+                    <div class="hotspot-info-pill">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                            <span><b>Network SSID:</b></span>
+                            <span id="host-ssid-name" style="font-weight: 800; color: #0f766e; font-family: monospace;">GABAYX-RELAY</span>
+                        </div>
+                        <div style="margin-bottom: 5px;"><b>Host Device:</b> <span id="host-user-label">Resident Station</span></div>
+                        <div style="margin-bottom: 5px;"><b>Direct Phone URL:</b> <span id="host-app-url" style="color: #0284c7; font-family: monospace; font-size: 11px;">Loading...</span></div>
+                        <div><b>Sector Location:</b> <span id="host-sector-label">Campus Zone</span></div>
+                    </div>
+                    <button type="button" class="btn-primary-block" id="btn-start-hosting" onclick="startHostingRealHotspot()">
+                        <i class="fas fa-broadcast-tower"></i> Turn On & Broadcast Hotspot Relay
+                    </button>
+                </div>
+
+                <!-- DRAWER B: SEARCH & CONNECT HOTSPOTS DRAWER -->
+                <div id="drawer-join-hotspot" class="gateway-drawer" style="display: none;">
+                    <div class="drawer-header">
+                        <h4><i class="fas fa-satellite-dish" style="color: #0284c7;"></i> Available Nearby Hotspots</h4>
+                        <button type="button" class="drawer-close" onclick="closeGatewayDrawer()">&times;</button>
+                    </div>
+                    <div class="radar-status-bar">
+                        <div class="radar-pulsing-dot"></div>
+                        <span id="radar-status-text">Scanning nearby emergency nodes and relays...</span>
+                    </div>
+
+                    <!-- List of available hotspots (from other victims or rescuers) -->
+                    <div id="available-hotspots-list" class="hotspots-list">
+                        <!-- Populated by refreshHotspotScan() -->
+                    </div>
+
+                    <div style="margin-top: 10px; display: flex; gap: 8px;">
+                        <button type="button" class="btn-outline-block" onclick="refreshHotspotScan()" style="flex: 1;">
+                            <i class="fas fa-arrows-rotate"></i> Refresh Hotspots
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Stored SOS & Rescue QR Utilities -->
+                <div style="margin-top: 24px; width: 100%; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                    <button type="button" class="quick-chip" onclick="openOutboxModal()" style="padding: 8px 14px; font-size: 12px;">
+                        <i class="fas fa-inbox"></i> Stored Offline Outbox (<span id="gateway-outbox-count">0</span>)
+                    </button>
+                    <button type="button" class="quick-chip" onclick="openRescueQRModal()" style="padding: 8px 14px; font-size: 12px;">
+                        <i class="fas fa-qrcode"></i> Show Rescue ID QR
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- SCREEN 2: ACTIVE MESSENGER (POPULAR CHAT UI)   -->
+        <!-- ============================================== -->
+        <div id="msg-screen-chat" class="msg-screen-pane" style="display: none;">
+            <!-- Messenger Top Navigation Bar -->
+            <div class="messenger-navbar">
+                <div class="msg-nav-left">
+                    <!-- Mobile button to toggle chats sidebar -->
+                    <button type="button" class="msg-btn-icon" id="btn-msg-mobile-back" onclick="toggleMessengerMobileSidebar(true)" title="All Chats" aria-label="Back to chats">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+
+                    <!-- Active Chat Target Info -->
+                    <div class="msg-header-user">
+                        <div class="msg-avatar-badge-wrap">
+                            <div class="msg-avatar" id="msg-active-avatar">
+                                <i class="fas fa-bullhorn"></i>
+                            </div>
+                            <div class="msg-online-dot" id="msg-active-online-dot"></div>
+                        </div>
+                        <div class="msg-header-info">
+                            <h3 class="msg-header-name" id="msg-active-title">Campus Emergency Broadcast</h3>
+                            <p class="msg-header-status" id="msg-active-status">
+                                <i class="fas fa-wifi"></i> Connected to <span id="msg-current-network-name">GABAYX Mesh</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="msg-nav-right">
+                    <button type="button" class="msg-btn-pill emergency" onclick="messengerQuickAction('trapped')" title="Urgent Distress Alert">
+                        <i class="fas fa-triangle-exclamation"></i> SOS
+                    </button>
+                    <button type="button" class="msg-btn-icon" onclick="switchMessengerToGateway()" title="Change Hotspot Connection">
+                        <i class="fas fa-network-wired"></i>
+                    </button>
+                    <button type="button" class="msg-btn-icon" onclick="closeMessengerView()" title="Back to Map">
+                        <i class="fas fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 2-Column Messenger Layout -->
+            <div class="messenger-body-layout">
+                <!-- Left Column: Chats & Peers Sidebar -->
+                <div class="messenger-chats-sidebar" id="messenger-chats-sidebar">
+                    <!-- Search Input -->
+                    <div class="messenger-search-wrap">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="messenger-search-input" placeholder="Search chats or peers..." oninput="filterMessengerPeers(this.value)">
+                    </div>
+
+                    <!-- Chats List Scrollable -->
+                    <div class="messenger-peers-list">
+                        <!-- Group 1: Emergency Channels -->
+                        <div class="msg-section-header">
+                            <span>Emergency Channels</span>
+                        </div>
+
+                        <!-- Channel A: Campus Broadcast -->
+                        <div class="msg-chat-item active" id="chat-item-broadcast" onclick="selectMessengerChat('broadcast', 'Campus Emergency Broadcast', 'fa-bullhorn', true)">
+                            <div class="msg-item-avatar channel-broadcast">
+                                <i class="fas fa-bullhorn"></i>
+                            </div>
+                            <div class="msg-item-info">
+                                <div class="msg-item-top">
+                                    <span class="msg-item-name">Campus Broadcast</span>
+                                    <span class="msg-item-time" id="time-item-broadcast">Now</span>
+                                </div>
+                                <div class="msg-item-bottom">
+                                    <span class="msg-item-snippet" id="snippet-item-broadcast">Public channel for all campus nodes</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Channel B: Medical / Rescuer Dispatch -->
+                        <div class="msg-chat-item" id="chat-item-medical" onclick="selectMessengerChat('medical', 'Medical & Rescue Dispatch', 'fa-truck-medical', true)">
+                            <div class="msg-item-avatar channel-medical">
+                                <i class="fas fa-truck-medical"></i>
+                            </div>
+                            <div class="msg-item-info">
+                                <div class="msg-item-top">
+                                    <span class="msg-item-name">Medical & Rescuer Dispatch</span>
+                                    <span class="msg-item-time" id="time-item-medical">Now</span>
+                                </div>
+                                <div class="msg-item-bottom">
+                                    <span class="msg-item-snippet" id="snippet-item-medical">Direct line for triage & rescue</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Group 2: Nearby Discovered Peers -->
+                        <div class="msg-section-header" style="margin-top: 8px;">
+                            <span>Nearby Hotspot Peers</span>
+                            <span class="peers-counter" id="peers-counter-badge">0 Online</span>
+                        </div>
+
+                        <!-- Container for dynamic peer items -->
+                        <div id="messenger-peers-container">
+                            <!-- Injected dynamically by renderMessengerPeers() -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Active Chat Area -->
+                <div class="messenger-chat-area">
+                    <!-- Messages Stream Feed -->
+                    <div class="messenger-messages-stream" id="messenger-messages-stream">
+                        <div class="hotspot-empty-notice" id="messenger-empty-notice">
+                            <i class="fas fa-comments" style="font-size: 32px; color: #0f766e; margin-bottom: 8px;"></i>
+                            <p style="font-size: 13px; font-weight: 800; color: var(--text-title); margin: 0 0 4px 0;">No Messages Yet</p>
+                            <p style="font-size: 11.5px; color: var(--text-muted); margin: 0; max-width: 320px;">
+                                Send a message or tap one of the quick emergency chips below to broadcast to connected devices.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Quick Distress Action Chips -->
+                    <div class="messenger-quick-actions-bar">
+                        <button type="button" class="quick-chip gps" onclick="messengerQuickAction('gps')">
+                            <i class="fas fa-location-crosshairs"></i> Share GPS
+                        </button>
+                        <button type="button" class="quick-chip medical" onclick="messengerQuickAction('medical')">
+                            <i class="fas fa-truck-medical"></i> Need Medical Aid
+                        </button>
+                        <button type="button" class="quick-chip trapped" onclick="messengerQuickAction('trapped')">
+                            <i class="fas fa-person-shelter"></i> Trapped in Room
+                        </button>
+                        <button type="button" class="quick-chip supplies" onclick="messengerQuickAction('supplies')">
+                            <i class="fas fa-bottle-water"></i> Need Water & Food
+                        </button>
+                        <button type="button" class="quick-chip safe" onclick="messengerQuickAction('safe')">
+                            <i class="fas fa-check-circle"></i> We Are Safe Here
+                        </button>
+                    </div>
+
+                    <!-- Messenger Chat Input Tray -->
+                    <form id="messenger-chat-form" onsubmit="handleMessengerSend(event)" class="messenger-input-tray">
+                        <input type="text" id="messenger-chat-input" placeholder="Type a message to nearby peers..." maxlength="300" autocomplete="off" />
+                        <button type="submit" class="btn-messenger-send" title="Send Message" aria-label="Send Message">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SEPARATE MODAL: STORED SOS OUTBOX -->
+    <div id="offline-outbox-modal" class="comm-modal-backdrop" style="display: none;" onclick="if(event.target===this)closeOutboxModal()">
+        <div class="comm-modal-card" style="max-width: 480px;">
+            <div class="comm-modal-header">
+                <div>
+                    <h2 class="comm-modal-title"><i class="fas fa-inbox" style="color: #0f766e; margin-right: 6px;"></i> Stored SOS Outbox</h2>
+                    <p class="comm-modal-subtitle">Auto-syncs whenever internet or a hotspot relay is detected</p>
+                </div>
+                <button type="button" onclick="closeOutboxModal()" class="comm-close-btn">&times;</button>
+            </div>
+            <div style="padding: 16px;">
+                <div id="outbox-items-container" style="max-height: 220px; overflow-y: auto; margin-bottom: 14px; display: flex; flex-direction: column; gap: 8px;"></div>
+                <div style="background: #ffffff; border: 1.5px solid var(--border-color); border-radius: 10px; padding: 12px;">
+                    <b style="font-size: 12px; color: var(--text-title); display: block; margin-bottom: 6px;">
+                        <i class="fas fa-pen" style="color: var(--primary);"></i> Queue New Offline SOS
+                    </b>
+                    <textarea id="offline-sos-input" placeholder="Describe emergency, medical needs, or room number..." rows="2" style="width: 100%; border: 1px solid var(--border-color); border-radius: 6px; padding: 8px; font-family: inherit; font-size: 12px; resize: none; margin-bottom: 8px;"></textarea>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" onclick="queueOfflineSOS()" style="flex: 1; height: 40px; background: #dc2626; color: #ffffff; border: none; border-radius: 6px; font-weight: 700; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                            <i class="fas fa-floppy-disk"></i> Save to Outbox
+                        </button>
+                        <button type="button" onclick="syncOfflineQueueNow()" style="height: 40px; padding: 0 14px; background: #0f766e; color: #ffffff; border: none; border-radius: 6px; font-weight: 700; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                            <i class="fas fa-arrows-rotate"></i> Sync Now
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SEPARATE MODAL: RESCUE QR CODE -->
+    <div id="rescue-qr-modal" class="comm-modal-backdrop" style="display: none;" onclick="if(event.target===this)closeRescueQRModal()">
+        <div class="comm-modal-card" style="max-width: 420px;">
+            <div class="comm-modal-header">
+                <div>
+                    <h2 class="comm-modal-title"><i class="fas fa-qrcode" style="color: #0f766e; margin-right: 6px;"></i> Rescue Verification QR</h2>
+                    <p class="comm-modal-subtitle">Zero-signal optical scan for field rescue teams</p>
+                </div>
+                <button type="button" onclick="closeRescueQRModal()" class="comm-close-btn">&times;</button>
+            </div>
+            <div style="padding: 16px; text-align: center;">
+                <p style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 12px;">
+                    Rescuers can scan this screen with any camera or scanner to verify your identity and last known location with zero wireless radio needed.
+                </p>
+                <div id="rescue-qr-box" style="display: flex; justify-content: center; align-items: center; min-height: 140px; margin-bottom: 14px;"></div>
+                <div style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px 12px; font-size: 12px; text-align: left; line-height: 1.6;">
+                    <div><b>Name:</b> <span id="qr-resident-name">Resident</span></div>
+                    <div><b>ID:</b> <span id="qr-resident-id">--</span></div>
+                    <div><b>Phone:</b> <span id="qr-resident-phone">--</span></div>
+                    <div><b>Last Coordinates:</b> <span id="qr-resident-coords">Acquiring...</span></div>
+                    <div><b>Status:</b> <span id="qr-resident-status" style="font-weight: 800; color: #16a34a;">SAFE</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FALLBACK LOGIN MODAL -->
     <div id="login-modal">
         <div class="login-box">
-            <img src="GabayXLOGO.jpg" alt="GabayX Logo" style="width: 60px; height: 60px; border-radius: 14px; object-fit: cover; margin: 0 auto 15px auto; display: block; box-shadow: 0 0 20px rgba(16, 185, 129, 0.4); border: 1px solid var(--primary);">
-            <h2 style="font-weight: 800; margin-bottom: 5px; font-size: 1.8rem; letter-spacing: 1px; text-transform: uppercase; background: linear-gradient(135deg, #ffffff 0%, var(--primary) 50%, #00f0ff 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.4));">GABAYX</h2>
-            <p id="last-user-hint" style="color: var(--text-sub); font-size: 10px; font-family: var(--font-data); text-transform: uppercase; margin-bottom: 25px; display: none;"></p>
+            <img src="GabayXLOGO.jpg" alt="GabayX Logo" style="width: 52px; height: 52px; border-radius: 10px; object-fit: cover; margin: 0 auto 12px auto; display: block; border: 1px solid var(--border-color);">
+            <h2 style="font-weight: 800; font-size: 1.35rem; color: var(--text-title); margin-bottom: 4px;">GABAYX</h2>
+            <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 16px;">Community Safety Access</p>
+            <p id="last-user-hint" style="color: var(--text-muted); font-size: 11px; margin-bottom: 12px; display: none;"></p>
 
-            <input type="email" id="student-email-input" class="login-input" placeholder="student@example.com" />
-            <button class="btn-login" onclick="loginUser()">Log In</button>
+            <input type="email" id="student-email-input" class="login-input" placeholder="name@domain.com" />
+            <button class="btn-login" onclick="loginUser()">Sign In</button>
 
-            <button id="btn-quick-access" onclick="checkLogin()" style="display: none; width: 100%; margin-top: 15px; background: rgba(255,255,255,0.05); color: var(--text-sub); border: 1px solid rgba(255,255,255,0.1); padding: 14px; border-radius: 12px; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; transition: 0.3s;">Resume Session: <span id="quick-name" style="color: #fff;"></span></button>
+            <button id="btn-quick-access" onclick="checkLogin()" style="display: none; width: 100%; margin-top: 10px; background: #f8fafc; color: var(--text-title); border: 1px solid var(--border-color); padding: 10px; border-radius: 8px; font-weight: 600; font-size: 12px; cursor: pointer;">Resume Session: <span id="quick-name"></span></button>
         </div>
     </div>
 
     <header>
         <div class="app-logo" onclick="toggleSidebar(true)">
-            <i class="fas fa-bars" style="color: var(--text-sub); margin-right: 5px;"></i>
+            <i class="fas fa-bars menu-bar-icon"></i>
             <img src="GabayXLOGO.jpg" class="nav-logo-mark" alt="GabayX Logo">
             <span class="nav-brand-text">GABAYX</span>
         </div>
 
-        <div class="conn-container">
-            <div class="status-dot" id="conn-dot" style="color: var(--primary);"></div>
-            <span id="conn-text">CONNECTING</span>
-            <span id="pending-reports-badge" style="display:none; background:var(--accent-orange); color:#000; font-size:9px; font-weight:800; border-radius:10px; padding:1px 6px; margin-left:4px;">0</span>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <button type="button" class="header-msg-btn" onclick="openMessengerView()" title="Offline Hotspot Messenger" aria-label="Open Hotspot Messenger">
+                <i class="fas fa-comment-dots"></i>
+                <span class="header-msg-badge" id="header-unread-badge" style="display: none;">0</span>
+            </button>
+            <div class="conn-container">
+                <div class="status-dot" id="conn-dot"></div>
+                <span id="conn-text">CONNECTED</span>
+                <span id="pending-reports-badge" style="display:none; background:var(--warning); color:#ffffff; font-size:9px; font-weight:800; border-radius:8px; padding:1px 5px; margin-left:4px;">0</span>
+            </div>
         </div>
     </header>
 
     <div id="main-container">
+        <!-- ADMIN BROADCAST ALERT BANNER -->
         <div id="admin-banner" class="alert-banner">
-            <strong id="alert-title" style="color: #fff; font-size: 14px; letter-spacing: 1px;">EMERGENCY</strong>
-            <p id="admin-banner-text" style="font-size: 12px; color: rgba(255,255,255,0.8); margin: 6px 0 0 0;"></p>
-            <div id="banner-action-container" style="margin-top: 10px; display: none;"></div>
+            <strong id="alert-title" style="color: var(--danger); font-size: 14px; font-weight: 800; letter-spacing: 0.5px;">EMERGENCY ALERT</strong>
+            <p id="admin-banner-text" style="font-size: 13px; color: var(--text-title); margin: 4px 0 0 0; font-weight: 600;"></p>
+            <div id="banner-action-container" style="margin-top: 8px; display: none;"></div>
         </div>
         
+        <!-- ROUTE GUIDANCE HUD -->
         <div id="route-info">
-            <i class="fas fa-location-arrow" style="color: var(--primary); font-size: 18px;"></i>
-            <div style="display: flex; flex-direction: column; line-height: 1.3;">
-                <div style="font-size: 9px; color: var(--text-sub); text-transform: uppercase; letter-spacing: 1px;">Navigating To Safety</div>
-                <div><span id="route-dist" style="color: white; font-weight: 700;">0m</span><span style="color: var(--text-sub); margin: 0 6px;">•</span><span id="route-time" style="color: var(--accent-cyan);">0 min</span></div>
+            <i class="fas fa-person-walking" style="color: var(--primary); font-size: 16px;"></i>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span>Navigating to Safe Zone:</span>
+                <span id="route-dist" style="color: var(--text-title); font-weight: 800;">0m</span>
+                <span style="color: var(--text-muted);">•</span>
+                <span id="route-time" style="color: var(--primary); font-weight: 800;">0 min</span>
             </div>
         </div>
 
-        <div id="map-container"><div id="map"></div></div>
+        <!-- LEAFLET MAP CONTAINER -->
+        <div id="map-container">
+            <div id="map"></div>
+            <button id="btn-toggle-basemap" class="map-layer-btn" onclick="toggleBasemap()" title="Toggle map view (Daylight Street / Aerial Satellite)">
+                <i class="fas fa-layer-group"></i>
+            </button>
+            <button id="btn-recenter-gps" class="map-gps-btn" onclick="recenterMapOnUser()" title="Center on my device GPS">
+                <i class="fas fa-crosshairs"></i>
+            </button>
+        </div>
 
+        <!-- OFFLINE FLOATING TOOLS -->
         <div id="offline-floating-tools" class="offline-toolbelt">
             <div id="tool-grip" class="drag-handle"></div>
-            <button id="btn-flash" class="tool-btn tool-flashlight" onclick="toggleFlashlight(true)"><i class="fas fa-bolt"></i></button>
-            <button class="tool-btn tool-sms" onclick="sendOfflineSMS()"><i class="fas fa-comment-sms"></i></button>
+            <button id="btn-flash" class="tool-btn tool-flashlight" onclick="toggleFlashlight(true)" title="Flashlight"><i class="fas fa-bolt"></i></button>
+            <button class="tool-btn" onclick="sendOfflineSMS()" title="Send SMS" style="color: #0284c7;"><i class="fas fa-comment-sms"></i></button>
         </div>
 
+        <!-- BOTTOM ACTIONS TRAY -->
         <div class="actions-tray">
-            <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-size: 10px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px;">NEAREST BUILDING</span>
-                <span id="nearest-bldg-badge" class="location-badge">Scanning...</span>
+            <div class="tray-top-row">
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <span class="tray-label">Location</span>
+                    <span id="gps-accuracy-badge" class="location-badge" style="display:none; font-size:10px; background:rgba(2,132,199,0.1); color:var(--primary); border:1px solid rgba(2,132,199,0.25);"></span>
+                </div>
+                <span id="nearest-bldg-badge" class="location-badge">🛰️ Acquiring GPS...</span>
             </div>
             
-            <div id="quick-responses" style="display: none;">
-                <span style="font-size: 10px; font-weight: 800; color: var(--text-sub); letter-spacing: 1px;">QUICK MESSAGES</span>
-                <div class="quick-grid" id="quick-grid"></div>
+            <div id="quick-responses" style="display: none; margin-bottom: 10px;">
+                <span class="tray-label" style="display: block; margin-bottom: 6px;">Quick Distress Status</span>
+                <div class="quick-grid" id="quick-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;"></div>
             </div>
             
+            <!-- THE TWO MAIN ACTION BUTTONS -->
             <div class="button-group">
-                <button class="btn-action btn-safe" onclick="markAsSafe()"><i class="fas fa-check-circle" style="font-size: 18px;"></i> Mark as Safe</button>
-                <button class="btn-action btn-danger" onclick="markAsDanger()"><i class="fas fa-exclamation-circle" style="font-size: 18px;"></i> Emergency SOS</button>
+                <button class="btn-action btn-safe" onclick="markAsSafe()">
+                    <i class="fas fa-circle-check"></i> Mark Safe
+                </button>
+                <button class="btn-action btn-danger" onclick="markAsDanger()">
+                    <i class="fas fa-triangle-exclamation"></i> Emergency SOS
+                </button>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px;">
-                <button type="button" onclick="GabayXOfflineUI.openReportModal()" class="btn-quick" style="background: rgba(16,185,129,0.12); border-color: var(--primary); color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px;">
-                    <i class="fas fa-file-shield" style="color:var(--primary);"></i> File Report
+            <!-- SECONDARY ACTIONS -->
+            <div class="btn-secondary-row">
+                <button type="button" onclick="GabayXOfflineUI.openReportModal()" class="btn-quick">
+                    <i class="fas fa-file-shield" style="color:var(--primary);"></i> File Incident Report
                 </button>
-                <button type="button" onclick="GabayXOfflineUI.openHistoryModal()" class="btn-quick" style="background: rgba(255,255,255,0.04); color: var(--text-sub); display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px;">
-                    <i class="fas fa-clock-rotate-left"></i> My Reports
+                <button type="button" onclick="GabayXOfflineUI.openHistoryModal()" class="btn-quick">
+                    <i class="fas fa-clock-rotate-left" style="color:var(--text-muted);"></i> My Reports
                 </button>
             </div>
             
+            <!-- DISPATCH NOTE BAR -->
             <div class="msg-bar">
-                <input type="text" id="student-note" placeholder="Send a message to admin..." />
-                <button class="btn-send" onclick="sendNote()"><i class="fas fa-paper-plane"></i></button>
+                <input type="text" id="student-note" placeholder="Send note to emergency dispatch..." autocomplete="off" />
+                <button class="btn-send" onclick="sendNote()" title="Send Note"><i class="fas fa-paper-plane"></i></button>
             </div>
         </div>
     </div>
@@ -431,6 +2389,11 @@
         let wakeLock = null; 
         const OFFLINE_STORAGE_KEY = "knhs_offline_data";
         const OFFLINE_STATE_KEY = "knhs_is_offline_persistent";
+
+        let userAccuracyCircle = null;
+        let lastKnownCoords = null;
+        let hasCenteredOnUser = false;
+        let gpsWatchId = null;
 
         const LOCATIONS = {
             "PRINCIPAL FRONT": [7.100589893149529, 124.82393056927546],
@@ -561,17 +2524,16 @@
             localStorage.setItem(OFFLINE_STATE_KEY, isOfflineMode);
 
             if (isOfflineMode) {
-                if (!skipToast) showToast("🔌 Offline Mode On");
+                if (!skipToast) showToast("🔌 Offline Mode Active (GPS Locked)");
                 if (floatingTools) floatingTools.style.display = "flex";
                 if (window.GabayXOfflineUI) { window.GabayXOfflineUI.updateGlobalIndicator({ state: 'OFFLINE' }); }
                 else {
                     if (connDot) { connDot.style.color = "var(--warning)"; }
-                    if (connText) connText.innerText = "SAVING DATA";
+                    if (connText) connText.innerText = "OFFLINE MODE";
                 }
-                if (socket) socket.disconnect();
                 showOfflineSafeZones();
             } else {
-                if (!skipToast) showToast("🟢 Back Online");
+                if (!skipToast) showToast("🟢 Online Mode Active");
                 if (floatingTools) floatingTools.style.display = "none";
                 if (window.GabayXOfflineUI) { window.GabayXOfflineUI.updateGlobalIndicator({ state: 'ONLINE' }); }
                 else {
@@ -580,9 +2542,16 @@
                 }
                 toggleFlashlight(false);
                 hideOfflineSafeZones();
-                if (socket) socket.connect();
+                if (socket && !socket.connected) socket.connect();
                 setTimeout(syncOfflineData, 1000);
             }
+
+            // Invalidate Leaflet canvas size so the map NEVER disappears
+            setTimeout(() => {
+                if (typeof map !== 'undefined' && map) {
+                    map.invalidateSize();
+                }
+            }, 120);
         }
 
         const floater = document.getElementById("offline-floating-tools");
@@ -661,16 +2630,44 @@
                 }
             } else {
                 if (userMarker) {
-                    socket.emit("student-status", { id: studentEmail, status: "DANGER", lat: lat, lng: lng });
-                    showToast("SOS Sent");
+                    socket.emit("student-status", {
+                        id: studentEmail,
+                        status: "DANGER",
+                        lat: lat,
+                        lng: lng,
+                        accuracy: lastKnownCoords ? lastKnownCoords.accuracy : null
+                    });
+                    showToast("🚨 SOS Sent with Real-time GPS");
                 } else {
-                    showToast("Finding location...");
+                    showToast("Finding exact GPS location...");
                     navigator.geolocation.getCurrentPosition((pos) => {
-                        const curLat = pos.coords.latitude; const curLng = pos.coords.longitude;
-                        if (!userMarker) { userMarker = L.circleMarker([curLat, curLng], { radius: 8, color: "var(--primary)", fillColor: "white", fillOpacity: 1, weight: 3 }).addTo(map); map.setView([curLat, curLng], 19); }
-                        socket.emit("student-status", { id: studentEmail, status: "DANGER", lat: curLat, lng: curLng });
-                        showToast("SOS Sent");
-                    }, (err) => { alert("⚠️ GPS Error"); }, { enableHighAccuracy: true });
+                        const curLat = pos.coords.latitude;
+                        const curLng = pos.coords.longitude;
+                        const acc = pos.coords.accuracy || 10;
+                        lastKnownCoords = { lat: curLat, lng: curLng, accuracy: acc };
+                        const newLatLng = new L.LatLng(curLat, curLng);
+
+                        if (!userMarker) {
+                            userMarker = L.circleMarker(newLatLng, { radius: 8, color: "#ffffff", fillColor: "#0284c7", fillOpacity: 1, weight: 3 }).addTo(map);
+                            map.setView(newLatLng, 18);
+                        } else {
+                            userMarker.setLatLng(newLatLng);
+                        }
+
+                        if (!userAccuracyCircle) {
+                            userAccuracyCircle = L.circle(newLatLng, { radius: acc, color: "#0284c7", fillColor: "#0284c7", fillOpacity: 0.15, weight: 1 }).addTo(map);
+                        } else {
+                            userAccuracyCircle.setLatLng(newLatLng);
+                            userAccuracyCircle.setRadius(acc);
+                        }
+
+                        socket.emit("student-status", { id: studentEmail, status: "DANGER", lat: curLat, lng: curLng, accuracy: acc });
+                        showToast("🚨 SOS Sent with Real-time GPS");
+                    }, (err) => {
+                        // Never hallucinate fake coordinates on GPS error
+                        socket.emit("student-status", { id: studentEmail, status: "DANGER", lat: null, lng: null });
+                        showToast("🚨 SOS Sent (GPS lock pending or denied)");
+                    }, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
                 }
             }
         }
@@ -706,24 +2703,69 @@
 
         function showOfflineSafeZones() {
             hideOfflineSafeZones();
-            let nearestZone = null; let minDistance = Infinity; let userLatLng = userMarker ? userMarker.getLatLng() : null;
+            let nearestZone = null; 
+            let minDistance = Infinity; 
+            let userLatLng = userMarker ? userMarker.getLatLng() : null;
 
             Object.keys(LOCATIONS).forEach((name) => {
-                const coords = LOCATIONS[name]; let distLabel = "";
-                if (userLatLng) { const dist = map.distance(userLatLng, coords); distLabel = `<br>Dist: <b>${Math.round(dist)}m</b>`; if (dist < minDistance) { minDistance = dist; nearestZone = { name: name, coords: coords }; } }
-                const pinIcon = L.divIcon({ className: "dest-pin", html: `<div class="pin-circle" style="background:var(--primary); border-color:#000;"><i class="fas fa-shield-alt" style="color:#000;"></i></div>`, iconSize: [40, 40], iconAnchor: [20, 20] });
-                const marker = L.marker(coords, { icon: pinIcon }).addTo(map).bindPopup(`<div style="font-family:var(--font-ui); background:#000; color:#fff; padding:5px; border-radius:8px;"><b>SAFE ZONE</b><br>${name}${distLabel}</div>`);
+                const coords = LOCATIONS[name]; 
+                let distLabel = "";
+                if (userLatLng) { 
+                    const dist = map.distance(userLatLng, coords); 
+                    distLabel = `<br>Distance: <b>${Math.round(dist)}m</b>`; 
+                    if (dist < minDistance) { 
+                        minDistance = dist; 
+                        nearestZone = { name: name, coords: coords }; 
+                    } 
+                }
+                const pinIcon = L.divIcon({ 
+                    className: "dest-pin", 
+                    html: `<div style="background:#16a34a; border:2px solid #0f172a; border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; box-shadow:0 3px 8px rgba(0,0,0,0.3);"><i class="fas fa-shield-halved" style="color:#ffffff; font-size:13px;"></i></div>`, 
+                    iconSize: [30, 30], 
+                    iconAnchor: [15, 15] 
+                });
+                const marker = L.marker(coords, { icon: pinIcon }).addTo(map).bindPopup(`
+                    <div style="font-family:system-ui,-apple-system,sans-serif; padding:4px 6px;">
+                        <b style="color:#16a34a; font-size:13px;"><i class="fas fa-shield-halved"></i> SAFE ZONE</b><br>
+                        <span style="font-size:12px; font-weight:700; color:#0f172a;">${name}</span>
+                        ${distLabel}
+                    </div>
+                `);
                 offlineMarkers.push(marker);
             });
 
-            if (userLatLng && nearestZone) {
-                const guidanceLine = L.polyline([userLatLng, nearestZone.coords], { color: "var(--warning)", weight: 5, dashArray: "10, 10", opacity: 0.8 }).addTo(map);
+            // Only fit bounds if user is within local walking proximity (< 1200m)
+            if (userLatLng && nearestZone && minDistance <= 1200) {
+                const guidanceLine = L.polyline([userLatLng, nearestZone.coords], { 
+                    color: "#d97706", 
+                    weight: 4, 
+                    dashArray: "8, 8", 
+                    opacity: 0.9 
+                }).addTo(map);
                 offlineMarkers.push(guidanceLine);
-                const bounds = L.latLngBounds([userLatLng, nearestZone.coords]); map.fitBounds(bounds, { padding: [50, 50] });
+                const bounds = L.latLngBounds([userLatLng, nearestZone.coords]); 
+                map.fitBounds(bounds, { padding: [50, 50], maxZoom: 18 });
+            } else {
+                // Keep the campus view rock-solid at zoom 18 so the map NEVER disappears!
+                map.setView([7.1002658, 124.824024], 18);
             }
+
+            setTimeout(() => {
+                if (typeof map !== 'undefined' && map) {
+                    map.invalidateSize();
+                }
+            }, 100);
         }
 
-        function hideOfflineSafeZones() { offlineMarkers.forEach((marker) => map.removeLayer(marker)); offlineMarkers = []; }
+        function hideOfflineSafeZones() { 
+            offlineMarkers.forEach((marker) => map.removeLayer(marker)); 
+            offlineMarkers = []; 
+            setTimeout(() => {
+                if (typeof map !== 'undefined' && map) {
+                    map.invalidateSize();
+                }
+            }, 100);
+        }
 
         async function subscribeToPush() {
             if ("serviceWorker" in navigator) {
@@ -739,10 +2781,57 @@
             }
         }
 
+        let currentBasemap = 'street';
+        let streetLayer = null;
+        let satelliteLayer = null;
+
         function initMap() {
-            map = L.map("map", { zoomControl: false, attributionControl: false }).setView([7.1002, 124.824], 19);
-            L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}").addTo(map);
-            map.on("zoomend", function () { if (typeof updateLabels === "function") { updateLabels(); } });
+            const savedLat = parseFloat(localStorage.getItem('gabayx_last_lat'));
+            const savedLng = parseFloat(localStorage.getItem('gabayx_last_lng'));
+            const hasSaved = !isNaN(savedLat) && !isNaN(savedLng);
+
+            // Default to campus land coordinates at zoom 18 so it never opens to a blue ocean!
+            const initialCoords = hasSaved ? [savedLat, savedLng] : [7.1002658, 124.824024];
+
+            map = L.map("map", { 
+                zoomControl: false, 
+                attributionControl: false,
+                maxZoom: 20
+            }).setView(initialCoords, 18);
+
+            // Clean Daylight Basemap (OpenStreetMap - Daylight, reliable, 100% Free, NO API KEY REQUIRED)
+            streetLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                maxZoom: 19,
+                subdomains: 'abc',
+                attribution: '&copy; OpenStreetMap contributors'
+            });
+
+            // Satellite Aerial Layer
+            satelliteLayer = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+                maxZoom: 19,
+                attribution: '&copy; Esri World Imagery'
+            });
+
+            // Add the daylight street basemap as DEFAULT (NOT BLUE!)
+            streetLayer.addTo(map);
+
+            map.on("zoomend", function () { 
+                if (typeof updateLabels === "function") { updateLabels(); } 
+            });
+        }
+
+        function toggleBasemap() {
+            if (currentBasemap === 'street') {
+                map.removeLayer(streetLayer);
+                satelliteLayer.addTo(map);
+                currentBasemap = 'satellite';
+                showToast("🛰️ Aerial Satellite View Enabled");
+            } else {
+                map.removeLayer(satelliteLayer);
+                streetLayer.addTo(map);
+                currentBasemap = 'street';
+                showToast("🗺️ Daylight Street View Enabled");
+            }
         }
 
         function initSocket() {
@@ -759,18 +2848,23 @@
                 });
                 socket.on("receive-alert", handleAlert);
                 
-                // --- NEW: LISTEN FOR INCOMING DONATIONS ---
+                // --- LISTEN FOR INCOMING DONATIONS ---
                 socket.on("donation-dropped", (data) => {
                     let isInZone = false;
                     
                     if (data.zone === "ALL ZONES") {
                         isInZone = true;
                     } else if (userMarker) {
-                        // Check if user is physically in the target zone radius
-                        const targetCoords = LOCATIONS[data.zone];
-                        if (targetCoords) {
-                            const dist = map.distance(userMarker.getLatLng(), targetCoords);
-                            if (dist < 60) { 
+                        const userLatLng = userMarker.getLatLng();
+                        if (data.target_lat && data.target_lng) {
+                            const dist = map.distance(userLatLng, [data.target_lat, data.target_lng]);
+                            // Within 5km radius of the targeted geographic location
+                            if (dist < 5000) { 
+                                isInZone = true;
+                            }
+                        } else if (LOCATIONS[data.zone]) {
+                            const dist = map.distance(userLatLng, LOCATIONS[data.zone]);
+                            if (dist < 100) { 
                                 isInZone = true;
                             }
                         }
@@ -787,6 +2881,48 @@
                         new Audio("https://image2url.com/r2/default/audio/1770035478181-9daca647-30be-478d-bef0-2700b5dfcbdd.mp3").play().catch(() => {});
                         showToast("💰 Relief Funds Received!");
                     }
+                });
+
+                // --- HOTSPOT / LOCAL EMERGENCY MESH LISTENERS ---
+                socket.on("hotspots-list-updated", (hosts) => {
+                    if (typeof onHotspotsListUpdated === "function") {
+                        onHotspotsListUpdated(hosts);
+                    }
+                });
+
+                socket.on("hotspot-peers-updated", (peers) => {
+                    if (typeof renderMessengerPeers === "function") {
+                        renderMessengerPeers(peers);
+                    }
+                });
+
+                socket.on("hotspot-receive-msg", (msg) => {
+                    if (typeof renderHotspotMessage === "function") {
+                        renderHotspotMessage(msg);
+                    }
+                    if (msg && msg.is_emergency) {
+                        showToast(`⚠️ Hotspot alert from ${msg.sender} (${msg.sector || 'Nearby'})`);
+                    }
+                });
+
+                socket.on("hotspot-history", (history) => {
+                    if (Array.isArray(history)) {
+                        messengerHistory = history.slice().reverse();
+                        if (typeof renderMessengerFeed === "function") {
+                            renderMessengerFeed();
+                        }
+                    }
+                });
+
+                socket.on("connect", () => {
+                    if (typeof syncHotspotPeerStatus === "function") syncHotspotPeerStatus();
+                    if (typeof updateHotspotConnectionStatus === "function") updateHotspotConnectionStatus();
+                    socket.emit("hotspot-get-hosts");
+                    socket.emit("hotspot-get-history");
+                });
+
+                socket.on("disconnect", () => {
+                    if (typeof updateHotspotConnectionStatus === "function") updateHotspotConnectionStatus();
                 });
             }
         }
@@ -878,8 +3014,16 @@
 
                 if (bestZone) {
                     activeDestination = [bestZone.coords[0], bestZone.coords[1]];
-                    if (userMarker) { startRouting(userMarker.getLatLng(), activeDestination, false); } 
-                    else { navigator.geolocation.getCurrentPosition((pos) => { const currentPos = L.latLng(pos.coords.latitude, pos.coords.longitude); startRouting(currentPos, activeDestination, false); }); }
+                    if (userMarker) { 
+                        startRouting(userMarker.getLatLng(), activeDestination, false); 
+                    } else { 
+                        navigator.geolocation.getCurrentPosition((pos) => { 
+                            const currentPos = L.latLng(pos.coords.latitude, pos.coords.longitude); 
+                            startRouting(currentPos, activeDestination, false); 
+                        }, (err) => {
+                            showToast("⚠️ GPS access required to calculate evacuation route.");
+                        }, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }); 
+                    }
                     showToast(`Head to ${bestZone.name}`);
                 }
 
@@ -901,7 +3045,9 @@
                 navigator.geolocation.getCurrentPosition((pos) => { 
                     const currentPos = L.latLng(pos.coords.latitude, pos.coords.longitude); 
                     startRouting(currentPos, activeDestination, true); 
-                }); 
+                }, (err) => {
+                    showToast("⚠️ GPS lock required for supply routing.");
+                }, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }); 
             }
             showToast(`Routing to Supply Drop`);
             document.getElementById("banner-action-container").style.display = "none"; 
@@ -947,7 +3093,921 @@
             else { routingControl = L.Routing.control({ waypoints: [start, end], createMarker: () => null, lineOptions: { styles: [{ color: "var(--danger)", weight: 6, opacity: 0.9 }] }, show: false, addWaypoints: false, draggableWaypoints: false, fitSelectedRoutes: false }).addTo(map); }
         }
 
-        function toggleSidebar(show) { document.getElementById("sidebar").classList.toggle("active", show); document.getElementById("sidebar-overlay").classList.toggle("active", show); }
+        function toggleSidebar(show) { 
+            const sb = document.getElementById("sidebar");
+            const ov = document.getElementById("sidebar-overlay");
+            if (sb) sb.classList.toggle("active", show); 
+            if (ov) ov.classList.toggle("active", show); 
+            setTimeout(() => { if (typeof map !== 'undefined' && map) map.invalidateSize(); }, 300);
+        }
+
+        // ==============================================================
+        // --- DEDICATED OFFLINE HOTSPOT MESSENGER CONTROLLER ---
+        // ==============================================================
+        let hotspotConnected = false;
+        let isCurrentlyHosting = false;
+        let myHostedSSID = "";
+        let currentHotspotSSID = "";
+        let currentChatId = "broadcast"; // 'broadcast' | 'medical' | peerId
+        let currentChatName = "Campus Emergency Broadcast";
+        let currentChatIcon = "fa-bullhorn";
+        let isCurrentChatChannel = true;
+        let messengerHistory = [];
+        let discoveredPeers = [];
+        let unreadTotal = 0;
+
+        // ONLY REAL active hotspots detected from actual users and rescuers hosting
+        let availableHotspotsData = [];
+
+        // Cross-tab broadcast channel for instantaneous peer discovery on the same local device/network
+        const hotspotMeshChannel = ('BroadcastChannel' in window) ? new BroadcastChannel('gabayx_hotspot_mesh') : null;
+        if (hotspotMeshChannel) {
+            hotspotMeshChannel.onmessage = (event) => {
+                if (event.data && (event.data.type === 'HOST_REGISTERED' || event.data.type === 'HOST_STOPPED')) {
+                    fetchRealHotspots();
+                }
+            };
+        }
+
+        function openMessengerView() {
+            const view = document.getElementById("hotspot-messenger-view");
+            if (!view) return;
+            view.style.display = "flex";
+
+            // If already connected, open chat screen directly. Otherwise open Gateway
+            if (hotspotConnected) {
+                const screenGw = document.getElementById("msg-screen-gateway");
+                const screenChat = document.getElementById("msg-screen-chat");
+                if (screenGw) screenGw.style.display = "none";
+                if (screenChat) screenChat.style.display = "flex";
+                selectMessengerChat(currentChatId, currentChatName, currentChatIcon, isCurrentChatChannel);
+            } else {
+                switchMessengerToGateway();
+            }
+
+            // Sync peer list & history with server/hotspot
+            syncHotspotPeerStatus();
+            fetchRealHotspots();
+            fetchServerLanInfo();
+            updateOutboxBadgeCount();
+
+            // Clear unread header badge
+            unreadTotal = 0;
+            const headerBadge = document.getElementById("header-unread-badge");
+            if (headerBadge) { headerBadge.innerText = "0"; headerBadge.style.display = "none"; }
+        }
+
+        function closeMessengerView() {
+            const view = document.getElementById("hotspot-messenger-view");
+            if (view) view.style.display = "none";
+            // Ensure map size is updated when returning to map
+            setTimeout(() => {
+                if (typeof map !== 'undefined' && map) map.invalidateSize();
+            }, 100);
+        }
+
+        function switchMessengerToGateway() {
+            const screenGw = document.getElementById("msg-screen-gateway");
+            const screenChat = document.getElementById("msg-screen-chat");
+            if (screenGw) screenGw.style.display = "flex";
+            if (screenChat) screenChat.style.display = "none";
+            closeGatewayDrawer();
+            renderHostQR();
+            fetchRealHotspots();
+        }
+
+        function openGatewayDrawer(type) {
+            const hostDrawer = document.getElementById("drawer-host-hotspot");
+            const joinDrawer = document.getElementById("drawer-join-hotspot");
+            const hostCard = document.getElementById("gateway-card-host");
+            const joinCard = document.getElementById("gateway-card-join");
+
+            if (type === 'host') {
+                if (hostDrawer) hostDrawer.style.display = "block";
+                if (joinDrawer) joinDrawer.style.display = "none";
+                if (hostCard) hostCard.style.borderColor = "#0f766e";
+                if (joinCard) joinCard.style.borderColor = "var(--border-color)";
+                renderHostQR();
+            } else {
+                if (hostDrawer) hostDrawer.style.display = "none";
+                if (joinDrawer) joinDrawer.style.display = "block";
+                if (hostCard) hostCard.style.borderColor = "var(--border-color)";
+                if (joinCard) joinCard.style.borderColor = "#0284c7";
+                refreshHotspotScan();
+            }
+        }
+
+        function closeGatewayDrawer() {
+            const hostDrawer = document.getElementById("drawer-host-hotspot");
+            const joinDrawer = document.getElementById("drawer-join-hotspot");
+            if (hostDrawer) hostDrawer.style.display = "none";
+            if (joinDrawer) joinDrawer.style.display = "none";
+            const hostCard = document.getElementById("gateway-card-host");
+            const joinCard = document.getElementById("gateway-card-join");
+            if (hostCard) hostCard.style.borderColor = "var(--border-color)";
+            if (joinCard) joinCard.style.borderColor = "var(--border-color)";
+        }
+
+        let currentHostQRMode = 'wifi';
+        let serverLanUrl = window.location.origin + '/student.html';
+
+        async function fetchServerLanInfo() {
+            try {
+                // If loaded on a cloud domain (like Render), default directly to window.location.origin
+                if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                    serverLanUrl = window.location.origin + '/student.html';
+                }
+                const res = await fetch('/api/server-info');
+                if (res.ok) {
+                    const info = await res.json();
+                    if (info.hotspot_url) {
+                        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || info.is_cloud) {
+                            serverLanUrl = info.hotspot_url;
+                        }
+                    }
+                }
+            } catch (e) {}
+            const appUrlEl = document.getElementById("host-app-url");
+            if (appUrlEl) appUrlEl.innerText = serverLanUrl;
+        }
+
+        function switchHostQRType(mode) {
+            currentHostQRMode = mode;
+            const btnWifi = document.getElementById("btn-qr-tab-wifi");
+            const btnApp = document.getElementById("btn-qr-tab-app");
+            if (btnWifi) btnWifi.classList.toggle("active", mode === 'wifi');
+            if (btnApp) btnApp.classList.toggle("active", mode === 'app');
+
+            const inst = document.getElementById("host-drawer-instruction");
+            if (inst) {
+                if (mode === 'wifi') {
+                    inst.innerHTML = `1. Turn on <b>Personal Hotspot</b> in phone Settings.<br>2. Have second phone scan this QR code to join your Wi-Fi instantly:`;
+                } else {
+                    inst.innerHTML = `Point second phone camera here to open <b>GabayX Messenger</b> directly in browser:`;
+                }
+            }
+
+            renderHostQR();
+        }
+
+        function renderHostQR() {
+            const holder = document.getElementById("hotspot-host-qr");
+            if (!holder) return;
+            const residentName = document.getElementById("sidebar-name")?.innerText || "Resident";
+            const hostLabel = document.getElementById("host-user-label");
+            const sectorLabel = document.getElementById("host-sector-label");
+            const ssidEl = document.getElementById("host-ssid-name");
+            const appUrlEl = document.getElementById("host-app-url");
+            const sector = document.getElementById("nearest-bldg-badge")?.innerText?.replace("Zone: ", "") || "Campus Zone";
+
+            const cleanName = residentName.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 10);
+            const dynamicSSID = `GABAYX-${cleanName || 'CAMPUS'}-RELAY`;
+
+            if (hostLabel) hostLabel.innerText = residentName;
+            if (sectorLabel) sectorLabel.innerText = sector;
+            if (ssidEl) ssidEl.innerText = dynamicSSID;
+            if (appUrlEl) appUrlEl.innerText = serverLanUrl;
+
+            // Generate either Wi-Fi quick connect or direct App URL QR
+            const qrData = (currentHostQRMode === 'wifi') 
+                ? `WIFI:S:${dynamicSSID};T:nopass;P:;;`
+                : serverLanUrl;
+
+            holder.innerHTML = "";
+            if (typeof QRCode !== 'undefined') {
+                try {
+                    new QRCode(holder, {
+                        text: qrData,
+                        width: 136,
+                        height: 136,
+                        colorDark: "#0f172a",
+                        colorLight: "#ffffff",
+                        correctLevel: QRCode.CorrectLevel.M
+                    });
+                    return;
+                } catch(e) {}
+            }
+            holder.innerHTML = `
+                <div style="text-align:center; color:#0f766e; font-size:12px; font-weight:700;">
+                    <i class="fas fa-${currentHostQRMode === 'wifi' ? 'wifi' : 'mobile-screen-button'}" style="font-size:36px; display:block; margin-bottom:6px;"></i>
+                    ${currentHostQRMode === 'wifi' ? 'SSID: ' + dynamicSSID : serverLanUrl}
+                </div>
+            `;
+        }
+
+        function startHostingRealHotspot() {
+            const residentName = document.getElementById("sidebar-name")?.innerText || "Resident";
+            const myId = studentEmail || "resident-" + Math.floor(1000 + Math.random() * 9000);
+            const sector = document.getElementById("nearest-bldg-badge")?.innerText?.replace("Zone: ", "") || "Campus Zone";
+            const coords = userMarker ? [userMarker.getLatLng().lat, userMarker.getLatLng().lng] : null;
+
+            const cleanName = residentName.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 10);
+            myHostedSSID = `GABAYX-${cleanName || 'CAMPUS'}-RELAY`;
+
+            const hostPayload = {
+                ssid: myHostedSSID,
+                name: `${residentName}'s Hotspot Relay`,
+                host_name: residentName,
+                host_id: myId,
+                role: "Victim Relay",
+                sector: sector,
+                coords: coords
+            };
+
+            isCurrentlyHosting = true;
+            hotspotConnected = true;
+            currentHotspotSSID = myHostedSSID;
+
+            // 1. Emit to server socket
+            if (socket && socket.connected) {
+                socket.emit("hotspot-register-host", hostPayload);
+            }
+
+            // 2. Broadcast via local BroadcastChannel
+            if (hotspotMeshChannel) {
+                hotspotMeshChannel.postMessage({ type: 'HOST_REGISTERED', host: hostPayload });
+            }
+
+            // 3. Switch directly to Messenger interface as Host
+            startMessengerSession('HOST', myHostedSSID, `${residentName}'s Hotspot`);
+            showToast(`📡 Hotspot active: ${myHostedSSID}. Nearby victims can now discover and connect!`);
+        }
+
+        function stopHostingRealHotspot() {
+            if (!isCurrentlyHosting) return;
+            if (socket && socket.connected) {
+                socket.emit("hotspot-stop-hosting");
+            }
+            if (hotspotMeshChannel) {
+                hotspotMeshChannel.postMessage({ type: 'HOST_STOPPED', ssid: myHostedSSID });
+            }
+            isCurrentlyHosting = false;
+            myHostedSSID = "";
+            hotspotConnected = false;
+            switchMessengerToGateway();
+            showToast("Hotspot relay turned off.");
+        }
+
+        async function fetchRealHotspots() {
+            try {
+                const res = await fetch('/api/hotspots');
+                if (res.ok) {
+                    const data = await res.json();
+                    onHotspotsListUpdated(data);
+                    return;
+                }
+            } catch (e) {}
+
+            if (socket && socket.connected) {
+                socket.emit('hotspot-get-hosts');
+            }
+        }
+
+        function onHotspotsListUpdated(hostsList) {
+            const myId = studentEmail || "me";
+            // Filter out own hosted network so user doesn't see or connect to themselves
+            availableHotspotsData = (Array.isArray(hostsList) ? hostsList : []).filter(h => {
+                return h.host_id !== myId && h.ssid !== myHostedSSID;
+            });
+
+            const statusText = document.getElementById("radar-status-text");
+            if (statusText) {
+                if (availableHotspotsData.length === 0) {
+                    statusText.innerText = "No active hotspots detected nearby. Listening for relays...";
+                } else {
+                    statusText.innerText = `Discovered ${availableHotspotsData.length} active hotspot(s) nearby`;
+                }
+            }
+
+            renderAvailableHotspotsList();
+        }
+
+        function refreshHotspotScan() {
+            const statusText = document.getElementById("radar-status-text");
+            const list = document.getElementById("available-hotspots-list");
+            if (statusText) statusText.innerText = "Scanning nearby Wi-Fi radio and active relays...";
+            if (list) {
+                list.innerHTML = `
+                    <div style="text-align:center; padding:22px 16px; color:var(--text-muted); font-size:12px;">
+                        <i class="fas fa-satellite-dish fa-spin" style="font-size:26px; color:#0284c7; margin-bottom:8px; display:block;"></i>
+                        Listening for nearby active hotspot announcements...
+                    </div>
+                `;
+            }
+
+            fetchRealHotspots();
+        }
+
+        function renderAvailableHotspotsList() {
+            const list = document.getElementById("available-hotspots-list");
+            if (!list) return;
+
+            if (availableHotspotsData.length === 0) {
+                list.innerHTML = `
+                    <div style="text-align: center; padding: 26px 16px; background: #ffffff; border: 1.5px dashed var(--border-color); border-radius: 12px;">
+                        <div class="radar-pulsing-dot" style="margin: 0 auto 12px auto;"></div>
+                        <div style="font-size: 13.5px; font-weight: 800; color: var(--text-title); margin-bottom: 4px;">No Active Hotspots Detected Nearby</div>
+                        <div style="font-size: 12px; color: var(--text-muted); line-height: 1.5; max-width: 360px; margin: 0 auto 16px auto;">
+                            Currently, no nearby victim or rescuer is hosting a hotspot relay. When someone turns on their hotspot, it will automatically appear here in real time.
+                        </div>
+                        <button type="button" class="btn-primary-block" onclick="openGatewayDrawer('host')" style="max-width: 280px; margin: 0 auto; height: 42px; font-size: 12.5px;">
+                            <i class="fas fa-wifi"></i> Turn On My Hotspot Instead
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            const userCoords = userMarker ? userMarker.getLatLng() : null;
+
+            list.innerHTML = availableHotspotsData.map(node => {
+                const isRescuer = node.role && (node.role.toUpperCase().includes('RESCUER') || node.role.toUpperCase().includes('MEDIC'));
+                const roleBadge = isRescuer 
+                    ? `<span style="background:#fee2e2; color:#dc2626; font-size:9.5px; font-weight:800; padding:1px 6px; border-radius:4px;"><i class="fas fa-shield-halved"></i> RESCUER</span>`
+                    : `<span style="background:#fef3c7; color:#b45309; font-size:9.5px; font-weight:800; padding:1px 6px; border-radius:4px;"><i class="fas fa-user"></i> VICTIM RELAY</span>`;
+
+                // Calculate real proximity if coordinates are present
+                let distanceText = "Local Hotspot Mesh";
+                let signalText = "Strong Signal (95%)";
+                if (userCoords && node.coords && node.coords.length === 2 && typeof map !== 'undefined' && map) {
+                    try {
+                        const dist = map.distance(userCoords, node.coords);
+                        if (dist < 25) {
+                            distanceText = `~${Math.round(dist)}m away`;
+                            signalText = "Excellent Signal (98%)";
+                        } else if (dist < 80) {
+                            distanceText = `~${Math.round(dist)}m away`;
+                            signalText = "Good Signal (80%)";
+                        } else {
+                            distanceText = `~${Math.round(dist)}m away`;
+                            signalText = "Fair Signal (60%)";
+                        }
+                    } catch (e) {}
+                }
+
+                return `
+                    <div class="hotspot-node-item">
+                        <div class="node-info-left">
+                            <div class="node-icon" style="${isRescuer ? 'background:#fef2f2; color:#dc2626;' : 'background:#f0f9ff; color:#0284c7;'}">
+                                <i class="fas ${isRescuer ? 'fa-tower-broadcast' : 'fa-wifi'}"></i>
+                            </div>
+                            <div>
+                                <div style="display:flex; align-items:center; gap:6px;">
+                                    <span class="node-title">${escapeHtml(node.name || node.ssid)}</span>
+                                    ${roleBadge}
+                                </div>
+                                <div class="node-meta">
+                                    <span>SSID: <b>${escapeHtml(node.ssid)}</b></span> • 
+                                    <span>Host: <b>${escapeHtml(node.host_name || 'Resident')}</b></span> • 
+                                    <span>📍 ${escapeHtml(node.sector || 'Campus Zone')}</span> • 
+                                    <span>${distanceText} (${signalText})</span>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-node-connect" id="btn-connect-${escapeHtml(node.ssid)}" onclick="connectToHotspotNode('${escapeHtml(node.ssid)}', '${escapeHtml(node.name || node.ssid)}')">
+                            Connect
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function connectToHotspotNode(ssid, nodeName) {
+            const btn = document.getElementById(`btn-connect-${ssid}`);
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Connecting...`;
+            }
+
+            const statusText = document.getElementById("radar-status-text");
+            if (statusText) statusText.innerText = `Connecting to ${nodeName} (${ssid})...`;
+
+            setTimeout(() => {
+                startMessengerSession('JOIN', ssid, nodeName);
+                showToast(`✅ Successfully connected to ${nodeName}!`);
+            }, 500);
+        }
+
+        function startMessengerSession(mode, ssid, nodeName) {
+            hotspotConnected = true;
+            currentHotspotSSID = ssid || "GABAYX-CAMPUS-RELAY";
+
+            // Switch UI screens from Gateway to Messenger
+            const screenGw = document.getElementById("msg-screen-gateway");
+            const screenChat = document.getElementById("msg-screen-chat");
+            if (screenGw) screenGw.style.display = "none";
+            if (screenChat) screenChat.style.display = "flex";
+
+            // Update network banner in Messenger top bar
+            const netLabel = document.getElementById("msg-current-network-name");
+            if (netLabel) {
+                if (mode === 'HOST') {
+                    netLabel.innerHTML = `<b>${escapeHtml(currentHotspotSSID)}</b> (Host Relay)`;
+                } else {
+                    netLabel.innerHTML = `<b>${escapeHtml(nodeName || currentHotspotSSID)}</b>`;
+                }
+            }
+
+            // Notify server / socket mesh
+            syncHotspotPeerStatus();
+
+            // Open default chat channel
+            selectMessengerChat('broadcast', 'Campus Emergency Broadcast', 'fa-bullhorn', true);
+        }
+
+        function syncHotspotPeerStatus() {
+            const residentName = document.getElementById("sidebar-name")?.innerText || "Resident";
+            const sector = document.getElementById("nearest-bldg-badge")?.innerText?.replace("Zone: ", "") || "Campus Zone";
+            const coords = userMarker ? [userMarker.getLatLng().lat, userMarker.getLatLng().lng] : null;
+            const myId = studentEmail || "resident-" + Math.floor(1000 + Math.random()*9000);
+
+            if (socket && socket.connected) {
+                socket.emit("hotspot-join", {
+                    id: myId,
+                    name: residentName,
+                    email: myId,
+                    sector: sector,
+                    role: isCurrentlyHosting ? "Hotspot Host Relay" : "Resident",
+                    coords: coords,
+                    isHost: isCurrentlyHosting,
+                    hostedSSID: myHostedSSID
+                });
+                socket.emit("hotspot-get-peers");
+                socket.emit("hotspot-get-history");
+            }
+        }
+
+        function toggleMessengerMobileSidebar(show) {
+            const sidebar = document.getElementById("messenger-chats-sidebar");
+            if (!sidebar) return;
+            if (show) {
+                sidebar.classList.remove("hidden-mobile");
+            } else {
+                sidebar.classList.add("hidden-mobile");
+            }
+        }
+
+        function selectMessengerChat(chatId, chatName, iconClass, isChannel) {
+            currentChatId = chatId;
+            currentChatName = chatName;
+            currentChatIcon = iconClass || (isChannel ? 'fa-bullhorn' : 'fa-user');
+            isCurrentChatChannel = !!isChannel;
+
+            // Update header info in chat screen
+            const avatar = document.getElementById("msg-active-avatar");
+            const title = document.getElementById("msg-active-title");
+            if (avatar) avatar.innerHTML = `<i class="fas ${currentChatIcon}"></i>`;
+            if (title) title.innerText = currentChatName;
+
+            // Update active state in sidebar
+            document.querySelectorAll(".msg-chat-item").forEach(item => {
+                item.classList.remove("active");
+            });
+            const activeEl = document.getElementById(`chat-item-${chatId}`);
+            if (activeEl) activeEl.classList.add("active");
+
+            // On mobile, hide sidebar when entering chat
+            if (window.innerWidth <= 768) {
+                toggleMessengerMobileSidebar(false);
+            }
+
+            // Render messages for this chat target
+            renderMessengerFeed();
+
+            // Focus chat input
+            const input = document.getElementById("messenger-chat-input");
+            if (input) input.focus();
+        }
+
+        function renderMessengerPeers(peers) {
+            discoveredPeers = Array.isArray(peers) ? peers : [];
+            const container = document.getElementById("messenger-peers-container");
+            const badge = document.getElementById("peers-counter-badge");
+
+            // Filter out self
+            const myId = studentEmail || "me";
+            const otherPeers = discoveredPeers.filter(p => p.id !== myId);
+
+            if (badge) badge.innerText = `${otherPeers.length} Online`;
+            if (!container) return;
+
+            if (otherPeers.length === 0) {
+                container.innerHTML = `
+                    <div style="padding: 16px 14px; text-align: center; color: var(--text-muted); font-size: 11.5px;">
+                        <i class="fas fa-radar" style="font-size: 20px; color: #94a3b8; margin-bottom: 4px; display: block;"></i>
+                        No other peers on this hotspot yet.<br>New victims & rescuers appear here automatically.
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = otherPeers.map(p => {
+                const isRescuer = p.role === 'Rescuer' || p.role === 'Medic' || p.role === 'Admin';
+                const avatarIcon = isRescuer ? 'fa-user-shield' : 'fa-circle-user';
+                const avatarStyle = isRescuer ? 'background:#fee2e2; color:#dc2626; border:1.5px solid #fecaca;' : 'background:#f1f5f9; color:var(--text-title);';
+                const roleBadge = isRescuer ? `<span style="font-size:9px; background:#dc2626; color:#ffffff; padding:0 4px; border-radius:3px; margin-left:4px;">RESCUER</span>` : '';
+
+                return `
+                    <div class="msg-chat-item ${currentChatId === p.id ? 'active' : ''}" id="chat-item-${escapeHtml(p.id)}" onclick="selectMessengerChat('${escapeHtml(p.id)}', '${escapeHtml(p.name)}', '${avatarIcon}', false)">
+                        <div class="msg-item-avatar" style="${avatarStyle}">
+                            <i class="fas ${avatarIcon}"></i>
+                        </div>
+                        <div class="msg-item-info">
+                            <div class="msg-item-top">
+                                <span class="msg-item-name">${escapeHtml(p.name)} ${roleBadge}</span>
+                                <span class="msg-item-time" id="time-peer-${escapeHtml(p.id)}">Online</span>
+                            </div>
+                            <div class="msg-item-bottom">
+                                <span class="msg-item-snippet" id="snippet-peer-${escapeHtml(p.id)}">📍 ${escapeHtml(p.sector || 'Campus')}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function filterMessengerPeers(query) {
+            const q = (query || "").toLowerCase();
+            document.querySelectorAll("#messenger-peers-container .msg-chat-item").forEach(item => {
+                const text = item.innerText.toLowerCase();
+                item.style.display = text.includes(q) ? "flex" : "none";
+            });
+        }
+
+        function renderMessengerFeed() {
+            const stream = document.getElementById("messenger-messages-stream");
+            const emptyNotice = document.getElementById("messenger-empty-notice");
+            if (!stream) return;
+
+            // Filter history by currentChatId
+            const myId = studentEmail || "me";
+            const filtered = messengerHistory.filter(m => {
+                if (currentChatId === 'broadcast') {
+                    return !m.channel || m.channel === 'broadcast';
+                }
+                if (currentChatId === 'medical') {
+                    return m.channel === 'medical';
+                }
+                // Direct peer chat
+                return (m.sender_id === currentChatId && m.recipient_id === myId) ||
+                       (m.sender_id === myId && m.recipient_id === currentChatId);
+            });
+
+            if (filtered.length === 0) {
+                stream.innerHTML = "";
+                if (emptyNotice) {
+                    emptyNotice.style.display = "block";
+                    stream.appendChild(emptyNotice);
+                }
+                return;
+            }
+
+            stream.innerHTML = "";
+            filtered.forEach(m => appendMessageToFeed(m));
+            stream.scrollTop = stream.scrollHeight;
+        }
+
+        function appendMessageToFeed(msg) {
+            const stream = document.getElementById("messenger-messages-stream");
+            const emptyNotice = document.getElementById("messenger-empty-notice");
+            if (emptyNotice) emptyNotice.style.display = "none";
+            if (!stream) return;
+
+            const myId = studentEmail || "me";
+            const isMe = msg.sender_id === myId;
+            const isEmergency = !!msg.is_emergency;
+            const timeStr = new Date(msg.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            const row = document.createElement("div");
+            row.className = `msg-row ${isMe ? 'me' : 'peer'}`;
+
+            let headerHtml = "";
+            if (!isMe) {
+                headerHtml = `
+                    <div class="msg-meta-header">
+                        <b>${escapeHtml(msg.sender || 'Resident')}</b>
+                        ${msg.sector ? `<span class="msg-sector-tag"><i class="fas fa-location-dot"></i> ${escapeHtml(msg.sector)}</span>` : ''}
+                    </div>
+                `;
+            }
+
+            const checkmarks = isMe ? `<span style="color: rgba(255,255,255,0.9); font-weight: 800; margin-left: 3px;">✓✓</span>` : '';
+
+            row.innerHTML = `
+                ${headerHtml}
+                <div class="msg-speech-bubble ${isEmergency ? 'urgent' : ''}">
+                    ${isEmergency ? `<div style="font-size:11px; font-weight:800; color:#dc2626; margin-bottom:4px; display:flex; align-items:center; gap:4px;"><i class="fas fa-triangle-exclamation"></i> EMERGENCY REPORT</div>` : ''}
+                    <div style="font-size:13px; line-height:1.45;">${escapeHtml(msg.text)}</div>
+                    <div class="msg-timestamp">
+                        <span>${timeStr}</span>
+                        ${checkmarks}
+                    </div>
+                </div>
+            `;
+
+            stream.appendChild(row);
+            stream.scrollTop = stream.scrollHeight;
+        }
+
+        function handleMessengerSend(e) {
+            if (e) e.preventDefault();
+            const input = document.getElementById("messenger-chat-input");
+            if (!input) return;
+            const text = input.value.trim();
+            if (!text) return;
+
+            dispatchMessengerMessage(text, false);
+            input.value = "";
+            input.focus();
+        }
+
+        function messengerQuickAction(type) {
+            const sector = document.getElementById("nearest-bldg-badge")?.innerText?.replace("Zone: ", "") || "Campus Zone";
+            const coords = userMarker ? userMarker.getLatLng() : null;
+            const coordStr = coords ? `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}` : "Acquiring coordinates...";
+
+            let text = "";
+            let isEmergency = false;
+
+            if (type === 'gps') {
+                text = `📍 My Real-Time Coordinates: ${coordStr} (${sector}). Please confirm receipt.`;
+                isEmergency = false;
+            } else if (type === 'medical') {
+                text = `🚑 URGENT: Medical aid requested at ${sector} (${coordStr}). Trapped or injured victim needs paramedic care.`;
+                isEmergency = true;
+            } else if (type === 'trapped') {
+                text = `⚠️ TRAPPED: Trapped inside sector ${sector} (${coordStr}). Exit route is blocked by debris, extraction required!`;
+                isEmergency = true;
+            } else if (type === 'supplies') {
+                text = `💧 SUPPLIES: Drinking water, clean bandages, and emergency rations urgently requested at ${sector}.`;
+                isEmergency = false;
+            } else if (type === 'safe') {
+                text = `✅ SAFE: All residents in ${sector} accounted for and secure.`;
+                isEmergency = false;
+            }
+
+            dispatchMessengerMessage(text, isEmergency);
+        }
+
+        function dispatchMessengerMessage(text, isEmergency) {
+            const residentName = document.getElementById("sidebar-name")?.innerText || "Resident";
+            const sector = document.getElementById("nearest-bldg-badge")?.innerText?.replace("Zone: ", "") || "Campus Zone";
+            const coords = userMarker ? [userMarker.getLatLng().lat, userMarker.getLatLng().lng] : null;
+            const myId = studentEmail || "resident-" + Math.floor(Math.random()*1000);
+
+            const payload = {
+                sender: residentName,
+                sender_id: myId,
+                recipient_id: isCurrentChatChannel ? null : currentChatId,
+                channel: isCurrentChatChannel ? currentChatId : null,
+                text: text,
+                sector: sector,
+                coords: coords,
+                is_emergency: isEmergency || text.toLowerCase().includes('emergency') || text.toLowerCase().includes('trapped') || text.toLowerCase().includes('aid') || text.toLowerCase().includes('sos'),
+                created_at: new Date().toISOString()
+            };
+
+            // Add locally to history
+            messengerHistory.push(payload);
+
+            // Update snippet on sidebar
+            updateChatSnippetInSidebar(currentChatId, text);
+
+            // Append to feed immediately if matches current chat
+            appendMessageToFeed(payload);
+
+            // Send via socket if connected
+            if (socket && socket.connected) {
+                socket.emit("hotspot-send-msg", payload);
+            } else {
+                saveOfflineAction('HOTSPOT_MSG', text, coords ? coords[0] : null, coords ? coords[1] : null);
+                showToast("Saved to offline outbox. Will sync automatically once connected.");
+                updateOutboxBadgeCount();
+            }
+        }
+
+        function updateChatSnippetInSidebar(chatId, text) {
+            const snippetEl = document.getElementById(`snippet-item-${chatId}`) || document.getElementById(`snippet-peer-${chatId}`);
+            const timeEl = document.getElementById(`time-item-${chatId}`) || document.getElementById(`time-peer-${chatId}`);
+            if (snippetEl) snippetEl.innerText = text;
+            if (timeEl) timeEl.innerText = "Just now";
+        }
+
+        function updateOutboxBadgeCount() {
+            let count = 0;
+            try {
+                const stored = JSON.parse(localStorage.getItem(OFFLINE_STORAGE_KEY) || '[]');
+                count = stored.length;
+            } catch(e) {}
+            const b1 = document.getElementById("gateway-outbox-count");
+            const b2 = document.getElementById("outbox-count");
+            if (b1) b1.innerText = count;
+            if (b2) b2.innerText = count;
+        }
+
+        // --- SEPARATE MODAL CONTROLLERS ---
+        function openOutboxModal() {
+            const m = document.getElementById("offline-outbox-modal");
+            if (m) m.style.display = "flex";
+            renderOutboxItems();
+        }
+        function closeOutboxModal() {
+            const m = document.getElementById("offline-outbox-modal");
+            if (m) m.style.display = "none";
+        }
+        function openRescueQRModal() {
+            const m = document.getElementById("rescue-qr-modal");
+            if (m) m.style.display = "flex";
+            generateRescueQR();
+        }
+        function closeRescueQRModal() {
+            const m = document.getElementById("rescue-qr-modal");
+            if (m) m.style.display = "none";
+        }
+
+        // Backwards compatibility with any existing calls
+        function openOfflineCommModal() { openMessengerView(); }
+        function closeOfflineCommModal() { closeMessengerView(); }
+        function switchCommTab(t) {
+            if (t === 'qr') openRescueQRModal();
+            else if (t === 'outbox') openOutboxModal();
+            else openMessengerView();
+        }
+        function updateHotspotConnectionStatus() {
+            // Keep status dot synced if needed
+        }
+        function renderHotspotMessage(msg) {
+            messengerHistory.push(msg);
+            const myId = studentEmail || "me";
+            const isMe = msg.sender_id === myId;
+            
+            // If message is for currently active chat, append it!
+            const matchesCurrent = 
+                (currentChatId === 'broadcast' && (!msg.channel || msg.channel === 'broadcast')) ||
+                (currentChatId === 'medical' && msg.channel === 'medical') ||
+                (!isCurrentChatChannel && (msg.sender_id === currentChatId || msg.recipient_id === currentChatId));
+
+            if (matchesCurrent) {
+                appendMessageToFeed(msg);
+            } else if (!isMe) {
+                // Increment unread count badge on header
+                unreadTotal++;
+                const headerBadge = document.getElementById("header-unread-badge");
+                if (headerBadge) {
+                    headerBadge.innerText = unreadTotal;
+                    headerBadge.style.display = "inline-flex";
+                }
+            }
+
+            // Update snippet on sidebar
+            const targetChatId = msg.channel || msg.sender_id;
+            updateChatSnippetInSidebar(targetChatId, msg.text);
+        }
+        function submitHotspotMessage(e) { handleMessengerSend(e); }
+        function sendHotspotPreset(text) { dispatchMessengerMessage(text, false); }
+
+        // --- TAB 2: STORED SOS OUTBOX LOGIC ---
+        async function renderOutboxItems() {
+            const container = document.getElementById('outbox-items-container');
+            const badge = document.getElementById('outbox-count');
+            if (!container) return;
+
+            let queue = [];
+            if (window.GabayXDB) {
+                try {
+                    queue = await window.GabayXDB.getSyncQueue();
+                } catch(e) {}
+            }
+            if (!queue || !queue.length) {
+                const stored = JSON.parse(localStorage.getItem(OFFLINE_STORAGE_KEY) || '[]');
+                queue = stored.map((item, idx) => ({ id: idx, action_type: item.type, content: item.content, timestamp: item.timestamp, lat: item.lat, lng: item.lng }));
+            }
+
+            if (badge) badge.innerText = queue.length;
+            const gwBadge = document.getElementById('gateway-outbox-count');
+            if (gwBadge) gwBadge.innerText = queue.length;
+
+            if (!queue.length) {
+                container.innerHTML = `
+                    <div style="text-align:center; padding:16px; color:var(--text-muted); font-size:12px;">
+                        <i class="fas fa-check-circle" style="color:var(--success); font-size:20px; display:block; margin-bottom:6px;"></i>
+                        No pending offline messages. All reports are synced.
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = queue.map((q) => {
+                const timeStr = new Date(q.timestamp || Date.now()).toLocaleTimeString();
+                return `
+                    <div style="background:#ffffff; border:1px solid var(--border-color); border-radius:8px; padding:8px 10px; font-size:11.5px;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+                            <b style="color:#d97706;"><i class="fas fa-clock"></i> Queued: ${escapeHtml(q.action_type || 'SOS')}</b>
+                            <span style="color:var(--text-muted);">${timeStr}</span>
+                        </div>
+                        <div style="color:var(--text-title);">${escapeHtml(q.content || '')}</div>
+                        ${q.lat ? `<div style="font-size:10px; color:var(--text-muted); margin-top:2px;">📍 ${Number(q.lat).toFixed(5)}, ${Number(q.lng).toFixed(5)}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function queueOfflineSOS() {
+            const input = document.getElementById('offline-sos-input');
+            if (!input) return;
+            const text = input.value.trim();
+            if (!text) {
+                showToast("Please describe the emergency situation.");
+                return;
+            }
+            const coords = userMarker ? userMarker.getLatLng() : null;
+            saveOfflineAction('OFFLINE_SOS', text, coords ? coords.lat : null, coords ? coords.lng : null);
+            input.value = '';
+            renderOutboxItems();
+            showToast("Emergency SOS stored securely in outbox!");
+        }
+
+        async function syncOfflineQueueNow() {
+            if (window.GabayXSyncManager) {
+                showToast("Attempting emergency sync...");
+                await window.GabayXSyncManager.triggerSync(true);
+                renderOutboxItems();
+            } else if (socket && socket.connected) {
+                const stored = JSON.parse(localStorage.getItem(OFFLINE_STORAGE_KEY) || '[]');
+                if (stored.length) {
+                    socket.emit('hotspot-sync-sos', stored.map(s => ({
+                        id: studentEmail,
+                        content: s.content,
+                        lat: s.lat,
+                        lng: s.lng,
+                        timestamp: s.timestamp
+                    })));
+                    localStorage.removeItem(OFFLINE_STORAGE_KEY);
+                    renderOutboxItems();
+                    showToast("Synced all stored messages with dispatch!");
+                } else {
+                    showToast("Outbox is already empty.");
+                }
+            } else {
+                showToast("No connection to hotspot or server yet. Standing by.");
+            }
+        }
+
+        // --- TAB 3: RESCUE QR CODE GENERATOR ---
+        function generateRescueQR() {
+            const qrBox = document.getElementById('rescue-qr-box');
+            if (!qrBox) return;
+
+            const residentName = document.getElementById('sidebar-name')?.innerText || 'Resident';
+            const residentId = studentEmail || 'GX-RESIDENT';
+            const residentPhone = document.getElementById('sidebar-phone-display')?.innerText?.replace(/[^0-9+]/g, '') || 'N/A';
+            const coords = userMarker ? `${userMarker.getLatLng().lat.toFixed(5)},${userMarker.getLatLng().lng.toFixed(5)}` : 'Unknown';
+            const sector = document.getElementById('nearest-bldg-badge')?.innerText || 'Campus';
+
+            const nameEl = document.getElementById('qr-resident-name');
+            const idEl = document.getElementById('qr-resident-id');
+            const phoneEl = document.getElementById('qr-resident-phone');
+            const coordsEl = document.getElementById('qr-resident-coords');
+            const statusEl = document.getElementById('qr-resident-status');
+
+            if (nameEl) nameEl.innerText = residentName;
+            if (idEl) idEl.innerText = residentId;
+            if (phoneEl) phoneEl.innerText = residentPhone;
+            if (coordsEl) coordsEl.innerText = coords;
+            if (statusEl) statusEl.innerText = currentStatus || 'SAFE';
+
+            const qrData = `GABAYX-EMERGENCY\nNAME:${residentName}\nID:${residentId}\nPHONE:${residentPhone}\nLOC:${coords}\nSECTOR:${sector}\nSTATUS:${currentStatus || 'SAFE'}\nTIME:${new Date().toISOString()}`;
+
+            qrBox.innerHTML = '';
+            if (typeof QRCode !== 'undefined') {
+                try {
+                    new QRCode(qrBox, {
+                        text: qrData,
+                        width: 130,
+                        height: 130,
+                        colorDark: "#0f172a",
+                        colorLight: "#ffffff",
+                        correctLevel: QRCode.CorrectLevel.M
+                    });
+                    return;
+                } catch(e) {}
+            }
+
+            // High-contrast clean offline badge fallback if QRCode library is loading
+            qrBox.innerHTML = `
+                <div style="background:#0f172a; color:#ffffff; padding:12px 16px; border-radius:10px; border:2px solid #f59e0b; text-align:center; max-width:240px;">
+                    <i class="fas fa-id-card" style="font-size:26px; color:#f59e0b; margin-bottom:4px;"></i>
+                    <div style="font-size:12px; font-weight:800; letter-spacing:1px;">RESCUE ID PASS</div>
+                    <div style="font-family:monospace; font-size:11px; margin-top:4px; color:#94a3b8;">${escapeHtml(residentId)}</div>
+                    <div style="font-size:10px; color:#10b981; font-weight:700; margin-top:4px;">STATUS: ${currentStatus || 'SAFE'}</div>
+                </div>
+            `;
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
 
         function markAsSafe() {
             if (socket && studentEmail) {
@@ -955,7 +4015,13 @@
                 currentStatus = "SAFE";
                 if (routingControl) { map.removeControl(routingControl); routingControl = null; }
                 activeDestination = null;
-                socket.emit("student-status", { id: studentEmail, status: "SAFE", lat: userMarker?.getLatLng().lat, lng: userMarker?.getLatLng().lng });
+                socket.emit("student-status", {
+                    id: studentEmail,
+                    status: "SAFE",
+                    lat: userMarker?.getLatLng().lat || null,
+                    lng: userMarker?.getLatLng().lng || null,
+                    accuracy: lastKnownCoords?.accuracy || null
+                });
                 const siren = document.getElementById("siren"); if (siren) { siren.pause(); siren.currentTime = 0; }
                 showToast("Marked Safe");
             }
@@ -964,17 +4030,134 @@
         function showToast(text) { const toast = document.getElementById("toast-notification"); document.getElementById("toast-msg").innerText = text; toast.style.top = "20px"; setTimeout(() => (toast.style.top = "-100px"), 3000); }
         function logoutUser() { window.location.href = "/logout"; }
 
-        function activateGPS() {
-            if (navigator.geolocation) {
-                navigator.geolocation.watchPosition((pos) => {
-                    const lat = pos.coords.latitude, lng = pos.coords.longitude; const newLatLng = new L.LatLng(lat, lng);
-                    if (!userMarker) { userMarker = L.circleMarker(newLatLng, { radius: 7, color: "var(--primary)", fillColor: "var(--bg-base)", fillOpacity: 1, weight: 3 }).addTo(map); map.setView(newLatLng, 19); } 
-                    else { userMarker.setLatLng(newLatLng); }
-                    findNearestBuilding(newLatLng);
-                    if (activeDestination) { drawPath(newLatLng, activeDestination); }
-                    if (socket && studentEmail && !isOfflineMode) { socket.emit("student-status", { id: studentEmail, lat: lat, lng: lng, status: currentStatus }); }
-                }, null, { enableHighAccuracy: true });
+        function recenterMapOnUser() {
+            if (userMarker) {
+                const latlng = userMarker.getLatLng();
+                map.flyTo(latlng, 18, { animate: true, duration: 1 });
+                const btn = document.getElementById("btn-recenter-gps");
+                if (btn) btn.classList.add("active");
+                setTimeout(() => { if (btn) btn.classList.remove("active"); }, 1500);
+                showToast("📍 Centered on your real-time GPS");
+            } else {
+                showToast("🛰️ Acquiring live GPS lock...");
+                activateGPS();
             }
+        }
+
+        function activateGPS() {
+            const badge = document.getElementById("nearest-bldg-badge");
+
+            if (!navigator.geolocation) {
+                showToast("⚠️ Geolocation is not supported by your browser");
+                if (badge) {
+                    badge.innerText = "GPS Not Supported";
+                    badge.style.color = "var(--danger)";
+                }
+                return;
+            }
+
+            // High accuracy hardware GPS options:
+            // maximumAge: 0 enforces reading fresh hardware GPS chips without stale browser cache
+            const geoOptions = {
+                enableHighAccuracy: true,
+                maximumAge: 0,
+                timeout: 15000
+            };
+
+            const handleSuccess = (pos) => {
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                const accuracy = pos.coords.accuracy || 10;
+                lastKnownCoords = { lat, lng, accuracy };
+
+                localStorage.setItem('gabayx_last_lat', lat);
+                localStorage.setItem('gabayx_last_lng', lng);
+
+                const newLatLng = new L.LatLng(lat, lng);
+
+                if (!userMarker) {
+                    userMarker = L.circleMarker(newLatLng, {
+                        radius: 8,
+                        color: "#ffffff",
+                        fillColor: "#0284c7",
+                        fillOpacity: 1,
+                        weight: 3
+                    }).addTo(map);
+                    userMarker.bindPopup(`<b>Your Device Location</b><br>Lat: ${lat.toFixed(6)}<br>Lng: ${lng.toFixed(6)}<br>Accuracy: ±${Math.round(accuracy)}m`);
+                } else {
+                    userMarker.setLatLng(newLatLng);
+                    userMarker.setPopupContent(`<b>Your Device Location</b><br>Lat: ${lat.toFixed(6)}<br>Lng: ${lng.toFixed(6)}<br>Accuracy: ±${Math.round(accuracy)}m`);
+                }
+
+                if (!userAccuracyCircle) {
+                    userAccuracyCircle = L.circle(newLatLng, {
+                        radius: accuracy,
+                        color: "#0284c7",
+                        fillColor: "#0284c7",
+                        fillOpacity: 0.15,
+                        weight: 1
+                    }).addTo(map);
+                } else {
+                    userAccuracyCircle.setLatLng(newLatLng);
+                    userAccuracyCircle.setRadius(accuracy);
+                }
+
+                if (!hasCenteredOnUser) {
+                    map.setView(newLatLng, 18);
+                    hasCenteredOnUser = true;
+                    showToast(`📍 Live GPS Locked (±${Math.round(accuracy)}m)`);
+                }
+
+                findNearestBuilding(newLatLng, accuracy);
+
+                if (activeDestination) {
+                    drawPath(newLatLng, activeDestination);
+                }
+
+                if (socket && studentEmail && !isOfflineMode) {
+                    socket.emit("student-status", {
+                        id: studentEmail,
+                        lat: lat,
+                        lng: lng,
+                        accuracy: accuracy,
+                        status: currentStatus
+                    });
+                }
+            };
+
+            const handleError = (err) => {
+                console.warn("GPS Location Error:", err.code, err.message);
+                let msg = "GPS Signal Pending";
+                if (err.code === 1) { // PERMISSION_DENIED
+                    if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                        msg = "GPS Blocked (HTTP on LAN)";
+                        showToast("⚠️ Browser requires HTTPS or localhost for GPS on mobile.");
+                    } else {
+                        msg = "GPS Permission Denied";
+                        showToast("⚠️ Location permission denied. Please allow GPS access.");
+                    }
+                } else if (err.code === 2) { // POSITION_UNAVAILABLE
+                    msg = "GPS Hardware Unavailable";
+                } else if (err.code === 3) { // TIMEOUT
+                    msg = "GPS Lock Timeout";
+                }
+
+                if (badge && !userMarker) {
+                    badge.innerText = msg;
+                    badge.style.color = "var(--danger)";
+                    badge.style.background = "rgba(239, 68, 68, 0.1)";
+                    badge.style.borderColor = "rgba(239, 68, 68, 0.3)";
+                }
+            };
+
+            // 1. Initial quick query
+            navigator.geolocation.getCurrentPosition(handleSuccess, handleError, geoOptions);
+
+            // 2. Continuous real-time hardware watch
+            if (gpsWatchId !== null) {
+                navigator.geolocation.clearWatch(gpsWatchId);
+            }
+            gpsWatchId = navigator.geolocation.watchPosition(handleSuccess, handleError, geoOptions);
         }
 
         function updateStatus(online) {
@@ -1020,33 +4203,72 @@
         function loadBuildingLabels() {
             bldgMarkers.forEach((m) => map.removeLayer(m)); bldgMarkers = [];
             BUILDINGS.forEach((b) => {
+                const shortLetter = b.name.replace("BLDG ", "").trim();
                 const marker = L.marker(b.coords, { interactive: true }).addTo(map);
-                marker.bldgData = { name: b.name, short: b.name.replace("BLDG ", "") };
-                marker.on('mouseover', function() { const iconElement = this.getElement(); if (iconElement) iconElement.classList.add('label-visible'); });
-                marker.on('mouseout', function() { const iconElement = this.getElement(); if (iconElement) iconElement.classList.remove('label-visible'); });
+                marker.bldgData = { name: b.name, short: shortLetter };
+                
+                marker.bindPopup(`
+                    <div style="font-family:system-ui,-apple-system,sans-serif; padding:4px 6px;">
+                        <div style="display:flex; align-items:center; gap:6px; margin-bottom:2px;">
+                            <span style="display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; background:#f59e0b; color:#000; font-weight:900; font-size:11px; border-radius:50%;">${shortLetter}</span>
+                            <b style="font-size:13px; color:#0f172a;">${b.name}</b>
+                        </div>
+                        <div style="font-size:11px; color:#64748b;">Designated Assembly Sector</div>
+                    </div>
+                `);
+
                 bldgMarkers.push(marker);
             });
-            updateLabels(); map.on("zoomend", updateLabels);
+            updateLabels(); 
+            map.on("zoomend", updateLabels);
         }
 
         function updateLabels() {
             const currentZoom = map.getZoom();
             bldgMarkers.forEach((marker) => {
-                let newIcon;
-                if (currentZoom >= 20) { newIcon = L.divIcon({ className: "bldg-text", html: marker.bldgData.name, iconSize: [60, 20], iconAnchor: [30, 10] }); } 
-                else { newIcon = L.divIcon({ className: "bldg-dot", html: marker.bldgData.short, iconSize: [24, 24], iconAnchor: [12, 12] }); }
+                const letter = marker.bldgData.short;
+                const newIcon = L.divIcon({
+                    className: "",
+                    html: `<div class="bldg-badge-letter" title="Building ${letter}">${letter}</div>`,
+                    iconSize: [20, 20],
+                    iconAnchor: [10, 10]
+                });
                 marker.setIcon(newIcon);
-                if (currentZoom < 16) { marker.getElement()?.style.setProperty('display', 'none'); } else { marker.getElement()?.style.setProperty('display', 'block'); }
+                // Keep visible cleanly from zoom 14 and up
+                if (currentZoom < 14) { 
+                    marker.getElement()?.style.setProperty('display', 'none'); 
+                } else { 
+                    marker.getElement()?.style.setProperty('display', 'block'); 
+                }
             });
         }
 
-        function findNearestBuilding(userLatLng) {
+        function findNearestBuilding(userLatLng, accuracy = null) {
             let nearest = null; let minDist = Infinity;
             BUILDINGS.forEach((b) => { const dist = map.distance(userLatLng, b.coords); if (dist < minDist) { minDist = dist; nearest = b; } });
             const badge = document.getElementById("nearest-bldg-badge");
-            if (nearest && badge) {
-                if (minDist < 60) { badge.innerText = `Zone: ${nearest.name}`; badge.style.background = "rgba(16,185,129,0.1)"; badge.style.color = "var(--primary)"; badge.style.borderColor = "var(--glass-border)";} 
-                else { badge.innerText = "Out of Bounds"; badge.style.background = "rgba(255,255,255,0.05)"; badge.style.color = "var(--text-sub)"; badge.style.borderColor = "transparent";}
+            const accBadge = document.getElementById("gps-accuracy-badge");
+
+            if (accBadge && accuracy !== null) {
+                accBadge.innerText = `±${Math.round(accuracy)}m`;
+                accBadge.style.display = "inline-block";
+                accBadge.title = `Hardware GPS accuracy radius: ${Math.round(accuracy)} meters`;
+            }
+
+            if (badge) {
+                if (nearest && minDist < 60) {
+                    badge.innerText = `Zone: ${nearest.name}`;
+                    badge.style.background = "rgba(16,185,129,0.1)";
+                    badge.style.color = "var(--primary)";
+                    badge.style.borderColor = "var(--glass-border)";
+                    badge.title = `Within campus zone: ${nearest.name} (~${Math.round(minDist)}m)`;
+                } else {
+                    badge.innerText = `📍 ${userLatLng.lat.toFixed(5)}, ${userLatLng.lng.toFixed(5)}`;
+                    badge.style.background = "rgba(2,132,199,0.1)";
+                    badge.style.color = "var(--primary)";
+                    badge.style.borderColor = "rgba(2,132,199,0.3)";
+                    badge.title = `Live GPS coordinates locked. Precision: ±${Math.round(accuracy || 10)}m`;
+                }
             }
         }
     </script>

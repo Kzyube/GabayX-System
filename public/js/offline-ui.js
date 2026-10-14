@@ -348,13 +348,14 @@
         const locBldg = document.getElementById('gx-loc-building');
         if (!locCoords) return;
 
-        locCoords.innerText = 'Acquiring GPS...';
+        locCoords.innerText = '🛰️ Acquiring Hardware GPS...';
 
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 (pos) => {
                     const lat = pos.coords.latitude;
                     const lng = pos.coords.longitude;
+                    const accuracy = pos.coords.accuracy || 10;
                     locCoords.innerText = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
 
                     // Try to match nearest building from window.BUILDINGS if available
@@ -366,21 +367,28 @@
                             const dist = window.map.distance(userLoc, b.coords);
                             if (dist < minDist) { minDist = dist; nearest = b; }
                         });
-                        if (nearest && minDist < 80) {
+                        if (nearest && minDist < 60) {
                             locBldg.innerText = `Sector: ${nearest.name} (~${Math.round(minDist)}m)`;
                         } else {
-                            locBldg.innerText = 'Campus Perimeter Zone';
+                            locBldg.innerText = `Real-time GPS Locked (±${Math.round(accuracy)}m)`;
                         }
                     } else {
-                        locBldg.innerText = 'High Accuracy GPS Locked';
+                        locBldg.innerText = `Real-time GPS Locked (±${Math.round(accuracy)}m)`;
                     }
                 },
                 (err) => {
-                    locCoords.innerText = 'GPS Unavailable (Offline/Blocked)';
-                    locBldg.innerText = 'Manual location will be inferred';
+                    let reason = 'GPS Unavailable';
+                    if (err.code === 1) reason = 'GPS Permission Denied';
+                    else if (err.code === 2) reason = 'GPS Hardware Signal Lost';
+                    else if (err.code === 3) reason = 'GPS Timeout';
+                    locCoords.innerText = reason;
+                    locBldg.innerText = 'Allow location access in browser settings';
                 },
-                { enableHighAccuracy: true, timeout: 8000 }
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
             );
+        } else {
+            locCoords.innerText = 'GPS Not Supported';
+            locBldg.innerText = 'Device lacks geolocation API';
         }
     }
 

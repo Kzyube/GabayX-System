@@ -1,0 +1,197 @@
+{
+  "students": [
+    {
+      "email": "student@gabayx.edu.ph",
+      "password": "student123",
+      "name": "Juan Dela Cruz",
+      "phone_number": "09123456789",
+      "last_seen": "10/12/2026, 8:37:40 PM",
+      "last_status": "SAFE"
+    },
+    {
+      "email": "maria@gabayx.edu.ph",
+      "password": "student123",
+      "name": "Maria Santos",
+      "phone_number": "09987654321",
+      "last_seen": "10/12/2026, 8:37:40 PM",
+      "last_status": "SAFE"
+    },
+    {
+      "email": "pedro@gabayx.edu.ph",
+      "password": "pedro123",
+      "name": "Pedro Penduko",
+      "phone_number": "09191234567",
+      "last_seen": "10/12/2026, 8:38:29 PM",
+      "last_status": "SAFE"
+    },
+    {
+      "email": "nkzyuben@gmail.com",
+      "password": "napoles123",
+      "name": "Kyuzbe Napoles",
+      "phone_number": "09631030280",
+      "last_seen": "10/12/2026, 9:15:35 PM",
+      "last_status": "SAFE"
+    }
+  ],
+  "donations": [
+    {
+      "donor_name": "Engr. Santos",
+      "amount": 1500,
+      "target_zone": "ALL ZONES",
+      "voucher_code": "GX-XEAIK5",
+      "created_at": "2026-10-12T13:12:49.787Z"
+    },
+    {
+      "donor_name": "Engr. Santos",
+      "amount": 1500,
+      "target_zone": "ALL ZONES",
+      "voucher_code": "GX-NHQW05",
+      "created_at": "2026-10-12T13:09:15.691Z"
+    },
+    {
+      "donor_name": "Maria Clara",
+      "amount": 500,
+      "target_zone": "ALL ZONES",
+      "voucher_code": "GX-WIDWHA",
+      "created_at": "2026-10-12T12:38:36.849Z"
+    }
+  ],
+  "disaster_logs": [
+    {
+      "type": "SUPPLY",
+      "created_at": "2026-10-14T05:47:07.305Z"
+    },
+    {
+      "type": "SAFE",
+      "created_at": "2026-10-14T05:46:58.439Z"
+    },
+    {
+      "type": "FIRE",
+      "created_at": "2026-10-14T05:46:46.561Z"
+    },
+    {
+      "type": "EARTHQUAKE",
+      "created_at": "2026-10-14T05:46:31.822Z"
+    },
+    {
+      "type": "SUPPLY",
+      "created_at": "2026-10-12T13:34:04.911Z"
+    },
+    {
+      "type": "EARTHQUAKE",
+      "created_at": "2026-10-12T13:33:41.064Z"
+    },
+    {
+      "type": "SYSTEM TEST",
+      "created_at": "2026-10-12T12:37:40.280Z"
+    }
+  ],
+  "disaster_history": [
+    {
+      "type": "SUPPLY",
+      "instructions": "Supplies are available at marked location!",
+      "count_safe": 0,
+      "count_danger": 0,
+      "created_at": "2026-10-14T05:47:07.305Z"
+    },
+    {
+      "type": "SAFE",
+      "instructions": "EMERGENCY: SAFE alert! Please proceed to the nearest safe zone.",
+      "count_safe": 0,
+      "count_danger": 0,
+      "created_at": "2026-10-14T05:46:58.440Z"
+    },
+    {
+      "type": "FIRE",
+      "instructions": "EMERGENCY: FIRE alert! Please proceed to the nearest safe zone.",
+      "count_safe": 0,
+      "count_danger": 0,
+      "created_at": "2026-10-14T05:46:46.562Z"
+    },
+    {
+      "type": "EARTHQUAKE",
+      "instructions": "EMERGENCY: EARTHQUAKE alert! Please proceed to the nearest safe zone.",
+      "count_safe": 0,
+      "count_danger": 0,
+      "created_at": "2026-10-14T05:46:31.823Z"
+    },
+    {
+      "type": "SUPPLY",
+      "instructions": "Supplies are available at marked location!",
+      "count_safe": 0,
+      "count_danger": 0,
+      "created_at": "2026-10-12T13:34:04.911Z"
+    },
+    {
+      "type": "EARTHQUAKE",
+      "instructions": "EMERGENCY: EARTHQUAKE alert! Please proceed to the nearest safe zone.",
+      "count_safe": 0,
+      "count_danger": 0,
+      "created_at": "2026-10-12T13:33:41.065Z"
+    }
+  ],
+  "sos_messages": [
+    {
+      "id": 1791812036200,
+      "student_id": "nkzyuben@gmail.com",
+      "message": "[QUICK]: Trapped",
+      "is_critical": false,
+      "replied": false,
+      "created_at": "2026-10-12T13:33:56.200Z"
+    }
+  ],
+  "hotspot_messages": [
+    {
+      "id": "HM-1791956492383",
+      "sender": "Kyuzbe",
+      "sender_id": "nkzyuben@gmail.com",
+      "text": "Need Medical Aid",
+      "sector": "📍 7.10083, 124.82314",
+      "coords": [
+        7.1008256,
+        124.8231424
+      ],
+      "is_emergency": true,
+      "created_at": "2026-10-14T05:41:32.383Z"
+    },
+    {
+      "id": "HM-1791956491532",
+      "sender": "Kyuzbe",
+      "sender_id": "nkzyuben@gmail.com",
+      "text": "Need drinking water & food supplies",
+      "sector": "📍 7.10083, 124.82314",
+      "coords": [
+        7.1008256,
+        124.8231424
+      ],
+      "is_emergency": false,
+      "created_at": "2026-10-14T05:41:31.532Z"
+    },
+    {
+      "id": "HM-1791956490534",
+      "sender": "Kyuzbe",
+      "sender_id": "nkzyuben@gmail.com",
+      "text": "Trapped in sector, need extraction",
+      "sector": "📍 7.10083, 124.82314",
+      "coords": [
+        7.1008256,
+        124.8231424
+      ],
+      "is_emergency": true,
+      "created_at": "2026-10-14T05:41:30.534Z"
+    },
+    {
+      "id": "HM-1791956488657",
+      "sender": "Kyuzbe",
+      "sender_id": "nkzyuben@gmail.com",
+      "text": "All safe in my sector",
+      "sector": "📍 7.10083, 124.82314",
+      "coords": [
+        7.1008256,
+        124.8231424
+      ],
+      "is_emergency": false,
+      "created_at": "2026-10-14T05:41:28.657Z"
+    }
+  ]
+}
