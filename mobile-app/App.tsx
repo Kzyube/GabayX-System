@@ -38,6 +38,7 @@ export default function App() {
   // Real-time Disaster Alerts from Central Command
   const [activeAlert, setActiveAlert] = useState<DisasterAlert | null>(null);
   const [isSocketConnected, setIsSocketConnected] = useState(false);
+  const [autoRouteRequested, setAutoRouteRequested] = useState(false);
 
   /**
    * Connect to Central Dispatch via Socket.io for live disaster alerts
@@ -53,7 +54,10 @@ export default function App() {
         [
           {
             text: '🗺️ View Routes',
-            onPress: () => setCurrentScreen('MAP'),
+            onPress: () => {
+              setAutoRouteRequested(true);
+              setCurrentScreen('MAP');
+            },
           },
           { text: 'Understood', style: 'cancel' },
         ]
@@ -252,12 +256,19 @@ export default function App() {
       {/* REAL-TIME DISASTER ALERT BANNER */}
       <DisasterAlertBanner
         alert={activeAlert}
-        onPressViewMap={() => setCurrentScreen('MAP')}
+        onPressViewMap={() => {
+          setAutoRouteRequested(true);
+          setCurrentScreen('MAP');
+        }}
       />
 
       {/* SCREEN CONTENT: REPORTS OR MAP */}
       {currentScreen === 'MAP' ? (
-        <MapScreen />
+        <MapScreen
+          initialAutoRoute={autoRouteRequested}
+          onClearAutoRoute={() => setAutoRouteRequested(false)}
+          activeDisaster={activeAlert}
+        />
       ) : (
         <>
           {/* CALL TO ACTION: FILE EMERGENCY REPORT */}
