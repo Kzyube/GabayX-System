@@ -12,37 +12,42 @@ export const ReportStatusBadge: React.FC<Props> = ({ status, size = 'normal' }) 
     switch (status) {
       case 'PENDING':
         return {
-          label: 'SAVED LOCALLY (OFFLINE)',
-          bg: 'rgba(245, 158, 11, 0.15)',
-          border: '#f59e0b',
-          text: '#fbbf24',
+          icon: '⏳',
+          label: 'Saved on Phone',
+          bg: '#451a03',
+          border: '#d97706',
+          text: '#fde68a',
         };
       case 'SYNCING':
         return {
-          label: 'SYNCING...',
-          bg: 'rgba(6, 182, 212, 0.15)',
-          border: '#06b6d4',
-          text: '#22d3ee',
+          icon: '🔄',
+          label: 'Sending...',
+          bg: '#0c4a6e',
+          border: '#0284c7',
+          text: '#bae6fd',
         };
       case 'SYNCED':
         return {
-          label: 'SERVER ACKNOWLEDGED',
-          bg: 'rgba(16, 185, 129, 0.15)',
-          border: '#10b981',
-          text: '#34d399',
+          icon: '✓',
+          label: 'Sent to Dispatch',
+          bg: '#064e3b',
+          border: '#059669',
+          text: '#a7f3d0',
         };
       case 'FAILED':
         return {
-          label: 'SYNC FAILED',
-          bg: 'rgba(239, 68, 68, 0.15)',
-          border: '#ef4444',
-          text: '#f87171',
+          icon: '!',
+          label: 'Retry Required',
+          bg: '#450a0a',
+          border: '#dc2626',
+          text: '#fecaca',
         };
       default:
         return {
+          icon: '•',
           label: status,
-          bg: 'rgba(148, 163, 184, 0.15)',
-          border: '#94a3b8',
+          bg: '#1e293b',
+          border: '#475569',
           text: '#cbd5e1',
         };
     }
@@ -58,17 +63,18 @@ export const ReportStatusBadge: React.FC<Props> = ({ status, size = 'normal' }) 
         {
           backgroundColor: config.bg,
           borderColor: config.border,
-          paddingVertical: isSmall ? 2 : 4,
-          paddingHorizontal: isSmall ? 6 : 8,
+          paddingVertical: isSmall ? 3 : 5,
+          paddingHorizontal: isSmall ? 8 : 10,
         },
       ]}
     >
+      <Text style={[styles.badgeIcon, { color: config.text }]}>{config.icon}</Text>
       <Text
         style={[
           styles.badgeText,
           {
             color: config.text,
-            fontSize: isSmall ? 8.5 : 9.5,
+            fontSize: isSmall ? 10 : 11,
           },
         ]}
       >
@@ -81,11 +87,17 @@ export const ReportStatusBadge: React.FC<Props> = ({ status, size = 'normal' }) 
 const styles = StyleSheet.create({
   badge: {
     borderWidth: 1,
-    borderRadius: 6,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     alignSelf: 'flex-start',
   },
+  badgeIcon: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
   badgeText: {
-    fontWeight: '800',
-    letterSpacing: 0.6,
+    fontWeight: '700',
   },
 });

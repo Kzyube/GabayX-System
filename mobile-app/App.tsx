@@ -143,16 +143,16 @@ export default function App() {
       await loadReports();
       if (res.syncedCount > 0) {
         Alert.alert(
-          '✅ Cloud Sync Complete',
-          `Successfully dispatched ${res.syncedCount} offline report(s) to Central Dispatch. Server verified receipt.`,
+          '✅ Synced to Dispatch',
+          `Successfully uploaded ${res.syncedCount} report(s) to Central Command.`,
           [{ text: 'OK' }]
         );
       } else if (res.totalPending === 0) {
-        Alert.alert('Up to Date', 'All reports are already synchronized.');
+        Alert.alert('Up to Date', 'All your reports are already synced with Central Command.');
       } else {
         Alert.alert(
-          '📡 Offline Mode',
-          'Server unreachable. Reports remain securely stored in local SQLite storage with status PENDING.',
+          'Saved Locally',
+          'Could not reach server. Your reports remain safely stored on this phone and can be synced later.',
           [{ text: 'OK' }]
         );
       }
@@ -172,13 +172,13 @@ export default function App() {
       console.log(`[App] Emergency report ${created.id} saved to SQLite.`);
       await loadReports();
       Alert.alert(
-        '🛡️ Report Saved Locally',
-        'Your emergency report has been safely saved to device SQLite storage with status PENDING. It will be dispatched once a mesh peer or internet connectivity is detected.',
+        '🛡️ Report Saved on Phone',
+        'Your report has been saved to your device. It will upload to dispatch once online or when you tap Sync.',
         [{ text: 'OK' }]
       );
     } catch (err) {
       console.error('[App] Failed to save report:', err);
-      throw err; // Re-throw so modal can display error message to user
+      throw err;
     }
   };
 
@@ -187,8 +187,8 @@ export default function App() {
    */
   const handleDeleteReport = async (id: string) => {
     Alert.alert(
-      'Delete Local Report',
-      'Are you sure you want to delete this unsent report from local storage?',
+      'Delete Report',
+      'Are you sure you want to delete this report from your device?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -227,29 +227,43 @@ export default function App() {
       {/* HEADER BAR */}
       <View style={styles.header}>
         <View>
-          <View style={styles.brandRow}>
-            <Text style={styles.brandTitle}>GABAYX</Text>
-            <View style={styles.platformBadge}>
-              <Text style={styles.platformBadgeText}>MOBILE</Text>
-            </View>
-          </View>
-          <Text style={styles.brandSubtitle}>
-            {currentScreen === 'REPORTS'
-              ? 'Disaster-Response • Offline SQLite'
-              : 'Campus Navigation • Native Map'}
-          </Text>
+          <Text style={styles.brandTitle}>GabayX</Text>
+          <Text style={styles.brandSubtitle}>Kabacan National High School</Text>
         </View>
 
-        <View style={styles.statusIndicator}>
-          <View
+        <View style={styles.headerRightGroup}>
+          {/* Connection Status Indicator */}
+          <View style={styles.connectionBadge}>
+            <View
+              style={[
+                styles.connectionDot,
+                isSocketConnected ? styles.statusDotLive : styles.statusDotOffline,
+              ]}
+            />
+            <Text style={styles.connectionText}>
+              {isSocketConnected ? 'Online' : 'Offline'}
+            </Text>
+          </View>
+
+          {/* Sync Button */}
+          <TouchableOpacity
             style={[
-              styles.statusDot,
-              isSocketConnected ? styles.statusDotLive : styles.statusDotOffline,
+              styles.syncButton,
+              pendingCount > 0 && styles.syncBtnPending,
             ]}
-          />
-          <Text style={styles.statusIndicatorText}>
-            {isSocketConnected ? 'Dispatch Live' : 'Offline Safe'}
-          </Text>
+            onPress={handleSyncReports}
+            disabled={isSyncing}
+            activeOpacity={0.8}
+            accessibilityLabel="Sync reports"
+          >
+            {isSyncing ? (
+              <ActivityIndicator size="small" color="#ffffff" />
+            ) : (
+              <Text style={styles.syncBtnText}>
+                🔄 Sync{pendingCount > 0 ? ` (${pendingCount})` : ''}
+              </Text>
+            )}
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -270,103 +284,97 @@ export default function App() {
           activeDisaster={activeAlert}
         />
       ) : (
-        <>
-          {/* CALL TO ACTION: FILE EMERGENCY REPORT */}
-          <View style={styles.ctaContainer}>
+        <View style={styles.contentContainer}>
+          {/* TOP PRIMARY ACTION CARDS */}
+          <View style={styles.actionCardsRow}>
+            {/* 1. REPORT EMERGENCY BUTTON */}
             <TouchableOpacity
-              style={styles.sosCtaButton}
+              style={styles.actionCardRed}
               onPress={() => setIsCreateModalOpen(true)}
               activeOpacity={0.85}
             >
-              <Text style={styles.sosCtaIcon}>🚨</Text>
-              <View>
-                <Text style={styles.sosCtaTitle}>FILE EMERGENCY REPORT</Text>
-                <Text style={styles.sosCtaSubtitle}>
-                  Saves instantly to offline device storage (No internet required)
-                </Text>
-              </View>
+              <Text style={styles.actionCardIcon}>🚨</Text>
+              <Text style={styles.actionCardTitle}>Report Emergency</Text>
+              <Text style={styles.actionCardSub}>File incident report (works offline)</Text>
+            </TouchableOpacity>
+
+            {/* 2. CAMPUS EVACUATION MAP BUTTON */}
+            <TouchableOpacity
+              style={styles.actionCardSlate}
+              onPress={() => setCurrentScreen('MAP')}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.actionCardIcon}>🗺️</Text>
+              <Text style={styles.actionCardTitle}>Evacuation Map</Text>
+              <Text style={styles.actionCardSub}>View safe hubs & routes</Text>
             </TouchableOpacity>
           </View>
 
-          {/* OFFLINE NOTICE BANNER */}
-          <View style={styles.disclaimerBanner}>
-            <Text style={styles.disclaimerIcon}>ℹ️</Text>
-            <Text style={styles.disclaimerText}>
-              Offline-first mode active. Reports are persisted locally with status{' '}
-              <Text style={{ fontWeight: '800', color: '#fbbf24' }}>PENDING</Text> and have not yet
-              reached central dispatch until synced.
-            </Text>
-          </View>
-
-          {/* ERROR BANNER */}
-          {errorMessage && (
-            <View style={styles.errorBanner}>
-              <Text style={styles.errorBannerText}>⚠️ {errorMessage}</Text>
+          {/* SECTION HEADER & TABS */}
+          <View style={styles.sectionHeaderRow}>
+            <View>
+              <Text style={styles.sectionTitle}>Filed Reports</Text>
+              <Text style={styles.sectionSub}>Stored safely on this device</Text>
             </View>
-          )}
 
-          {/* TABS & METRICS STRIP */}
-          <View style={styles.tabsStrip}>
-            <TouchableOpacity
-              style={[styles.tabButton, activeTab === 'ALL' && styles.tabButtonActive]}
-              onPress={() => setActiveTab('ALL')}
-            >
-              <Text style={[styles.tabButtonText, activeTab === 'ALL' && styles.tabButtonTextActive]}>
-                ALL ({reports.length})
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.tabButton, activeTab === 'PENDING' && styles.tabButtonActive]}
-              onPress={() => setActiveTab('PENDING')}
-            >
-              <Text
-                style={[
-                  styles.tabButtonText,
-                  activeTab === 'PENDING' && styles.tabButtonTextActive,
-                ]}
+            <View style={styles.filterTabs}>
+              <TouchableOpacity
+                style={[styles.filterTab, activeTab === 'ALL' && styles.filterTabActive]}
+                onPress={() => setActiveTab('ALL')}
               >
-                PENDING ({pendingCount})
-              </Text>
-            </TouchableOpacity>
+                <Text
+                  style={[
+                    styles.filterTabText,
+                    activeTab === 'ALL' && styles.filterTabTextActive,
+                  ]}
+                >
+                  All ({reports.length})
+                </Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.syncButton}
-              onPress={handleSyncReports}
-              disabled={isSyncing}
-              activeOpacity={0.8}
-            >
-              {isSyncing ? (
-                <ActivityIndicator size="small" color="#10b981" />
-              ) : (
-                <Text style={styles.syncButtonText}>🔄 Sync</Text>
-              )}
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.filterTab,
+                  activeTab === 'PENDING' && styles.filterTabActive,
+                ]}
+                onPress={() => setActiveTab('PENDING')}
+              >
+                <Text
+                  style={[
+                    styles.filterTabText,
+                    activeTab === 'PENDING' && styles.filterTabTextActive,
+                  ]}
+                >
+                  Pending ({pendingCount})
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
-          {/* REPORT LIST OR EMPTY/LOADING STATES */}
-          <View style={styles.listContainer}>
+          {/* REPORT LIST OR EMPTY STATE */}
+          <View style={styles.listArea}>
             {isLoading ? (
               <View style={styles.centerBox}>
-                <ActivityIndicator size="large" color="#10b981" />
-                <Text style={styles.loadingText}>Initializing SQLite storage...</Text>
+                <ActivityIndicator size="small" color="#059669" />
+                <Text style={styles.loadingText}>Loading reports...</Text>
               </View>
             ) : displayedReports.length === 0 ? (
               <View style={styles.centerBox}>
                 <Text style={styles.emptyIcon}>📋</Text>
                 <Text style={styles.emptyTitle}>
-                  {activeTab === 'PENDING' ? 'No Pending Reports' : 'No Emergency Reports Yet'}
+                  {activeTab === 'PENDING' ? 'No Pending Reports' : 'No Reports Filed Yet'}
                 </Text>
-                <Text style={styles.emptySubtitle}>
+                <Text style={styles.emptySub}>
                   {activeTab === 'PENDING'
-                    ? 'All emergency reports have been processed.'
-                    : 'Reports you create offline will appear here and persist across restarts.'}
+                    ? 'All your emergency reports have been synced with Central Command.'
+                    : 'When you file a report, it will be stored securely on your phone even without internet.'}
                 </Text>
                 <TouchableOpacity
-                  style={styles.emptyActionBtn}
+                  style={styles.emptyBtn}
                   onPress={() => setIsCreateModalOpen(true)}
+                  activeOpacity={0.8}
                 >
-                  <Text style={styles.emptyActionText}>+ Create First Report</Text>
+                  <Text style={styles.emptyBtnText}>+ File Incident Report</Text>
                 </TouchableOpacity>
               </View>
             ) : (
@@ -377,13 +385,13 @@ export default function App() {
                   <RefreshControl
                     refreshing={isRefreshing}
                     onRefresh={handleRefresh}
-                    tintColor="#10b981"
+                    tintColor="#059669"
                   />
                 }
                 contentContainerStyle={styles.listContent}
                 renderItem={({ item }) => {
                   const formattedDate = new Date(item.createdAt).toLocaleTimeString([], {
-                    hour: '2-digit',
+                    hour: 'numeric',
                     minute: '2-digit',
                   });
 
@@ -394,23 +402,23 @@ export default function App() {
                       activeOpacity={0.8}
                     >
                       <View style={styles.cardHeader}>
-                        <View style={styles.cardCategoryRow}>
-                          <Text style={styles.cardCategoryText}>{item.category}</Text>
+                        <View style={styles.categoryWrap}>
+                          <Text style={styles.categoryName}>{item.category}</Text>
                           <View style={[styles.sevPill, styles[`sev_${item.severity}`]]}>
                             <Text style={styles.sevPillText}>{item.severity}</Text>
                           </View>
                         </View>
-                        <Text style={styles.cardTimeText}>{formattedDate}</Text>
+                        <Text style={styles.cardTime}>{formattedDate}</Text>
                       </View>
 
-                      <Text style={styles.cardDescription} numberOfLines={2}>
+                      <Text style={styles.cardDesc} numberOfLines={2}>
                         {item.description}
                       </Text>
 
                       <View style={styles.cardFooter}>
                         <ReportStatusBadge status={item.localStatus} size="small" />
-                        <Text style={styles.cardLocationText}>
-                          📍 {item.nearestBuilding || 'Campus Zone'}
+                        <Text style={styles.cardLocation}>
+                          📍 {item.nearestBuilding || 'Campus Grounds'}
                         </Text>
                       </View>
                     </TouchableOpacity>
@@ -419,45 +427,44 @@ export default function App() {
               />
             )}
           </View>
-        </>
+        </View>
       )}
 
       {/* BOTTOM NAVIGATION BAR */}
-      <View style={styles.bottomNavBar}>
+      <View style={styles.bottomNav}>
         <TouchableOpacity
-          style={[styles.navTab, currentScreen === 'REPORTS' && styles.navTabActive]}
+          style={[styles.navItem, currentScreen === 'REPORTS' && styles.navItemActive]}
           onPress={() => setCurrentScreen('REPORTS')}
           activeOpacity={0.8}
         >
           <Text style={styles.navIcon}>📋</Text>
-          <Text style={[styles.navLabel, currentScreen === 'REPORTS' && styles.navLabelActive]}>
+          <Text style={[styles.navText, currentScreen === 'REPORTS' && styles.navTextActive]}>
             Reports
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.navTab, currentScreen === 'MAP' && styles.navTabActive]}
+          style={[styles.navItem, currentScreen === 'MAP' && styles.navItemActive]}
           onPress={() => setCurrentScreen('MAP')}
           activeOpacity={0.8}
         >
           <Text style={styles.navIcon}>🗺️</Text>
-          <Text style={[styles.navLabel, currentScreen === 'MAP' && styles.navLabelActive]}>
+          <Text style={[styles.navText, currentScreen === 'MAP' && styles.navTextActive]}>
             Campus Map
           </Text>
         </TouchableOpacity>
       </View>
 
-      {/* CREATE REPORT MODAL */}
+      {/* MODALS */}
       <CreateReportModal
         visible={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onSubmit={handleCreateReport}
       />
 
-      {/* REPORT DETAIL MODAL */}
       <ReportDetailModal
-        report={selectedReport}
         visible={!!selectedReport}
+        report={selectedReport}
         onClose={() => setSelectedReport(null)}
         onDelete={handleDeleteReport}
       />
@@ -468,195 +475,178 @@ export default function App() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#060d09',
+    backgroundColor: '#0f172a',
   },
   header: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 12,
+    backgroundColor: '#0f172a',
+    borderBottomWidth: 1,
+    borderBottomColor: '#1e293b',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
-    backgroundColor: '#0c1712',
   },
-  brandRow: {
+  brandTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#f8fafc',
+    letterSpacing: 0.3,
+  },
+  brandSubtitle: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginTop: 1,
+  },
+  headerRightGroup: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  brandTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#10b981',
-    letterSpacing: 1.5,
-  },
-  platformBadge: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    borderColor: '#10b981',
-    borderWidth: 1,
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  platformBadgeText: {
-    color: '#10b981',
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  brandSubtitle: {
-    fontSize: 10.5,
-    color: '#94a3b8',
-    marginTop: 2,
-  },
-  statusIndicator: {
+  connectionBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
+    gap: 5,
+    backgroundColor: '#1e293b',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: '#334155',
   },
-  statusDot: {
+  connectionDot: {
     width: 7,
     height: 7,
     borderRadius: 4,
-    backgroundColor: '#10b981',
   },
   statusDotLive: {
     backgroundColor: '#10b981',
-    shadowColor: '#10b981',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
   },
   statusDotOffline: {
     backgroundColor: '#f59e0b',
   },
-  statusIndicatorText: {
-    color: '#f1f5f9',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  ctaContainer: {
-    paddingHorizontal: 18,
-    paddingTop: 14,
-  },
-  sosCtaButton: {
-    backgroundColor: '#dc2626',
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    shadowColor: '#dc2626',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  sosCtaIcon: {
-    fontSize: 24,
-  },
-  sosCtaTitle: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '900',
-    letterSpacing: 0.8,
-  },
-  sosCtaSubtitle: {
-    color: 'rgba(255, 255, 255, 0.85)',
-    fontSize: 10.5,
-    marginTop: 2,
-  },
-  disclaimerBanner: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(245, 158, 11, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.3)',
-    borderRadius: 8,
-    marginHorizontal: 18,
-    marginTop: 10,
-    padding: 10,
-    alignItems: 'center',
-    gap: 8,
-  },
-  disclaimerIcon: {
-    fontSize: 14,
-  },
-  disclaimerText: {
-    flex: 1,
-    color: '#fef3c7',
-    fontSize: 10.5,
-    lineHeight: 15,
-  },
-  errorBanner: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    borderWidth: 1,
-    borderColor: '#ef4444',
-    borderRadius: 8,
-    marginHorizontal: 18,
-    marginTop: 8,
-    padding: 10,
-  },
-  errorBannerText: {
-    color: '#fca5a5',
+  connectionText: {
+    color: '#cbd5e1',
     fontSize: 11,
     fontWeight: '600',
   },
-  tabsStrip: {
-    flexDirection: 'row',
-    paddingHorizontal: 18,
-    marginTop: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  syncButton: {
+    backgroundColor: '#1e293b',
+    borderWidth: 1,
+    borderColor: '#334155',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
   },
-  tabButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+  syncBtnPending: {
+    backgroundColor: '#065f46',
+    borderColor: '#059669',
   },
-  tabButtonActive: {
-    borderBottomColor: '#10b981',
-  },
-  tabButtonText: {
+  syncBtnText: {
+    color: '#f8fafc',
     fontSize: 11,
     fontWeight: '700',
-    color: '#64748b',
-    letterSpacing: 0.5,
   },
-  tabButtonTextActive: {
-    color: '#10b981',
+  contentContainer: {
+    flex: 1,
+    backgroundColor: '#0f172a',
   },
-  syncButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 8,
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+  // ACTION CARDS
+  actionCardsRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    gap: 10,
+  },
+  actionCardRed: {
+    flex: 1,
+    backgroundColor: '#b91c1c',
+    borderRadius: 14,
+    padding: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  actionCardSlate: {
+    flex: 1,
+    backgroundColor: '#1e293b',
     borderWidth: 1,
-    borderColor: '#10b981',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 70,
+    borderColor: '#334155',
+    borderRadius: 14,
+    padding: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
   },
-  syncButtonText: {
-    color: '#10b981',
-    fontSize: 11,
+  actionCardIcon: {
+    fontSize: 22,
+    marginBottom: 6,
+  },
+  actionCardTitle: {
+    color: '#ffffff',
+    fontSize: 14,
     fontWeight: '800',
   },
-  listContainer: {
+  actionCardSub: {
+    color: '#cbd5e1',
+    fontSize: 10.5,
+    marginTop: 2,
+    lineHeight: 14,
+  },
+  // SECTION HEADER
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 18,
+    paddingBottom: 8,
+  },
+  sectionTitle: {
+    color: '#f8fafc',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  sectionSub: {
+    color: '#64748b',
+    fontSize: 11,
+  },
+  filterTabs: {
+    flexDirection: 'row',
+    backgroundColor: '#1e293b',
+    borderRadius: 8,
+    padding: 2,
+  },
+  filterTab: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  filterTabActive: {
+    backgroundColor: '#334155',
+  },
+  filterTabText: {
+    color: '#94a3b8',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  filterTabTextActive: {
+    color: '#ffffff',
+  },
+  // LIST AREA
+  listArea: {
     flex: 1,
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
   },
   listContent: {
-    paddingVertical: 12,
-    gap: 10,
+    paddingTop: 4,
+    paddingBottom: 16,
+    gap: 8,
   },
   centerBox: {
     flex: 1,
@@ -667,143 +657,134 @@ const styles = StyleSheet.create({
   loadingText: {
     color: '#94a3b8',
     fontSize: 12,
-    marginTop: 12,
+    marginTop: 8,
   },
   emptyIcon: {
-    fontSize: 40,
+    fontSize: 36,
     marginBottom: 8,
   },
   emptyTitle: {
-    color: '#f1f5f9',
-    fontSize: 16,
+    color: '#f8fafc',
+    fontSize: 15,
     fontWeight: '800',
     marginBottom: 4,
   },
-  emptySubtitle: {
+  emptySub: {
     color: '#64748b',
     fontSize: 12,
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 17,
     maxWidth: 280,
+    marginBottom: 14,
   },
-  emptyActionBtn: {
-    marginTop: 16,
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    borderColor: '#10b981',
-    borderWidth: 1,
+  emptyBtn: {
+    backgroundColor: '#059669',
+    paddingHorizontal: 16,
+    paddingVertical: 9,
     borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 18,
   },
-  emptyActionText: {
-    color: '#10b981',
-    fontWeight: '800',
+  emptyBtnText: {
+    color: '#ffffff',
     fontSize: 12,
+    fontWeight: '700',
   },
   reportCard: {
-    backgroundColor: '#0c1712',
+    backgroundColor: '#1e293b',
     borderRadius: 12,
-    padding: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    gap: 8,
+    borderColor: '#334155',
+    padding: 12,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 6,
   },
-  cardCategoryRow: {
+  categoryWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  cardCategoryText: {
-    color: '#f1f5f9',
+  categoryName: {
+    color: '#f8fafc',
     fontSize: 13,
     fontWeight: '800',
   },
-  cardTimeText: {
-    color: '#64748b',
-    fontSize: 10,
-    fontFamily: 'monospace',
+  sevPill: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
-  cardDescription: {
+  sevPillText: {
+    fontSize: 9,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  sev_CRITICAL: {
+    backgroundColor: '#450a0a',
+  },
+  sev_HIGH: {
+    backgroundColor: '#431407',
+  },
+  sev_MEDIUM: {
+    backgroundColor: '#451a03',
+  },
+  sev_LOW: {
+    backgroundColor: '#064e3b',
+  },
+  cardTime: {
+    color: '#64748b',
+    fontSize: 11,
+  },
+  cardDesc: {
     color: '#cbd5e1',
-    fontSize: 12,
+    fontSize: 12.5,
     lineHeight: 17,
+    marginBottom: 8,
   },
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: '#334155',
     paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.04)',
   },
-  cardLocationText: {
+  cardLocation: {
     color: '#94a3b8',
-    fontSize: 10,
+    fontSize: 11,
   },
-  sevPill: {
-    paddingVertical: 1,
-    paddingHorizontal: 6,
-    borderRadius: 4,
-    borderWidth: 1,
-  },
-  sevPillText: {
-    fontSize: 8.5,
-    fontWeight: '800',
-    color: '#f1f5f9',
-  },
-  sev_CRITICAL: {
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
-    borderColor: '#ef4444',
-  },
-  sev_HIGH: {
-    backgroundColor: 'rgba(249, 115, 22, 0.2)',
-    borderColor: '#f97316',
-  },
-  sev_MEDIUM: {
-    backgroundColor: 'rgba(234, 179, 8, 0.2)',
-    borderColor: '#eab308',
-  },
-  sev_LOW: {
-    backgroundColor: 'rgba(59, 130, 246, 0.2)',
-    borderColor: '#3b82f6',
-  },
-  bottomNavBar: {
-    flexDirection: 'row',
-    backgroundColor: '#0c1712',
+  // BOTTOM NAVIGATION
+  bottomNav: {
+    backgroundColor: '#0f172a',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    borderTopColor: '#1e293b',
+    flexDirection: 'row',
     paddingVertical: 8,
     paddingHorizontal: 20,
     justifyContent: 'space-around',
-    alignItems: 'center',
   },
-  navTab: {
+  navItem: {
     alignItems: 'center',
-    justifyContent: 'center',
     paddingVertical: 4,
-    paddingHorizontal: 24,
+    paddingHorizontal: 16,
     borderRadius: 8,
   },
-  navTabActive: {
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+  navItemActive: {
+    backgroundColor: '#1e293b',
   },
   navIcon: {
-    fontSize: 20,
+    fontSize: 18,
+    marginBottom: 2,
   },
-  navLabel: {
-    fontSize: 10,
-    fontWeight: '700',
+  navText: {
     color: '#64748b',
-    marginTop: 2,
-    letterSpacing: 0.3,
+    fontSize: 11,
+    fontWeight: '600',
   },
-  navLabelActive: {
-    color: '#10b981',
+  navTextActive: {
+    color: '#34d399',
+    fontWeight: '700',
   },
 });

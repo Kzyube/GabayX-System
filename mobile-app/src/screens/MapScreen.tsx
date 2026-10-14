@@ -13,13 +13,10 @@ import {
   CAMPUS_CENTER,
   SAFE_ASSEMBLY_ZONES,
   CAMPUS_BUILDINGS,
-  EVACUATION_ROUTES,
   SafeAssemblyZone,
-  CampusBuilding,
   LatLng,
 } from '../constants/geoData';
 
-// Calculate Haversine distance in meters
 function calculateDistanceMeters(
   lat1: number,
   lon1: number,
@@ -58,7 +55,6 @@ export interface MapScreenProps {
 export const MapScreen: React.FC<MapScreenProps> = ({
   initialAutoRoute = false,
   onClearAutoRoute,
-  activeDisaster,
 }) => {
   const webViewRef = useRef<WebView>(null);
   const [isSatellite, setIsSatellite] = useState(false);
@@ -69,12 +65,12 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   const [showSafeZones, setShowSafeZones] = useState(true);
   const [showRoutes, setShowRoutes] = useState(true);
 
-  // Active Intelligent Evacuation Route
+  // Active Evacuation Route
   const [activeEvacRoute, setActiveEvacRoute] = useState<ActiveEvacRoute | null>(null);
 
-  // Selected place for bottom info card (when not navigating)
+  // Selected place for bottom sheet
   const [selectedPlace, setSelectedPlace] = useState<{
-    type: 'building' | 'safe_zone' | 'route';
+    type: 'building' | 'safe_zone';
     title: string;
     subtitle: string;
     description: string;
@@ -83,18 +79,15 @@ export const MapScreen: React.FC<MapScreenProps> = ({
     badge?: string;
   } | null>(null);
 
-  // Live GPS tracking states
+  // Live GPS tracking
   const [userCoords, setUserCoords] = useState<LatLng | null>(null);
   const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'pending'>('pending');
-  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
 
-  // Send message to embedded Leaflet webview
   const postMessageToWeb = useCallback((msg: object) => {
     const js = `window.handleNativeMessage && window.handleNativeMessage(${JSON.stringify(msg)}); true;`;
     webViewRef.current?.injectJavaScript(js);
   }, []);
 
-  // Request location permission & watch position
   useEffect(() => {
     let subscriber: Location.LocationSubscription | null = null;
 
@@ -117,15 +110,14 @@ export const MapScreen: React.FC<MapScreenProps> = ({
             longitude: current.coords.longitude,
           };
           setUserCoords(coords);
-          setGpsAccuracy(current.coords.accuracy ? Math.round(current.coords.accuracy) : null);
           postMessageToWeb({ type: 'UPDATE_USER_LOCATION', coords });
         }
 
         subscriber = await Location.watchPositionAsync(
           {
-            accuracy: Location.Accuracy.High,
+            accuracy: Location.Accuracy.Balanced,
             timeInterval: 4000,
-            distanceInterval: 4,
+            distanceInterval: 5,
           },
           (loc) => {
             if (loc && loc.coords) {
@@ -134,7 +126,6 @@ export const MapScreen: React.FC<MapScreenProps> = ({
                 longitude: loc.coords.longitude,
               };
               setUserCoords(coords);
-              setGpsAccuracy(loc.coords.accuracy ? Math.round(loc.coords.accuracy) : null);
               postMessageToWeb({ type: 'UPDATE_USER_LOCATION', coords });
             }
           }
@@ -151,13 +142,8 @@ export const MapScreen: React.FC<MapScreenProps> = ({
     };
   }, [postMessageToWeb]);
 
-  /**
-   * Intelligently computes the best evacuation path from an origin point to a designated safe hub.
-   * If no specific hub is requested, picks the closest Safe Assembly Zone.
-   */
   const startEvacuationRoute = useCallback(
     (origin: LatLng, originName: string, requestedHub?: SafeAssemblyZone) => {
-      // 1. Identify destination Safe Hub
       let targetHub = requestedHub;
       if (!targetHub) {
         let minDistance = Infinity;
@@ -178,13 +164,10 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         targetHub = closest;
       }
 
-      // 2. Generate intelligent campus walkway waypoints
-      // Central KNHS quadrangle walkway connector [7.10030, 124.82400]
       const quadrangleConnector: [number, number] = [7.10030, 124.82400];
       const startPoint: [number, number] = [origin.latitude, origin.longitude];
       const endPoint: [number, number] = [targetHub.latitude, targetHub.longitude];
 
-      // Calculate direct distance or via central walkway
       const directDist = calculateDistanceMeters(
         origin.latitude,
         origin.longitude,
@@ -193,13 +176,12 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       );
 
       let waypoints: [number, number][] = [startPoint, endPoint];
-      // If over 50 meters, route through central quadrangle corridor for realistic walkway guidance
       if (directDist > 50) {
         waypoints = [startPoint, quadrangleConnector, endPoint];
       }
 
       const totalMeters = Math.max(25, directDist);
-      const estMinutes = Math.max(1, Math.ceil(totalMeters / 75)); // Average brisk evacuation pace ~75m/min
+      const estMinutes = Math.max(1, Math.ceil(totalMeters / 75));
 
       const routeData: ActiveEvacRoute = {
         originTitle: originName,
@@ -211,9 +193,8 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       };
 
       setActiveEvacRoute(routeData);
-      setSelectedPlace(null); // Dismiss building card to highlight route
+      setSelectedPlace(null);
 
-      // Send instruction to embedded Leaflet map
       postMessageToWeb({
         type: 'SHOW_EVACUATION_ROUTE',
         origin: { latitude: origin.latitude, longitude: origin.longitude },
@@ -226,16 +207,11 @@ export const MapScreen: React.FC<MapScreenProps> = ({
     [postMessageToWeb]
   );
 
-  /**
-   * One-tap Emergency Evacuate:
-   * Uses user GPS if available near campus, or defaults to central Building A for demo reliability.
-   */
   const handleTriggerEvacuate = useCallback(() => {
     let origin = CAMPUS_CENTER;
-    let title = 'Campus Central Grounds';
+    let title = 'Campus Grounds';
 
     if (userCoords) {
-      // Check if user is within ~2km of KNHS campus
       const distFromCampus = calculateDistanceMeters(
         userCoords.latitude,
         userCoords.longitude,
@@ -244,31 +220,24 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       );
       if (distFromCampus < 2500) {
         origin = userCoords;
-        title = 'Your Current GPS Location';
+        title = 'Your Location';
       } else {
-        // User is testing off-campus: use closest representative building
         origin = { latitude: CAMPUS_BUILDINGS[0].latitude, longitude: CAMPUS_BUILDINGS[0].longitude };
-        title = `${CAMPUS_BUILDINGS[0].name} (Demo Start)`;
+        title = `${CAMPUS_BUILDINGS[0].name}`;
       }
     } else {
       origin = { latitude: CAMPUS_BUILDINGS[0].latitude, longitude: CAMPUS_BUILDINGS[0].longitude };
-      title = `${CAMPUS_BUILDINGS[0].name} (Campus Entry)`;
+      title = `${CAMPUS_BUILDINGS[0].name}`;
     }
 
     startEvacuationRoute(origin, title);
   }, [userCoords, startEvacuationRoute]);
 
-  /**
-   * Handle clearing route guidance
-   */
   const handleClearRoute = () => {
     setActiveEvacRoute(null);
     postMessageToWeb({ type: 'CLEAR_EVACUATION_ROUTE' });
   };
 
-  /**
-   * Auto-trigger route when navigation is requested from alert banner or popup
-   */
   useEffect(() => {
     if (initialAutoRoute && mapLoaded) {
       handleTriggerEvacuate();
@@ -278,30 +247,10 @@ export const MapScreen: React.FC<MapScreenProps> = ({
     }
   }, [initialAutoRoute, mapLoaded, handleTriggerEvacuate, onClearAutoRoute]);
 
-  // Toggle map type between Street (OSM) and Satellite (ArcGIS)
   const toggleMapType = () => {
     const next = !isSatellite;
     setIsSatellite(next);
     postMessageToWeb({ type: 'SET_MAP_TYPE', mode: next ? 'satellite' : 'standard' });
-  };
-
-  const handleRecenterCampus = () => {
-    postMessageToWeb({ type: 'RECENTER_CAMPUS' });
-  };
-
-  const handleRecenterUser = () => {
-    if (!userCoords) {
-      if (locationPermission === 'denied') {
-        Alert.alert(
-          'Location Permission Required',
-          'Please enable location services in your phone settings to view your position on the map.'
-        );
-      } else {
-        Alert.alert('Acquiring GPS', 'Searching for satellite fix. Please ensure location is enabled.');
-      }
-      return;
-    }
-    postMessageToWeb({ type: 'RECENTER_USER', coords: userCoords });
   };
 
   const toggleLayer = (layer: 'buildings' | 'safeZones' | 'routes') => {
@@ -318,6 +267,23 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       setShowRoutes(next);
       postMessageToWeb({ type: 'TOGGLE_LAYER', layer: 'routes', visible: next });
     }
+  };
+
+  const handleRecenterCampus = () => {
+    postMessageToWeb({ type: 'RECENTER_CAMPUS' });
+  };
+
+  const handleRecenterUser = () => {
+    if (!userCoords) {
+      if (locationPermission === 'denied') {
+        Alert.alert('Location Disabled', 'Please enable location in phone settings to see your position.');
+      } else {
+        Alert.alert('Acquiring GPS', 'Looking for GPS fix. Centering on campus grounds.');
+        handleRecenterCampus();
+      }
+      return;
+    }
+    postMessageToWeb({ type: 'RECENTER_USER', coords: userCoords });
   };
 
   const handleWebMessage = (event: any) => {
@@ -345,12 +311,11 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       targetLon
     );
     if (meters < 1000) {
-      return `${meters}m away (~${Math.max(1, Math.round(meters / 80))} min walk)`;
+      return `${meters}m away`;
     }
     return `${(meters / 1000).toFixed(1)}km away`;
   };
 
-  // Generate self-contained Leaflet HTML with OpenStreetMap, Satellite, and Dynamic Route Engine
   const leafletHtml = `
 <!DOCTYPE html>
 <html>
@@ -360,27 +325,21 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
-    html, body, #map { margin: 0; padding: 0; width: 100%; height: 100%; background: #060d09; }
+    html, body, #map { margin: 0; padding: 0; width: 100%; height: 100%; background: #f8fafc; }
     .bldg-marker {
-      width: 24px; height: 24px; border-radius: 12px; background: #f59e0b;
-      border: 2px solid #0f172a; color: #0f172a; font-weight: 900; font-size: 11px;
-      display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+      width: 22px; height: 22px; border-radius: 11px; background: #0f172a;
+      border: 2px solid #ffffff; color: #ffffff; font-weight: 800; font-size: 11px;
+      display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     }
     .hub-marker {
-      background: #10b981; border: 2px solid #ffffff; border-radius: 14px;
-      padding: 3px 6px; color: #ffffff; font-weight: 800; font-size: 10px;
-      display: flex; align-items: center; gap: 4px; box-shadow: 0 3px 8px rgba(0,0,0,0.5);
+      background: #059669; border: 2px solid #ffffff; border-radius: 14px;
+      padding: 3px 8px; color: #ffffff; font-weight: 800; font-size: 11px;
+      display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
       white-space: nowrap;
     }
-    .hub-primary { background: #059669; border-color: #fef08a; }
     .user-pulse {
-      width: 18px; height: 18px; border-radius: 50%; background: #0284c7;
-      border: 3px solid #ffffff; box-shadow: 0 0 12px #38bdf8;
-    }
-    @keyframes pulseRoute {
-      0% { opacity: 0.8; stroke-width: 6; }
-      50% { opacity: 1.0; stroke-width: 8; }
-      100% { opacity: 0.8; stroke-width: 6; }
+      width: 16px; height: 16px; border-radius: 50%; background: #2563eb;
+      border: 3px solid #ffffff; box-shadow: 0 0 8px rgba(37,99,235,0.7);
     }
   </style>
 </head>
@@ -396,16 +355,13 @@ export const MapScreen: React.FC<MapScreenProps> = ({
     let userMarker = null;
     let bldgLayer = L.layerGroup().addTo(map);
     let zoneLayer = L.layerGroup().addTo(map);
-    let routeLayer = L.layerGroup().addTo(map);
     let dynamicRouteGroup = L.layerGroup().addTo(map);
 
     const BUILDINGS = ${JSON.stringify(CAMPUS_BUILDINGS)};
     const SAFE_ZONES = ${JSON.stringify(SAFE_ASSEMBLY_ZONES)};
-    const ROUTES = ${JSON.stringify(EVACUATION_ROUTES)};
 
-    // Render 19 Campus Buildings
     BUILDINGS.forEach(b => {
-      const icon = L.divIcon({ className: '', html: '<div class="bldg-marker">' + b.shortLetter + '</div>', iconSize: [24, 24], iconAnchor: [12, 12] });
+      const icon = L.divIcon({ className: '', html: '<div class="bldg-marker">' + b.shortLetter + '</div>', iconSize: [22, 22], iconAnchor: [11, 11] });
       const m = L.marker([b.latitude, b.longitude], { icon: icon });
       m.on('click', () => {
         window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
@@ -414,7 +370,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
             type: 'building',
             title: b.name,
             subtitle: b.category,
-            description: 'Campus designated academic building. Follow marked evacuation path to safe hub.',
+            description: 'Campus facility. Tap Evacuate to see path to nearest safe hub.',
             latitude: b.latitude,
             longitude: b.longitude,
             badge: b.shortLetter
@@ -424,13 +380,11 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       bldgLayer.addLayer(m);
     });
 
-    // Render 3 Safe Assembly Hubs
     SAFE_ZONES.forEach(z => {
-      const isPrimary = z.isPrimaryHub;
       const icon = L.divIcon({
         className: '',
-        html: '<div class="hub-marker ' + (isPrimary ? 'hub-primary' : '') + '">' + (isPrimary ? '🛡️' : '⛳') + ' ' + z.shortLabel + '</div>',
-        iconSize: [60, 24], iconAnchor: [30, 12]
+        html: '<div class="hub-marker">🛡️ ' + z.shortLabel + '</div>',
+        iconSize: [64, 24], iconAnchor: [32, 12]
       });
       const m = L.marker([z.latitude, z.longitude], { icon: icon });
       m.on('click', () => {
@@ -439,7 +393,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
           place: {
             type: 'safe_zone',
             title: z.name,
-            subtitle: 'Safe Assembly Area (' + (z.capacity || 'Open Hub') + ')',
+            subtitle: 'Designated Safe Hub (' + (z.capacity || 'Open') + ')',
             description: z.description,
             latitude: z.latitude,
             longitude: z.longitude,
@@ -450,28 +404,6 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       zoneLayer.addLayer(m);
     });
 
-    // Render 3 Static Evacuation Corridor Reference Lines
-    ROUTES.forEach(r => {
-      const pts = r.coordinates.map(c => [c.latitude, c.longitude]);
-      const poly = L.polyline(pts, { color: r.color, weight: 4, opacity: 0.6, dashArray: '6, 6' });
-      poly.on('click', () => {
-        window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
-          type: 'SELECT_PLACE',
-          place: {
-            type: 'route',
-            title: r.name,
-            subtitle: 'Estimated Time: ~' + r.estimatedMinutes + ' mins',
-            description: r.description,
-            latitude: r.coordinates[0].latitude,
-            longitude: r.coordinates[0].longitude,
-            badge: 'ROUTE'
-          }
-        }));
-      });
-      routeLayer.addLayer(poly);
-    });
-
-    // Native Message Bridge Handler
     window.handleNativeMessage = function(data) {
       if (!data) return;
 
@@ -490,66 +422,45 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       } else if (data.type === 'UPDATE_USER_LOCATION' && data.coords) {
         const userPos = [data.coords.latitude, data.coords.longitude];
         if (!userMarker) {
-          const userIcon = L.divIcon({ className: '', html: '<div class="user-pulse"></div>', iconSize: [18, 18], iconAnchor: [9, 9] });
+          const userIcon = L.divIcon({ className: '', html: '<div class="user-pulse"></div>', iconSize: [16, 16], iconAnchor: [8, 8] });
           userMarker = L.marker(userPos, { icon: userIcon }).addTo(map);
         } else {
           userMarker.setLatLng(userPos);
         }
-      } else if (data.type === 'TOGGLE_LAYER') {
-        if (data.layer === 'buildings') data.visible ? map.addLayer(bldgLayer) : map.removeLayer(bldgLayer);
-        if (data.layer === 'safeZones') data.visible ? map.addLayer(zoneLayer) : map.removeLayer(zoneLayer);
-        if (data.layer === 'routes') data.visible ? map.addLayer(routeLayer) : map.removeLayer(routeLayer);
       } else if (data.type === 'SHOW_EVACUATION_ROUTE') {
         dynamicRouteGroup.clearLayers();
-
         const waypoints = data.waypoints;
         if (!waypoints || waypoints.length < 2) return;
 
-        // 1. Glowing outer halo polyline (bold red)
-        const outerGlow = L.polyline(waypoints, {
-          color: '#ef4444',
-          weight: 12,
-          opacity: 0.45,
-          lineCap: 'round',
-          lineJoin: 'round'
-        });
-        dynamicRouteGroup.addLayer(outerGlow);
-
-        // 2. High-visibility animated dashed emerald inner line
-        const innerLine = L.polyline(waypoints, {
-          color: '#10b981',
+        // Clean emerald evacuation polyline
+        const path = L.polyline(waypoints, {
+          color: '#059669',
           weight: 6,
-          opacity: 1.0,
-          dashArray: '10, 8',
+          opacity: 0.9,
+          dashArray: '8, 6',
           lineCap: 'round',
           lineJoin: 'round'
         });
-        dynamicRouteGroup.addLayer(innerLine);
+        dynamicRouteGroup.addLayer(path);
 
-        // 3. Start Point Marker (Runner Icon)
         const startIcon = L.divIcon({
           className: '',
-          html: '<div style="background:#ef4444; color:#ffffff; border:2.5px solid #ffffff; border-radius:50%; width:34px; height:34px; display:flex; align-items:center; justify-content:center; font-size:18px; box-shadow:0 0 16px rgba(239,68,68,0.9);">🏃</div>',
-          iconSize: [34, 34],
-          iconAnchor: [17, 17]
+          html: '<div style="background:#dc2626; color:#fff; border:2px solid #fff; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; font-size:14px; box-shadow:0 2px 5px rgba(0,0,0,0.4);">📍</div>',
+          iconSize: [28, 28],
+          iconAnchor: [14, 14]
         });
-        const startMarker = L.marker([data.origin.latitude, data.origin.longitude], { icon: startIcon });
-        dynamicRouteGroup.addLayer(startMarker);
+        dynamicRouteGroup.addLayer(L.marker([data.origin.latitude, data.origin.longitude], { icon: startIcon }));
 
-        // 4. Destination Safe Hub Marker (Pulsing Shield Badge)
         const destIcon = L.divIcon({
           className: '',
-          html: '<div style="background:#059669; color:#ffffff; border:2.5px solid #fef08a; border-radius:18px; padding:5px 12px; font-weight:900; font-size:11px; display:flex; align-items:center; gap:5px; box-shadow:0 0 20px rgba(16,185,129,0.9); white-space:nowrap;">🛡️ ' + (data.hubBadge || 'SAFE HUB') + '</div>',
-          iconSize: [110, 32],
-          iconAnchor: [55, 16]
+          html: '<div style="background:#059669; color:#fff; border:2px solid #fff; border-radius:14px; padding:3px 8px; font-weight:800; font-size:11px; box-shadow:0 2px 6px rgba(0,0,0,0.4);">🛡️ ' + (data.hubBadge || 'Safe Hub') + '</div>',
+          iconSize: [80, 26],
+          iconAnchor: [40, 13]
         });
-        const destMarker = L.marker([data.destination.latitude, data.destination.longitude], { icon: destIcon });
-        dynamicRouteGroup.addLayer(destMarker);
+        dynamicRouteGroup.addLayer(L.marker([data.destination.latitude, data.destination.longitude], { icon: destIcon }));
 
-        // 5. Intelligent Camera Auto-Fit: Bring entire route into clear focus
-        const bounds = L.latLngBounds(waypoints);
-        map.fitBounds(bounds, {
-          padding: [75, 75],
+        map.fitBounds(L.latLngBounds(waypoints), {
+          padding: [60, 60],
           maxZoom: 18,
           animate: true
         });
@@ -566,7 +477,6 @@ export const MapScreen: React.FC<MapScreenProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* WEBVIEW-POWERED MAP ENGINE (NO API KEY REQUIRED, WORKS INSTANTLY ON ALL PHONES) */}
       <WebView
         ref={webViewRef}
         originWhitelist={['*']}
@@ -578,285 +488,146 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         startInLoadingState={true}
         renderLoading={() => (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#10b981" />
-            <Text style={styles.loadingText}>Loading Campus Map & Routes...</Text>
+            <ActivityIndicator size="small" color="#059669" />
+            <Text style={styles.loadingText}>Loading Map...</Text>
           </View>
         )}
       />
 
-      {/* TOP STATUS OVERLAY */}
-      <View style={styles.topOverlay}>
-        <View style={styles.statusPill}>
-          <View
-            style={[
-              styles.statusDot,
-              locationPermission === 'granted' ? styles.statusDotGreen : styles.statusDotOrange,
-            ]}
-          />
-          <Text style={styles.statusText}>
-            {locationPermission === 'granted'
-              ? `GPS LIVE${gpsAccuracy ? ` (±${gpsAccuracy}m)` : ''}`
-              : 'GPS OFFLINE / FIXED'}
-          </Text>
+      {/* CLEAN TOP HEADER CONTROLS */}
+      <View style={styles.topBar}>
+        <View style={styles.titlePill}>
+          <Text style={styles.titlePillText}>Campus Map</Text>
         </View>
 
-        {/* LAYER TOGGLE BUTTONS */}
-        <View style={styles.layerBar}>
+        <View style={styles.quickControls}>
           <TouchableOpacity
-            style={[styles.layerChip, showBuildings && styles.layerChipActive]}
-            onPress={() => toggleLayer('buildings')}
-            activeOpacity={0.7}
+            style={styles.circleBtn}
+            onPress={handleRecenterUser}
+            activeOpacity={0.8}
+            accessibilityLabel="Center on GPS"
           >
-            <Text style={[styles.layerChipText, showBuildings && styles.layerChipTextActive]}>
-              🏢 19 Bldgs
-            </Text>
+            <Text style={styles.circleBtnText}>📍</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.layerChip, showSafeZones && styles.layerChipActive]}
-            onPress={() => toggleLayer('safeZones')}
-            activeOpacity={0.7}
+            style={styles.circleBtn}
+            onPress={toggleMapType}
+            activeOpacity={0.8}
+            accessibilityLabel="Toggle satellite"
           >
-            <Text style={[styles.layerChipText, showSafeZones && styles.layerChipTextActive]}>
-              🛡️ 3 Hubs
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.layerChip, showRoutes && styles.layerChipActive]}
-            onPress={() => toggleLayer('routes')}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.layerChipText, showRoutes && styles.layerChipTextActive]}>
-              🛣️ Routes
-            </Text>
+            <Text style={styles.circleBtnText}>{isSatellite ? '🗺️' : '🛰️'}</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* PROMINENT ONE-TAP EVACUATE BUTTON (TOP LEFT BELOW HEADER) */}
-      <View style={styles.evacTriggerContainer}>
-        <TouchableOpacity
-          style={[
-            styles.evacTriggerBtn,
-            activeEvacRoute ? styles.evacTriggerBtnActive : styles.evacTriggerBtnDanger,
-          ]}
-          onPress={activeEvacRoute ? () => {
-            // Re-fit camera to route
-            postMessageToWeb({
-              type: 'SHOW_EVACUATION_ROUTE',
-              origin: activeEvacRoute.originCoords,
-              destination: { latitude: activeEvacRoute.targetZone.latitude, longitude: activeEvacRoute.targetZone.longitude },
-              waypoints: activeEvacRoute.waypoints,
-              hubName: activeEvacRoute.targetZone.name,
-              hubBadge: activeEvacRoute.targetZone.shortLabel,
-            });
-          } : handleTriggerEvacuate}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.evacTriggerIcon}>
-            {activeEvacRoute ? '🎯' : '🚨'}
-          </Text>
-          <View>
-            <Text style={styles.evacTriggerTitle}>
-              {activeEvacRoute
-                ? `ROUTING: ${activeEvacRoute.targetZone.shortLabel} (${activeEvacRoute.distanceMeters}m)`
-                : 'EVACUATE NOW: SHOW ROUTE'}
-            </Text>
-            <Text style={styles.evacTriggerSub}>
-              {activeEvacRoute
-                ? 'Tap to re-center evacuation path'
-                : 'Finds nearest safe assembly hub'}
-            </Text>
-          </View>
-        </TouchableOpacity>
-      </View>
-
-      {/* ACTIVE INTELLIGENT EVACUATION GUIDANCE CARD (BOTTOM OVERLAY) */}
+      {/* BOTTOM SECTION */}
+      {/* 1. When Active Evacuation Route is Displayed */}
       {activeEvacRoute && (
-        <View style={styles.guidanceCardContainer}>
-          <View style={styles.guidanceCard}>
-            <View style={styles.guidanceHeader}>
-              <View style={styles.guidanceTagRow}>
-                <View style={styles.guidanceBadge}>
-                  <Text style={styles.guidanceBadgeText}>🚨 ACTIVE EVACUATION ROUTE</Text>
+        <View style={styles.bottomCardContainer}>
+          <View style={styles.evacCard}>
+            <View style={styles.cardTopRow}>
+              <View style={styles.evacTitleGroup}>
+                <Text style={styles.evacIcon}>🛡️</Text>
+                <View>
+                  <Text style={styles.evacTarget}>{activeEvacRoute.targetZone.name}</Text>
+                  <Text style={styles.evacSub}>
+                    {activeEvacRoute.distanceMeters}m away • ~{activeEvacRoute.walkMinutes} min walk
+                  </Text>
                 </View>
-                <Text style={styles.guidanceTimeTag}>~{activeEvacRoute.walkMinutes} MIN WALK</Text>
               </View>
 
               <TouchableOpacity
                 onPress={handleClearRoute}
-                style={styles.guidanceCloseBtn}
-                accessibilityLabel="Clear evacuation route"
+                style={styles.endBtn}
+                activeOpacity={0.7}
               >
-                <Text style={styles.guidanceCloseText}>✕ End Route</Text>
+                <Text style={styles.endBtnText}>End</Text>
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.guidanceTargetName}>
-              🛡️ {activeEvacRoute.targetZone.name}
-            </Text>
-            <Text style={styles.guidanceOrigin}>
-              From: <Text style={{ color: '#f1f5f9', fontWeight: '700' }}>{activeEvacRoute.originTitle}</Text>
+            <Text style={styles.instructionText}>
+              Follow the green dashed path directly to the safe assembly area.
             </Text>
 
-            {/* Metrics Bar */}
-            <View style={styles.metricsBar}>
-              <View style={styles.metricItem}>
-                <Text style={styles.metricVal}>{activeEvacRoute.distanceMeters}m</Text>
-                <Text style={styles.metricLabel}>Distance</Text>
-              </View>
-              <View style={styles.metricDivider} />
-              <View style={styles.metricItem}>
-                <Text style={styles.metricVal}>~{activeEvacRoute.walkMinutes} min</Text>
-                <Text style={styles.metricLabel}>Walk Time</Text>
-              </View>
-              <View style={styles.metricDivider} />
-              <View style={styles.metricItem}>
-                <Text style={styles.metricVal}>{activeEvacRoute.targetZone.capacity || 'Open'}</Text>
-                <Text style={styles.metricLabel}>Safe Capacity</Text>
-              </View>
-            </View>
-
-            <Text style={styles.guidanceInstruction}>
-              🚶 Follow marked glowing green path. Proceed through campus corridor directly to {activeEvacRoute.targetZone.shortLabel}.
-            </Text>
-
-            {/* Alternate Safe Hub Switcher */}
-            <View style={styles.hubSwitcherBox}>
-              <Text style={styles.hubSwitcherTitle}>Switch Hub Destination:</Text>
-              <View style={styles.hubBtnRow}>
-                {SAFE_ASSEMBLY_ZONES.map((zone) => {
-                  const isCurrent = zone.id === activeEvacRoute.targetZone.id;
-                  return (
-                    <TouchableOpacity
-                      key={zone.id}
-                      style={[styles.hubSwitchBtn, isCurrent && styles.hubSwitchBtnActive]}
-                      onPress={() => startEvacuationRoute(activeEvacRoute.originCoords, activeEvacRoute.originTitle, zone)}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={[styles.hubSwitchBtnText, isCurrent && styles.hubSwitchBtnTextActive]}>
-                        {zone.shortLabel}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+            {/* Hub Selector */}
+            <View style={styles.hubSelectorRow}>
+              <Text style={styles.hubSelectorLabel}>Switch Hub:</Text>
+              {SAFE_ASSEMBLY_ZONES.map((zone) => {
+                const isCurrent = zone.id === activeEvacRoute.targetZone.id;
+                return (
+                  <TouchableOpacity
+                    key={zone.id}
+                    style={[styles.hubOption, isCurrent && styles.hubOptionActive]}
+                    onPress={() => startEvacuationRoute(activeEvacRoute.originCoords, activeEvacRoute.originTitle, zone)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.hubOptionText, isCurrent && styles.hubOptionTextActive]}>
+                      {zone.shortLabel}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
         </View>
       )}
 
-      {/* BOTTOM SELECTED PLACE DETAIL CARD (WHEN NOT EVACUATING) */}
+      {/* 2. When No Route is Active: Big Clean Action Button */}
+      {!activeEvacRoute && !selectedPlace && (
+        <View style={styles.bottomCardContainer}>
+          <TouchableOpacity
+            style={styles.mainEvacBtn}
+            onPress={handleTriggerEvacuate}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.mainEvacBtnIcon}>🚨</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.mainEvacBtnTitle}>Find Nearest Safe Zone</Text>
+              <Text style={styles.mainEvacBtnSub}>Shows the fastest evacuation walking path</Text>
+            </View>
+            <Text style={styles.mainEvacBtnArrow}>→</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* 3. When a Building is Tapped */}
       {!activeEvacRoute && selectedPlace && (
-        <View style={styles.detailCardContainer}>
-          <View style={styles.detailCard}>
-            <View style={styles.detailHeader}>
-              <View style={styles.detailTitleBox}>
-                <View style={styles.badgePill}>
-                  <Text style={styles.badgePillText}>{selectedPlace.badge || 'INFO'}</Text>
-                </View>
-                <Text style={styles.detailTitle} numberOfLines={1}>
-                  {selectedPlace.title}
+        <View style={styles.bottomCardContainer}>
+          <View style={styles.placeCard}>
+            <View style={styles.cardTopRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.placeTitle}>{selectedPlace.title}</Text>
+                <Text style={styles.placeSubtitle}>
+                  {selectedPlace.subtitle}
+                  {selectedPlace.latitude && selectedPlace.longitude
+                    ? ` • ${getDistanceFromUser(selectedPlace.latitude, selectedPlace.longitude) || 'Campus'}`
+                    : ''}
                 </Text>
               </View>
               <TouchableOpacity
                 onPress={() => setSelectedPlace(null)}
-                style={styles.closeBtn}
-                accessibilityLabel="Close detail card"
+                style={styles.closePlaceBtn}
               >
-                <Text style={styles.closeBtnText}>✕</Text>
+                <Text style={styles.closePlaceText}>✕</Text>
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.detailSubtitle}>{selectedPlace.subtitle}</Text>
-            <Text style={styles.detailDesc}>{selectedPlace.description}</Text>
-
-            {/* Distance from live GPS */}
-            {selectedPlace.latitude && selectedPlace.longitude && (
-              <View style={styles.distanceRow}>
-                <Text style={styles.distanceLabel}>Distance from your location:</Text>
-                <Text style={styles.distanceValue}>
-                  {getDistanceFromUser(selectedPlace.latitude, selectedPlace.longitude) ||
-                    'Enable GPS to calculate'}
-                </Text>
-              </View>
-            )}
-
-            {/* Action Buttons: Evacuate from this location OR Focus */}
-            <View style={styles.actionBtnRow}>
-              {selectedPlace.latitude && selectedPlace.longitude && (
-                <TouchableOpacity
-                  style={styles.evacFromPlaceBtn}
-                  onPress={() => {
-                    startEvacuationRoute(
-                      { latitude: selectedPlace.latitude!, longitude: selectedPlace.longitude! },
-                      selectedPlace.title
-                    );
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.evacFromPlaceBtnText}>🏃 Evacuate From Here</Text>
-                </TouchableOpacity>
-              )}
-
-              {selectedPlace.latitude && selectedPlace.longitude && (
-                <TouchableOpacity
-                  style={styles.focusBtn}
-                  onPress={() => {
-                    postMessageToWeb({
-                      type: 'RECENTER_USER',
-                      coords: {
-                        latitude: selectedPlace.latitude!,
-                        longitude: selectedPlace.longitude!,
-                      },
-                    });
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.focusBtnText}>🎯 Focus</Text>
-                </TouchableOpacity>
-              )}
-            </View>
+            <TouchableOpacity
+              style={styles.evacFromBtn}
+              onPress={() => {
+                startEvacuationRoute(
+                  { latitude: selectedPlace.latitude!, longitude: selectedPlace.longitude! },
+                  selectedPlace.title
+                );
+              }}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.evacFromBtnText}>🏃 Evacuate from this Location</Text>
+            </TouchableOpacity>
           </View>
         </View>
       )}
-
-      {/* FLOATING MAP CONTROLS ON RIGHT */}
-      <View style={styles.controlsGroup}>
-        {/* RECENTER TO USER GPS */}
-        <TouchableOpacity
-          style={[styles.controlBtn, userCoords && styles.controlBtnActive]}
-          onPress={handleRecenterUser}
-          activeOpacity={0.8}
-          accessibilityLabel="Center to user location"
-        >
-          <Text style={styles.controlIcon}>📍</Text>
-          <Text style={styles.controlBtnText}>My GPS</Text>
-        </TouchableOpacity>
-
-        {/* RECENTER TO CAMPUS CENTER */}
-        <TouchableOpacity
-          style={styles.controlBtn}
-          onPress={handleRecenterCampus}
-          activeOpacity={0.8}
-          accessibilityLabel="Center to campus"
-        >
-          <Text style={styles.controlIcon}>🏫</Text>
-          <Text style={styles.controlBtnText}>Campus</Text>
-        </TouchableOpacity>
-
-        {/* TOGGLE SATELLITE / STREET */}
-        <TouchableOpacity
-          style={[styles.controlBtn, isSatellite && styles.controlBtnActive]}
-          onPress={toggleMapType}
-          activeOpacity={0.8}
-          accessibilityLabel="Toggle satellite view"
-        >
-          <Text style={styles.controlIcon}>{isSatellite ? '🗺️' : '🛰️'}</Text>
-          <Text style={styles.controlBtnText}>{isSatellite ? 'Street' : 'Satellite'}</Text>
-        </TouchableOpacity>
-      </View>
     </View>
   );
 };
@@ -864,430 +635,232 @@ export const MapScreen: React.FC<MapScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#060d09',
+    backgroundColor: '#0f172a',
   },
   map: {
     flex: 1,
   },
   loadingContainer: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: '#060d09',
+    backgroundColor: '#0f172a',
     alignItems: 'center',
     justifyContent: 'center',
   },
   loadingText: {
     color: '#94a3b8',
     fontSize: 12,
-    fontWeight: '700',
     marginTop: 8,
   },
-  topOverlay: {
+  topBar: {
     position: 'absolute',
-    top: 10,
-    left: 12,
-    right: 12,
+    top: 12,
+    left: 14,
+    right: 14,
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
+    alignItems: 'center',
   },
-  statusPill: {
-    backgroundColor: 'rgba(12, 23, 18, 0.92)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+  titlePill: {
+    backgroundColor: '#0f172a',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
     borderRadius: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  statusDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-  },
-  statusDotGreen: {
-    backgroundColor: '#10b981',
-  },
-  statusDotOrange: {
-    backgroundColor: '#f59e0b',
-  },
-  statusText: {
-    color: '#f1f5f9',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  layerBar: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  layerChip: {
-    backgroundColor: 'rgba(12, 23, 18, 0.9)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 14,
+    borderColor: '#334155',
   },
-  layerChipActive: {
-    backgroundColor: '#10b981',
-    borderColor: '#10b981',
-  },
-  layerChipText: {
-    color: '#94a3b8',
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  layerChipTextActive: {
-    color: '#ffffff',
-  },
-  // ONE-TAP EVACUATE BUTTON
-  evacTriggerContainer: {
-    position: 'absolute',
-    top: 50,
-    left: 12,
-  },
-  evacTriggerBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.4,
-    shadowRadius: 5,
-    elevation: 5,
-  },
-  evacTriggerBtnDanger: {
-    backgroundColor: '#dc2626',
-    borderWidth: 1.5,
-    borderColor: '#fca5a5',
-  },
-  evacTriggerBtnActive: {
-    backgroundColor: '#059669',
-    borderWidth: 1.5,
-    borderColor: '#6ee7b7',
-  },
-  evacTriggerIcon: {
-    fontSize: 18,
-  },
-  evacTriggerTitle: {
-    color: '#ffffff',
-    fontSize: 11.5,
-    fontWeight: '900',
-    letterSpacing: 0.4,
-  },
-  evacTriggerSub: {
-    color: 'rgba(255, 255, 255, 0.85)',
-    fontSize: 9.5,
-    fontWeight: '600',
-  },
-  // CONTROLS GROUP
-  controlsGroup: {
-    position: 'absolute',
-    right: 12,
-    top: 95,
-    gap: 8,
-  },
-  controlBtn: {
-    backgroundColor: 'rgba(12, 23, 18, 0.92)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 58,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  controlBtnActive: {
-    borderColor: '#10b981',
-    backgroundColor: 'rgba(16, 185, 129, 0.25)',
-  },
-  controlIcon: {
-    fontSize: 17,
-    marginBottom: 2,
-  },
-  controlBtnText: {
-    color: '#cbd5e1',
-    fontSize: 9.5,
-    fontWeight: '800',
-  },
-  // ACTIVE EVACUATION GUIDANCE CARD
-  guidanceCardContainer: {
-    position: 'absolute',
-    bottom: 12,
-    left: 12,
-    right: 12,
-  },
-  guidanceCard: {
-    backgroundColor: '#0c1712',
-    borderWidth: 2,
-    borderColor: '#10b981',
-    borderRadius: 16,
-    padding: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.6,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  guidanceHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  guidanceTagRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  guidanceBadge: {
-    backgroundColor: '#ef4444',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  guidanceBadgeText: {
-    color: '#ffffff',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-  guidanceTimeTag: {
-    color: '#10b981',
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  guidanceCloseBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  guidanceCloseText: {
-    color: '#cbd5e1',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  guidanceTargetName: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '900',
-    marginBottom: 2,
-  },
-  guidanceOrigin: {
-    color: '#94a3b8',
-    fontSize: 11,
-    marginBottom: 10,
-  },
-  metricsBar: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(0, 0, 0, 0.35)',
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  metricItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  metricDivider: {
-    width: 1,
-    height: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-  },
-  metricVal: {
-    color: '#10b981',
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  metricLabel: {
-    color: '#64748b',
-    fontSize: 9.5,
-    fontWeight: '700',
-    marginTop: 1,
-  },
-  guidanceInstruction: {
-    color: '#cbd5e1',
-    fontSize: 11,
-    lineHeight: 15,
-    marginBottom: 10,
-  },
-  hubSwitcherBox: {
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
-    paddingTop: 8,
-  },
-  hubSwitcherTitle: {
-    color: '#94a3b8',
-    fontSize: 10,
-    fontWeight: '700',
-    marginBottom: 6,
-  },
-  hubBtnRow: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  hubSwitchBtn: {
-    flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    paddingVertical: 5,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  hubSwitchBtnActive: {
-    backgroundColor: '#059669',
-    borderColor: '#10b981',
-  },
-  hubSwitchBtnText: {
-    color: '#cbd5e1',
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  hubSwitchBtnTextActive: {
-    color: '#ffffff',
-  },
-  // DETAIL CARD (WHEN NOT ROUTING)
-  detailCardContainer: {
-    position: 'absolute',
-    bottom: 12,
-    left: 12,
-    right: 12,
-  },
-  detailCard: {
-    backgroundColor: '#0c1712',
-    borderWidth: 1,
-    borderColor: '#10b981',
-    borderRadius: 16,
-    padding: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  detailHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  detailTitleBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flex: 1,
-  },
-  badgePill: {
-    backgroundColor: '#f59e0b',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  badgePillText: {
-    color: '#0f172a',
-    fontSize: 10,
-    fontWeight: '900',
-  },
-  detailTitle: {
+  titlePillText: {
     color: '#f8fafc',
-    fontSize: 15,
-    fontWeight: '800',
-    flex: 1,
-  },
-  closeBtn: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  closeBtnText: {
-    color: '#cbd5e1',
     fontSize: 12,
     fontWeight: '700',
   },
-  detailSubtitle: {
-    color: '#10b981',
-    fontSize: 11,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  detailDesc: {
-    color: '#cbd5e1',
-    fontSize: 11.5,
-    lineHeight: 16,
-    marginBottom: 8,
-  },
-  distanceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    marginBottom: 10,
-  },
-  distanceLabel: {
-    color: '#64748b',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  distanceValue: {
-    color: '#10b981',
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  actionBtnRow: {
+  quickControls: {
     flexDirection: 'row',
     gap: 8,
   },
-  evacFromPlaceBtn: {
-    flex: 2,
-    backgroundColor: '#dc2626',
-    borderRadius: 10,
-    paddingVertical: 9,
+  circleBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#0f172a',
+    borderWidth: 1,
+    borderColor: '#334155',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
   },
-  evacFromPlaceBtnText: {
+  circleBtnText: {
+    fontSize: 16,
+  },
+  bottomCardContainer: {
+    position: 'absolute',
+    bottom: 14,
+    left: 14,
+    right: 14,
+  },
+  mainEvacBtn: {
+    backgroundColor: '#dc2626',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  mainEvacBtnIcon: {
+    fontSize: 22,
+  },
+  mainEvacBtnTitle: {
     color: '#ffffff',
-    fontSize: 11.5,
+    fontSize: 15,
     fontWeight: '800',
   },
-  focusBtn: {
-    flex: 1,
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    borderWidth: 1,
-    borderColor: '#10b981',
-    borderRadius: 10,
-    paddingVertical: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
+  mainEvacBtnSub: {
+    color: '#fee2e2',
+    fontSize: 11,
+    marginTop: 2,
   },
-  focusBtnText: {
-    color: '#10b981',
-    fontSize: 11.5,
+  mainEvacBtnArrow: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  evacCard: {
+    backgroundColor: '#0f172a',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#059669',
+    padding: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  cardTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  evacTitleGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  evacIcon: {
+    fontSize: 24,
+  },
+  evacTarget: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  evacSub: {
+    color: '#34d399',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  endBtn: {
+    backgroundColor: '#334155',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  endBtnText: {
+    color: '#f1f5f9',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  instructionText: {
+    color: '#cbd5e1',
+    fontSize: 12,
+    lineHeight: 16,
+    marginBottom: 10,
+  },
+  hubSelectorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#1e293b',
+    paddingTop: 8,
+  },
+  hubSelectorLabel: {
+    color: '#94a3b8',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  hubOption: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: '#1e293b',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  hubOptionActive: {
+    backgroundColor: '#059669',
+    borderColor: '#059669',
+  },
+  hubOptionText: {
+    color: '#94a3b8',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  hubOptionTextActive: {
+    color: '#ffffff',
+  },
+  placeCard: {
+    backgroundColor: '#0f172a',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#334155',
+    padding: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  placeTitle: {
+    color: '#f8fafc',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  placeSubtitle: {
+    color: '#94a3b8',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  closePlaceBtn: {
+    padding: 4,
+  },
+  closePlaceText: {
+    color: '#94a3b8',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  evacFromBtn: {
+    backgroundColor: '#059669',
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  evacFromBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
     fontWeight: '800',
   },
 });
