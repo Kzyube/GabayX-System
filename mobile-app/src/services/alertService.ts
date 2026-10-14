@@ -9,6 +9,9 @@ import { io, Socket } from 'socket.io-client';
 import { Vibration } from 'react-native';
 import { DisasterAlert } from '../types/alert';
 import { getResidentDeviceId } from '../utils/deviceIdentity';
+import { GCashVoucher, CreateDonationInput, ReliefSupply } from '../types/voucher';
+import { voucherRepository } from '../database/voucherRepository';
+import { soundService } from './soundService';
 
 const DEFAULT_API_BASE = 'https://gabayx-system.onrender.com';
 
@@ -20,6 +23,8 @@ export interface AdminReplyMessage {
 
 export type ResidentStatus = 'SAFE' | 'DANGER';
 export type ResidentStatusListener = (status: ResidentStatus) => void;
+export type VoucherListener = (voucher: GCashVoucher) => void;
+export type SupplyListener = (supplies: ReliefSupply[]) => void;
 
 type AlertListener = (alert: DisasterAlert) => void;
 type ClearListener = () => void;
@@ -33,9 +38,12 @@ class AlertService {
   private statusListeners: Set<StatusListener> = new Set();
   private replyListeners: Set<ReplyListener> = new Set();
   private residentStatusListeners: Set<ResidentStatusListener> = new Set();
+  private voucherListeners: Set<VoucherListener> = new Set();
+  private supplyListeners: Set<SupplyListener> = new Set();
   private isConnected: boolean = false;
   private currentAlert: DisasterAlert | null = null;
   private currentResidentStatus: ResidentStatus = 'SAFE';
+  private activeSupplies: ReliefSupply[] = [];
   private residentId: string | null = null;
   private heartbeatTimer: any = null;
 
@@ -116,14 +124,35 @@ class AlertService {
       });
 
       // 1. Listen for incoming community-wide disaster broadcasts from MDRRMO
-      this.socket.on('receive-alert', (data: any) => {
+      this.socket.on('receive-alert', async (data: any) => {
         console.log('[AlertService] Broadcast received:', data);
         if (!data || !data.type) return;
 
         const type = String(data.type).toUpperCase();
         if (type === 'SAFE' || type === 'CLEAR') {
           this.currentAlert = null;
+          soundService.stopEmergencySiren();
           this.notifyClear();
+        } else if (type === 'SUPPLY') {
+          // Relief Supply marked by admin: strictly a map marking without any evacuation route
+          console.log('[AlertService] Relief supply point marked by admin:', data);
+          if (data.lat && data.lng) {
+            const newSupply: ReliefSupply = {
+              id: String(data.id || Date.now()),
+              latitude: parseFloat(data.lat),
+              longitude: parseFloat(data.lng),
+              message: data.message || 'Relief supplies available here.',
+              createdAt: new Date().toISOString(),
+            };
+            await voucherRepository.saveSupply(newSupply);
+            this.activeSupplies = [newSupply, ...this.activeSupplies.filter((s) => s.id !== newSupply.id)];
+            this.notifySupplies(this.activeSupplies);
+            try {
+              Vibration.vibrate(150);
+            } catch {}
+            soundService.playNotificationChime();
+          }
+          return;
         } else {
           const alertObj: DisasterAlert = {
             type: data.type,
@@ -139,6 +168,9 @@ class AlertService {
           } catch {
             // Fallback
           }
+
+          // Trigger audible emergency siren loop (not just vibration)
+          soundService.playEmergencySiren(8000);
 
           this.notifyAlert(alertObj);
         }
@@ -157,6 +189,8 @@ class AlertService {
           // Fallback
         }
 
+        soundService.playNotificationChime();
+
         const replyObj: AdminReplyMessage = {
           message: msgText,
           sender: (typeof data === 'object' && data.sender) ? data.sender : 'MDRRMO Central Dispatch',
@@ -164,6 +198,38 @@ class AlertService {
         };
 
         this.notifyReply(replyObj);
+      });
+
+      // 3. Listen for incoming live GCash relief donation vouchers beamed to residents
+      this.socket.on('donation-dropped', async (data: any) => {
+        console.log('[AlertService] Incoming GCash relief donation voucher:', data);
+        if (!data || (!data.voucher && !data.voucher_code)) return;
+
+        try {
+          Vibration.vibrate([0, 200, 100, 200]);
+        } catch {}
+
+        soundService.playNotificationChime();
+
+        const voucherObj = await voucherRepository.saveVoucher({
+          voucherCode: data.voucher || data.voucher_code,
+          amount: parseFloat(data.amount) || 0,
+          personsCount: parseInt(data.persons_count) || Math.max(1, Math.round((parseFloat(data.amount) || 0) / 250)),
+          donorName: data.donor || data.donor_name || 'Community Donor',
+          targetZone: data.zone || data.target_zone || 'ALL ZONES',
+          createdAt: data.created_at || new Date().toISOString(),
+        });
+
+        this.notifyVoucher(voucherObj);
+      });
+
+      // 4. Listen for relief supply removals by admin
+      this.socket.on('supply-removed', async (data: any) => {
+        if (!data || !data.id) return;
+        const idStr = String(data.id);
+        await voucherRepository.removeSupply(idStr);
+        this.activeSupplies = this.activeSupplies.filter((s) => s.id !== idStr);
+        this.notifySupplies(this.activeSupplies);
       });
     } catch (err) {
       console.error('[AlertService] Failed to initialize socket:', err);
@@ -280,7 +346,7 @@ class AlertService {
         const latest = history[0];
         const latestType = String(latest.type || '').toUpperCase();
 
-        if (latestType && latestType !== 'SAFE' && latestType !== 'CLEAR') {
+        if (latestType && latestType !== 'SAFE' && latestType !== 'CLEAR' && latestType !== 'SUPPLY') {
           const alertObj: DisasterAlert = {
             type: latest.type,
             message: latest.instructions || `Active ${latest.type} emergency reported.`,
@@ -298,6 +364,149 @@ class AlertService {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Submit GCash donation from the phone
+   */
+  async submitDonation(
+    params: CreateDonationInput,
+    apiBase: string = DEFAULT_API_BASE
+  ): Promise<GCashVoucher> {
+    const payload = {
+      donor_name: params.donorName || 'Community Donor',
+      amount: params.amount,
+      persons_count: params.personsCount,
+      target_zone: params.targetZone || 'ALL ZONES',
+      target_lat: params.targetLat || null,
+      target_lng: params.targetLng || null,
+    };
+
+    // Try socket first if connected
+    if (this.socket && this.socket.connected) {
+      this.socket.emit('submit-donation', payload);
+    }
+
+    // Also attempt REST call to ensure database persistence
+    try {
+      const res = await fetch(`${apiBase}/api/donate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json && json.voucher) {
+          return await voucherRepository.saveVoucher({
+            voucherCode: json.voucher,
+            amount: json.amount,
+            personsCount: json.persons_count,
+            donorName: json.donor,
+            targetZone: json.zone,
+            createdAt: json.created_at,
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('[AlertService] REST donate error:', e);
+    }
+
+    // Offline / fallback simulated voucher code
+    const fallbackCode = 'GX-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+    return await voucherRepository.saveVoucher({
+      voucherCode: fallbackCode,
+      amount: params.amount,
+      personsCount: params.personsCount,
+      donorName: params.donorName || 'Community Donor',
+      targetZone: params.targetZone || 'ALL ZONES',
+    });
+  }
+
+  /**
+   * Fetch active relief supplies from database and API
+   */
+  async fetchActiveSupplies(apiBase: string = DEFAULT_API_BASE): Promise<ReliefSupply[]> {
+    try {
+      // 1. Read SQLite stored supplies first
+      const local = await voucherRepository.getAllSupplies();
+      if (local.length > 0) {
+        this.activeSupplies = local;
+        this.notifySupplies(this.activeSupplies);
+      }
+
+      // 2. Fetch fresh supplies from REST API
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const res = await fetch(`${apiBase}/api/supplies`, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const suppliesData = await res.json();
+        if (Array.isArray(suppliesData)) {
+          const freshList: ReliefSupply[] = [];
+          for (const s of suppliesData) {
+            if (s.lat && s.lng) {
+              const item: ReliefSupply = {
+                id: String(s.id || s.created_at || Math.random()),
+                latitude: parseFloat(s.lat),
+                longitude: parseFloat(s.lng),
+                message: s.instructions || s.message || 'Relief supplies available here.',
+                createdAt: s.created_at || new Date().toISOString(),
+              };
+              await voucherRepository.saveSupply(item);
+              freshList.push(item);
+            }
+          }
+          if (freshList.length > 0) {
+            this.activeSupplies = freshList;
+            this.notifySupplies(this.activeSupplies);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[AlertService] Error fetching supplies:', err);
+    }
+    return this.activeSupplies;
+  }
+
+  getActiveSupplies(): ReliefSupply[] {
+    return this.activeSupplies;
+  }
+
+  subscribeVoucher(listener: VoucherListener): () => void {
+    this.voucherListeners.add(listener);
+    return () => this.voucherListeners.delete(listener);
+  }
+
+  subscribeSupplies(listener: SupplyListener): () => void {
+    this.supplyListeners.add(listener);
+    if (this.activeSupplies.length > 0) {
+      listener(this.activeSupplies);
+    }
+    return () => this.supplyListeners.delete(listener);
+  }
+
+  private notifyVoucher(voucher: GCashVoucher) {
+    this.voucherListeners.forEach((l) => {
+      try {
+        l(voucher);
+      } catch (e) {
+        console.error('[AlertService] Error in voucherListener:', e);
+      }
+    });
+  }
+
+  private notifySupplies(supplies: ReliefSupply[]) {
+    this.supplyListeners.forEach((l) => {
+      try {
+        l(supplies);
+      } catch (e) {
+        console.error('[AlertService] Error in supplyListener:', e);
+      }
+    });
   }
 
   getCurrentAlert(): DisasterAlert | null {

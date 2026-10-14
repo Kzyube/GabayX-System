@@ -22,6 +22,7 @@ import { alertService, ResidentStatus } from '../services/alertService';
 import { getStoredResidentStatus, setStoredResidentStatus } from '../utils/deviceIdentity';
 import { reportRepository } from '../database/reportRepository';
 import { syncService } from '../sync/syncService';
+import { ReliefSupply } from '../types/voucher';
 
 function calculateDistanceMeters(
   lat1: number,
@@ -129,7 +130,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
 
   // Selected place for bottom sheet
   const [selectedPlace, setSelectedPlace] = useState<{
-    type: 'building' | 'safe_zone';
+    type: 'building' | 'safe_zone' | 'supply_drop';
     title: string;
     subtitle: string;
     description: string;
@@ -146,6 +147,14 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   const [residentStatus, setResidentStatus] = useState<ResidentStatus>('SAFE');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<boolean>(false);
 
+  // Relief supplies marked by admin
+  const [activeSupplies, setActiveSupplies] = useState<ReliefSupply[]>([]);
+
+  const postMessageToWeb = useCallback((msg: object) => {
+    const js = `window.handleNativeMessage && window.handleNativeMessage(${JSON.stringify(msg)}); true;`;
+    webViewRef.current?.injectJavaScript(js);
+  }, []);
+
   useEffect(() => {
     // 1. Read stored status from SQLite
     getStoredResidentStatus().then((status) => {
@@ -153,17 +162,33 @@ export const MapScreen: React.FC<MapScreenProps> = ({
     });
 
     // 2. Subscribe to real-time status updates from alertService
-    const unsubscribe = alertService.subscribeResidentStatus((status) => {
+    const unsubscribeStatus = alertService.subscribeResidentStatus((status) => {
       setResidentStatus(status);
     });
 
-    return () => unsubscribe();
-  }, []);
+    // 3. Subscribe to real-time relief supplies marked by admin
+    const unsubscribeSupplies = alertService.subscribeSupplies((supplies) => {
+      setActiveSupplies(supplies);
+      postMessageToWeb({ type: 'UPDATE_SUPPLIES', supplies });
+    });
 
-  const postMessageToWeb = useCallback((msg: object) => {
-    const js = `window.handleNativeMessage && window.handleNativeMessage(${JSON.stringify(msg)}); true;`;
-    webViewRef.current?.injectJavaScript(js);
-  }, []);
+    // 4. Load initial cached relief supplies
+    const initialSupplies = alertService.getActiveSupplies();
+    if (initialSupplies.length > 0) {
+      setActiveSupplies(initialSupplies);
+      postMessageToWeb({ type: 'UPDATE_SUPPLIES', supplies: initialSupplies });
+    } else {
+      alertService.fetchActiveSupplies().then((supplies) => {
+        setActiveSupplies(supplies);
+        postMessageToWeb({ type: 'UPDATE_SUPPLIES', supplies });
+      }).catch(() => {});
+    }
+
+    return () => {
+      unsubscribeStatus();
+      unsubscribeSupplies();
+    };
+  }, [postMessageToWeb]);
 
   useEffect(() => {
     let subscriber: Location.LocationSubscription | null = null;
@@ -450,6 +475,9 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         if (userCoords) {
           postMessageToWeb({ type: 'UPDATE_USER_LOCATION', coords: userCoords });
         }
+        if (activeSupplies.length > 0) {
+          postMessageToWeb({ type: 'UPDATE_SUPPLIES', supplies: activeSupplies });
+        }
       } else if (data.type === 'SELECT_PLACE') {
         setSelectedPlace(data.place);
       }
@@ -493,6 +521,12 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
       white-space: nowrap;
     }
+    .supply-marker {
+      background: #ea580c; border: 2px solid #ffffff; border-radius: 14px;
+      padding: 3px 8px; color: #ffffff; font-weight: 800; font-size: 11px;
+      display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 8px rgba(234,88,12,0.5);
+      white-space: nowrap;
+    }
     .user-pulse {
       width: 16px; height: 16px; border-radius: 50%; background: #2563eb;
       border: 3px solid #ffffff; box-shadow: 0 0 8px rgba(37,99,235,0.7);
@@ -511,6 +545,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
     let userMarker = null;
     let bldgLayer = L.layerGroup().addTo(map);
     let zoneLayer = L.layerGroup().addTo(map);
+    let supplyLayer = L.layerGroup().addTo(map);
     let dynamicRouteGroup = L.layerGroup().addTo(map);
 
     const BUILDINGS = ${JSON.stringify(COMMUNITY_FACILITIES)};
@@ -630,6 +665,36 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         });
       } else if (data.type === 'CLEAR_EVACUATION_ROUTE') {
         dynamicRouteGroup.clearLayers();
+      } else if (data.type === 'RECENTER_COORDS' && data.coords) {
+        map.setView([data.coords.latitude, data.coords.longitude], 18, { animate: true });
+      } else if (data.type === 'UPDATE_SUPPLIES') {
+        supplyLayer.clearLayers();
+        if (Array.isArray(data.supplies)) {
+          data.supplies.forEach(function(s) {
+            const icon = L.divIcon({
+              className: '',
+              html: '<div class="supply-marker">📦 Relief Aid</div>',
+              iconSize: [84, 24],
+              iconAnchor: [42, 12]
+            });
+            const m = L.marker([s.latitude, s.longitude], { icon: icon });
+            m.on('click', function() {
+              window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'SELECT_PLACE',
+                place: {
+                  type: 'supply_drop',
+                  title: 'Relief Supply Point',
+                  subtitle: s.message || 'Supplies available here',
+                  description: 'Marked by MDRRMO Admin for community relief distribution.',
+                  latitude: s.latitude,
+                  longitude: s.longitude,
+                  badge: '📦'
+                }
+              }));
+            });
+            supplyLayer.addLayer(m);
+          });
+        }
       }
     };
 
@@ -671,7 +736,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
             activeOpacity={0.8}
             accessibilityLabel="Center on GPS"
           >
-            <Text style={styles.circleBtnText}>📍</Text>
+            <Text style={styles.circleBtnText}>GPS</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -680,7 +745,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
             activeOpacity={0.8}
             accessibilityLabel="Toggle satellite"
           >
-            <Text style={styles.circleBtnText}>{isSatellite ? '🗺️' : '🛰️'}</Text>
+            <Text style={styles.circleBtnText}>{isSatellite ? 'Map' : 'Sat'}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -692,7 +757,6 @@ export const MapScreen: React.FC<MapScreenProps> = ({
           <View style={styles.evacCard}>
             <View style={styles.cardTopRow}>
               <View style={styles.evacTitleGroup}>
-                <Text style={styles.evacIcon}>🛡️</Text>
                 <View>
                   <Text style={styles.evacTarget}>{activeEvacRoute.targetZone.name}</Text>
                   <Text style={styles.evacSub}>
@@ -705,13 +769,14 @@ export const MapScreen: React.FC<MapScreenProps> = ({
                 onPress={handleClearRoute}
                 style={styles.endBtn}
                 activeOpacity={0.7}
+                accessibilityLabel="End route"
               >
-                <Text style={styles.endBtnText}>End</Text>
+                <Text style={styles.endBtnText}>End Route</Text>
               </TouchableOpacity>
             </View>
 
             <Text style={styles.instructionText}>
-              Follow the green dashed path directly to the safe assembly area.
+              Follow the green dashed street route directly to the designated safe zone.
             </Text>
 
             {/* Hub Selector */}
@@ -741,7 +806,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
               activeOpacity={0.85}
               disabled={isUpdatingStatus}
             >
-              <Text style={styles.arrivedSafeBtnText}>🛡️ I've Arrived / Mark as Safe</Text>
+              <Text style={styles.arrivedSafeBtnText}>I've Arrived / Mark as Safe</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -771,16 +836,16 @@ export const MapScreen: React.FC<MapScreenProps> = ({
                     residentStatus === 'SAFE' ? styles.statusTextSafe : styles.statusTextDanger,
                   ]}
                 >
-                  {residentStatus === 'SAFE' ? 'STATUS: MARKED SAFE' : 'STATUS: IN DANGER / SOS'}
+                  {residentStatus === 'SAFE' ? 'STATUS: SAFE' : 'STATUS: IN DANGER / SOS'}
                 </Text>
               </View>
 
               <Text style={styles.statusGpsNote}>
-                {userCoords ? '📍 Live GPS' : '🛰️ Acquiring GPS'}
+                {userCoords ? 'Live GPS Active' : 'Acquiring GPS...'}
               </Text>
             </View>
 
-            {/* The Two Main Action Buttons side-by-side */}
+            {/* The Two Main Action Buttons side-by-side (54px min height for emergency resilience) */}
             <View style={styles.statusButtonGroup}>
               {/* I'M SAFE BUTTON */}
               <TouchableOpacity
@@ -792,8 +857,8 @@ export const MapScreen: React.FC<MapScreenProps> = ({
                 onPress={handleMarkSafe}
                 disabled={isUpdatingStatus}
                 activeOpacity={0.8}
+                accessibilityLabel="Mark as safe"
               >
-                <Text style={styles.btnActionIcon}>🛡️</Text>
                 <View style={styles.btnTextCol}>
                   <Text style={styles.btnSafeTitle}>I'M SAFE</Text>
                   <Text style={styles.btnSafeSubtitle}>Mark as Safe</Text>
@@ -810,8 +875,8 @@ export const MapScreen: React.FC<MapScreenProps> = ({
                 onPress={handleMarkNotSafe}
                 disabled={isUpdatingStatus}
                 activeOpacity={0.8}
+                accessibilityLabel="Declare emergency SOS and evacuate"
               >
-                <Text style={styles.btnActionIcon}>🚨</Text>
                 <View style={styles.btnTextCol}>
                   <Text style={styles.btnDangerTitle}>I'M NOT SAFE</Text>
                   <Text style={styles.btnDangerSubtitle}>SOS & Evacuate</Text>
@@ -822,41 +887,89 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         </View>
       )}
 
-      {/* 3. When a Building is Tapped */}
+      {/* 3. When a Place or Supply Marker is Tapped */}
       {!activeEvacRoute && selectedPlace && (
         <View style={styles.bottomCardContainer}>
-          <View style={styles.placeCard}>
-            <View style={styles.cardTopRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.placeTitle}>{selectedPlace.title}</Text>
-                <Text style={styles.placeSubtitle}>
-                  {selectedPlace.subtitle}
-                  {selectedPlace.latitude && selectedPlace.longitude
-                    ? ` • ${getDistanceFromUser(selectedPlace.latitude, selectedPlace.longitude) || 'Nearby'}`
-                    : ''}
-                </Text>
+          {selectedPlace.type === 'supply_drop' ? (
+            /* RELIEF SUPPLY MARKER CARD: NO ROUTE, JUST MARKING & FOCUS */
+            <View style={styles.supplyCard}>
+              <View style={styles.cardTopRow}>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.supplyBadge}>
+                    <Text style={styles.supplyBadgeText}>RELIEF SUPPLY POINT</Text>
+                  </View>
+                  <Text style={styles.placeTitle}>{selectedPlace.title}</Text>
+                  <Text style={styles.placeSubtitle}>
+                    {selectedPlace.subtitle}
+                    {selectedPlace.latitude && selectedPlace.longitude
+                      ? ` • ${getDistanceFromUser(selectedPlace.latitude, selectedPlace.longitude) || 'Nearby'}`
+                      : ''}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setSelectedPlace(null)}
+                  style={styles.closePlaceBtn}
+                  accessibilityLabel="Close supply card"
+                >
+                  <Text style={styles.closePlaceText}>✕</Text>
+                </TouchableOpacity>
               </View>
+
+              <Text style={styles.supplyDescText}>
+                {selectedPlace.description || 'Marked by MDRRMO Admin. Relief supplies are available at this station.'}
+              </Text>
+
               <TouchableOpacity
-                onPress={() => setSelectedPlace(null)}
-                style={styles.closePlaceBtn}
+                style={styles.centerSupplyBtn}
+                onPress={() => {
+                  if (selectedPlace.latitude && selectedPlace.longitude) {
+                    postMessageToWeb({
+                      type: 'RECENTER_COORDS',
+                      coords: { latitude: selectedPlace.latitude, longitude: selectedPlace.longitude },
+                    });
+                  }
+                }}
+                activeOpacity={0.85}
               >
-                <Text style={styles.closePlaceText}>✕</Text>
+                <Text style={styles.centerSupplyBtnText}>Center on Supply Location</Text>
               </TouchableOpacity>
             </View>
+          ) : (
+            /* Regular Facility / Safe Zone */
+            <View style={styles.placeCard}>
+              <View style={styles.cardTopRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.placeTitle}>{selectedPlace.title}</Text>
+                  <Text style={styles.placeSubtitle}>
+                    {selectedPlace.subtitle}
+                    {selectedPlace.latitude && selectedPlace.longitude
+                      ? ` • ${getDistanceFromUser(selectedPlace.latitude, selectedPlace.longitude) || 'Nearby'}`
+                      : ''}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setSelectedPlace(null)}
+                  style={styles.closePlaceBtn}
+                  accessibilityLabel="Close place card"
+                >
+                  <Text style={styles.closePlaceText}>✕</Text>
+                </TouchableOpacity>
+              </View>
 
-            <TouchableOpacity
-              style={styles.evacFromBtn}
-              onPress={() => {
-                startEvacuationRoute(
-                  { latitude: selectedPlace.latitude!, longitude: selectedPlace.longitude! },
-                  selectedPlace.title
-                );
-              }}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.evacFromBtnText}>🏃 Evacuate from this Location</Text>
-            </TouchableOpacity>
-          </View>
+              <TouchableOpacity
+                style={styles.evacFromBtn}
+                onPress={() => {
+                  startEvacuationRoute(
+                    { latitude: selectedPlace.latitude!, longitude: selectedPlace.longitude! },
+                    selectedPlace.title
+                  );
+                }}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.evacFromBtnText}>Evacuate from this Location</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       )}
     </View>
@@ -866,21 +979,22 @@ export const MapScreen: React.FC<MapScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#F8FAFC',
   },
   map: {
     flex: 1,
   },
   loadingContainer: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#F8FAFC',
     alignItems: 'center',
     justifyContent: 'center',
   },
   loadingText: {
-    color: '#94a3b8',
+    color: '#475569',
     fontSize: 12,
     marginTop: 8,
+    fontWeight: '600',
   },
   topBar: {
     position: 'absolute',
@@ -892,15 +1006,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   titlePill: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
+    paddingVertical: 8,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   titlePillText: {
-    color: '#f8fafc',
+    color: '#0F172A',
     fontSize: 12,
     fontWeight: '700',
   },
@@ -909,40 +1028,43 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   circleBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#0f172a',
+    minWidth: 42,
+    height: 38,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#E2E8F0',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   circleBtnText: {
-    fontSize: 16,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0F172A',
   },
   bottomCardContainer: {
     position: 'absolute',
-    bottom: 14,
+    bottom: 74,
     left: 14,
     right: 14,
   },
   statusPanelCard: {
-    backgroundColor: '#0f172a',
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: '#1e293b',
-    padding: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 14,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 3,
   },
   statusHeaderRow: {
     flexDirection: 'row',
@@ -955,44 +1077,43 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 6,
   },
   statusPillSafe: {
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    backgroundColor: '#F0FDF4',
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+    borderColor: '#BBF7D0',
   },
   statusPillDanger: {
-    backgroundColor: 'rgba(239, 68, 68, 0.18)',
+    backgroundColor: '#FEF2F2',
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.4)',
+    borderColor: '#FECACA',
   },
   statusPillDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   statusDotSafe: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#16A34A',
   },
   statusDotDanger: {
-    backgroundColor: '#ef4444',
+    backgroundColor: '#DC2626',
   },
   statusPillText: {
     fontSize: 10.5,
     fontWeight: '800',
-    letterSpacing: 0.4,
   },
   statusTextSafe: {
-    color: '#34d399',
+    color: '#15803D',
   },
   statusTextDanger: {
-    color: '#f87171',
+    color: '#B91C1C',
   },
   statusGpsNote: {
-    color: '#94a3b8',
+    color: '#64748B',
     fontSize: 11,
     fontWeight: '600',
   },
@@ -1002,97 +1123,84 @@ const styles = StyleSheet.create({
   },
   statusActionBtn: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
     paddingHorizontal: 10,
-    borderRadius: 12,
-    gap: 8,
+    borderRadius: 8,
+    minHeight: 54,
   },
   btnSafe: {
-    backgroundColor: '#f0fdf4',
-    borderWidth: 1.5,
-    borderColor: '#86efac',
-    shadowColor: '#10b981',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: '#16A34A',
+    borderWidth: 1,
+    borderColor: '#15803D',
   },
   btnSafeActive: {
-    backgroundColor: '#dcfce7',
-    borderColor: '#22c55e',
+    backgroundColor: '#15803D',
   },
   btnSafeTitle: {
-    color: '#15803d',
-    fontSize: 14.5,
-    fontWeight: '900',
-    letterSpacing: 0.3,
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+    textAlign: 'center',
   },
   btnSafeSubtitle: {
-    color: '#166534',
-    fontSize: 10,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 11,
     fontWeight: '600',
-    marginTop: 1,
+    marginTop: 2,
+    textAlign: 'center',
   },
   btnDanger: {
-    backgroundColor: '#dc2626',
-    borderWidth: 1.5,
-    borderColor: '#b91c1c',
-    shadowColor: '#dc2626',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 5,
-    elevation: 4,
+    backgroundColor: '#DC2626',
+    borderWidth: 1,
+    borderColor: '#B91C1C',
   },
   btnDangerActive: {
-    backgroundColor: '#b91c1c',
+    backgroundColor: '#B91C1C',
   },
   btnDangerTitle: {
-    color: '#ffffff',
-    fontSize: 14.5,
-    fontWeight: '900',
-    letterSpacing: 0.3,
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+    textAlign: 'center',
   },
   btnDangerSubtitle: {
-    color: '#fee2e2',
-    fontSize: 10,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 11,
     fontWeight: '600',
-    marginTop: 1,
-  },
-  btnActionIcon: {
-    fontSize: 20,
+    marginTop: 2,
+    textAlign: 'center',
   },
   btnTextCol: {
-    flexDirection: 'column',
+    alignItems: 'center',
   },
   arrivedSafeBtn: {
-    backgroundColor: '#059669',
-    borderRadius: 10,
-    paddingVertical: 10,
+    backgroundColor: '#16A34A',
+    borderRadius: 8,
+    paddingVertical: 12,
     alignItems: 'center',
     marginTop: 10,
-    borderWidth: 1,
-    borderColor: '#10b981',
+    minHeight: 48,
+    justifyContent: 'center',
   },
   arrivedSafeBtnText: {
-    color: '#ffffff',
-    fontSize: 12.5,
+    color: '#FFFFFF',
+    fontSize: 13,
     fontWeight: '800',
     letterSpacing: 0.3,
   },
   evacCard: {
-    backgroundColor: '#0f172a',
-    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: '#059669',
+    borderColor: '#0F766E',
     padding: 14,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 6,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
   },
   cardTopRow: {
     flexDirection: 'row',
@@ -1101,38 +1209,34 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   evacTitleGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
     flex: 1,
   },
-  evacIcon: {
-    fontSize: 24,
-  },
   evacTarget: {
-    color: '#ffffff',
+    color: '#0F172A',
     fontSize: 15,
     fontWeight: '800',
   },
   evacSub: {
-    color: '#34d399',
+    color: '#0F766E',
     fontSize: 12,
-    fontWeight: '600',
-    marginTop: 1,
+    fontWeight: '700',
+    marginTop: 2,
   },
   endBtn: {
-    backgroundColor: '#334155',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
   },
   endBtnText: {
-    color: '#f1f5f9',
-    fontSize: 12,
-    fontWeight: '600',
+    color: '#475569',
+    fontSize: 11.5,
+    fontWeight: '700',
   },
   instructionText: {
-    color: '#cbd5e1',
+    color: '#475569',
     fontSize: 12,
     lineHeight: 16,
     marginBottom: 10,
@@ -1142,53 +1246,53 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     borderTopWidth: 1,
-    borderTopColor: '#1e293b',
+    borderTopColor: '#E2E8F0',
     paddingTop: 8,
   },
   hubSelectorLabel: {
-    color: '#94a3b8',
+    color: '#64748B',
     fontSize: 11,
     fontWeight: '600',
   },
   hubOption: {
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 5,
     borderRadius: 6,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#F1F5F9',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#E2E8F0',
   },
   hubOptionActive: {
-    backgroundColor: '#059669',
-    borderColor: '#059669',
+    backgroundColor: '#0F766E',
+    borderColor: '#0F766E',
   },
   hubOptionText: {
-    color: '#94a3b8',
+    color: '#475569',
     fontSize: 11,
     fontWeight: '700',
   },
   hubOptionTextActive: {
-    color: '#ffffff',
+    color: '#FFFFFF',
   },
   placeCard: {
-    backgroundColor: '#0f172a',
-    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#E2E8F0',
     padding: 14,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 3,
   },
   placeTitle: {
-    color: '#f8fafc',
+    color: '#0F172A',
     fontSize: 15,
     fontWeight: '800',
   },
   placeSubtitle: {
-    color: '#94a3b8',
+    color: '#475569',
     fontSize: 12,
     marginTop: 2,
   },
@@ -1196,19 +1300,69 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   closePlaceText: {
-    color: '#94a3b8',
+    color: '#64748B',
     fontSize: 14,
     fontWeight: '700',
   },
   evacFromBtn: {
-    backgroundColor: '#059669',
-    borderRadius: 10,
-    paddingVertical: 10,
+    backgroundColor: '#0F766E',
+    borderRadius: 8,
+    paddingVertical: 12,
     alignItems: 'center',
     marginTop: 10,
+    minHeight: 48,
+    justifyContent: 'center',
   },
   evacFromBtnText: {
-    color: '#ffffff',
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  supplyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#EA580C',
+    padding: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  supplyBadge: {
+    backgroundColor: '#FFF7ED',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FFEDD5',
+    alignSelf: 'flex-start',
+    marginBottom: 6,
+  },
+  supplyBadgeText: {
+    color: '#EA580C',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  supplyDescText: {
+    color: '#475569',
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: 6,
+    marginBottom: 10,
+  },
+  centerSupplyBtn: {
+    backgroundColor: '#EA580C',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    minHeight: 48,
+    justifyContent: 'center',
+  },
+  centerSupplyBtnText: {
+    color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '800',
   },

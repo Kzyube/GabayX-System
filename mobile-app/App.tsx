@@ -7,11 +7,13 @@ import {
   SafeAreaView,
   TouchableOpacity,
   FlatList,
+  ScrollView,
   ActivityIndicator,
   RefreshControl,
   Alert,
   Modal,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { GabayXReport, CreateReportInput } from './src/types/report';
 import { reportRepository } from './src/database/reportRepository';
 import { CreateReportModal } from './src/components/CreateReportModal';
@@ -21,24 +23,34 @@ import { syncService } from './src/sync/syncService';
 import { alertService, AdminReplyMessage, ResidentStatus } from './src/services/alertService';
 import { DisasterAlert } from './src/types/alert';
 import { DisasterAlertBanner } from './src/components/DisasterAlertBanner';
-import { getResidentDeviceId, getStoredResidentStatus } from './src/utils/deviceIdentity';
+import { getResidentDeviceId, getStoredResidentStatus, setStoredResidentStatus } from './src/utils/deviceIdentity';
+import { GCashVoucher } from './src/types/voucher';
+import { voucherRepository } from './src/database/voucherRepository';
+import { DonateModal } from './src/components/DonateModal';
+import { VoucherAlertModal } from './src/components/VoucherAlertModal';
+import { VouchersListModal } from './src/components/VouchersListModal';
+import { HotlinesModal } from './src/components/HotlinesModal';
+import { soundService } from './src/services/soundService';
+import { AudioPlayer } from './src/components/AudioPlayer';
 
 const CATEGORY_ICONS: Record<string, { icon: string; color: string }> = {
-  MEDICAL: { icon: '🚑', color: '#ef4444' },
-  FIRE: { icon: '🔥', color: '#f97316' },
+  MEDICAL: { icon: '🚑', color: '#dc2626' },
+  FIRE: { icon: '🔥', color: '#ea580c' },
   FLOOD: { icon: '🌊', color: '#0284c7' },
   EARTHQUAKE: { icon: '🏚️', color: '#d97706' },
-  TRAPPED: { icon: '🆘', color: '#dc2626' },
-  HAZARD: { icon: '⚠️', color: '#eab308' },
-  GENERAL: { icon: '📢', color: '#10b981' },
+  TRAPPED: { icon: '🆘', color: '#b91c1c' },
+  HAZARD: { icon: '⚠️', color: '#ca8a04' },
+  GENERAL: { icon: '📢', color: '#16a34a' },
 };
+
+type ScreenTab = 'REPORTS' | 'MAP' | 'AID';
 
 export default function App() {
   const [reports, setReports] = useState<GabayXReport[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [currentScreen, setCurrentScreen] = useState<'REPORTS' | 'MAP'>('REPORTS');
+  const [currentScreen, setCurrentScreen] = useState<ScreenTab>('REPORTS');
   const [activeTab, setActiveTab] = useState<'ALL' | 'PENDING'>('ALL');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -49,6 +61,7 @@ export default function App() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedReport, setSelectedReport] = useState<GabayXReport | null>(null);
   const [isReplyModalVisible, setIsReplyModalVisible] = useState(false);
+  const [isHotlinesOpen, setIsHotlinesOpen] = useState(false);
 
   // Real-time Disaster Alerts from Central Command
   const [activeAlert, setActiveAlert] = useState<DisasterAlert | null>(null);
@@ -61,6 +74,13 @@ export default function App() {
   // Resident safety status
   const [residentStatus, setResidentStatus] = useState<ResidentStatus>('SAFE');
 
+  // GCash Voucher & Donation System
+  const [vouchers, setVouchers] = useState<GCashVoucher[]>([]);
+  const [isDonateModalOpen, setIsDonateModalOpen] = useState(false);
+  const [isVouchersListOpen, setIsVouchersListOpen] = useState(false);
+  const [incomingVoucherAlert, setIncomingVoucherAlert] = useState<GCashVoucher | null>(null);
+  const [isVoucherAlertOpen, setIsVoucherAlertOpen] = useState(false);
+
   /**
    * Initialize device identity and Socket.io connection
    */
@@ -71,7 +91,7 @@ export default function App() {
 
     alertService.connect();
 
-    // 1. Listen for community disaster broadcasts
+    // 1. Listen for community disaster broadcasts (triggers siren & vibration)
     const unsubAlert = alertService.subscribeAlert((alert) => {
       setActiveAlert(alert);
       Alert.alert(
@@ -81,17 +101,23 @@ export default function App() {
           {
             text: '🗺️ View Evacuation Route',
             onPress: () => {
+              soundService.stopEmergencySiren();
               setAutoRouteRequested(true);
               setCurrentScreen('MAP');
             },
           },
-          { text: 'Understood', style: 'cancel' },
+          {
+            text: 'Silence Siren',
+            style: 'cancel',
+            onPress: () => soundService.stopEmergencySiren(),
+          },
         ]
       );
     });
 
     const unsubClear = alertService.subscribeClear(() => {
       setActiveAlert(null);
+      soundService.stopEmergencySiren();
       Alert.alert(
         '🛡️ Incident All Clear',
         'MDRRMO Incident Command has marked the situation SAFE / ALL CLEAR.',
@@ -117,6 +143,14 @@ export default function App() {
       setResidentStatus(status);
     });
 
+    // 4. Listen for real-time community GCash vouchers received
+    const unsubVoucher = alertService.subscribeVoucher((voucher) => {
+      console.log('[App] New GCash relief voucher received:', voucher);
+      setIncomingVoucherAlert(voucher);
+      setIsVoucherAlertOpen(true);
+      voucherRepository.getAllVouchers().then(setVouchers).catch(() => {});
+    });
+
     // Check on startup if an active disaster was already declared
     alertService.fetchActiveDisaster().then((existing) => {
       if (existing) {
@@ -130,6 +164,7 @@ export default function App() {
       unsubStatus();
       unsubReply();
       unsubResidentStatus();
+      unsubVoucher();
     };
   }, []);
 
@@ -151,6 +186,18 @@ export default function App() {
   }, []);
 
   /**
+   * Load vouchers from local SQLite database
+   */
+  const loadVouchers = useCallback(async () => {
+    try {
+      const data = await voucherRepository.getAllVouchers();
+      setVouchers(data);
+    } catch (err) {
+      console.warn('[App] Failed to load vouchers:', err);
+    }
+  }, []);
+
+  /**
    * Initialize database and load initial records on app launch
    */
   useEffect(() => {
@@ -158,6 +205,7 @@ export default function App() {
       try {
         await reportRepository.initStorage();
         await loadReports();
+        await loadVouchers();
       } catch (err) {
         console.error('[App] Database initialization failed:', err);
         setErrorMessage('Database initialization failed. Please restart the app.');
@@ -165,14 +213,14 @@ export default function App() {
       }
     }
     init();
-  }, [loadReports]);
+  }, [loadReports, loadVouchers]);
 
   /**
    * Pull-to-refresh handler
    */
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await loadReports();
+    await Promise.all([loadReports(), loadVouchers()]);
   };
 
   /**
@@ -206,10 +254,7 @@ export default function App() {
   };
 
   /**
-   * Handle emergency report creation:
-   * 1. Saves to SQLite (guaranteed offline safety).
-   * 2. Immediately dispatches via Socket.io.
-   * 3. Immediately triggers background REST sync.
+   * Handle emergency report creation
    */
   const handleCreateReport = async (data: CreateReportInput) => {
     try {
@@ -230,7 +275,7 @@ export default function App() {
           : created.contactInformation.name || undefined,
       });
 
-      // Immediate background sync attempt with REST backend
+      // Background sync attempt with REST backend
       syncService.syncPendingReports().then((res) => {
         if (res.syncedCount > 0) {
           loadReports();
@@ -274,6 +319,73 @@ export default function App() {
     );
   };
 
+  /**
+   * Toggle resident safety status from header bar
+   */
+  const handleToggleStatusFromHeader = () => {
+    if (residentStatus === 'SAFE') {
+      Alert.alert(
+        'Declare Emergency SOS?',
+        'This will mark your status as IN DANGER, send distress telemetry to MDRRMO, and open the road evacuation route.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Declare SOS',
+            style: 'destructive',
+            onPress: async () => {
+              setResidentStatus('DANGER');
+              await setStoredResidentStatus('DANGER');
+              await alertService.updateResidentStatus('DANGER', null, 10);
+              setAutoRouteRequested(true);
+              setCurrentScreen('MAP');
+            },
+          },
+        ]
+      );
+    } else {
+      Alert.alert(
+        'Mark as Safe?',
+        'This will inform MDRRMO Central Dispatch that you have reached a secure assembly area.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: "Yes, I'm Safe",
+            onPress: async () => {
+              setResidentStatus('SAFE');
+              await setStoredResidentStatus('SAFE');
+              await alertService.updateResidentStatus('SAFE', null, 10);
+              Alert.alert('✅ Marked Safe', 'MDRRMO Central Dispatch received your confirmation.');
+            },
+          },
+        ]
+      );
+    }
+  };
+
+  const handleCopyVoucher = async (code: string) => {
+    try {
+      await Clipboard.setStringAsync(code);
+      Alert.alert('Copied to Clipboard', `Voucher Code: ${code}`);
+    } catch {}
+  };
+
+  const handleClaimVoucher = async (id: string, code: string) => {
+    Alert.alert(
+      'Redeem Voucher?',
+      `Mark voucher ${code} as redeemed?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Mark Redeemed',
+          onPress: async () => {
+            await voucherRepository.markClaimed(id);
+            await loadVouchers();
+          },
+        },
+      ]
+    );
+  };
+
   // Filter list by tab
   const displayedReports = reports.filter((r) => {
     if (activeTab === 'PENDING') {
@@ -286,24 +398,29 @@ export default function App() {
     (r) => r.localStatus === 'PENDING' || r.localStatus === 'FAILED'
   ).length;
 
+  const unclaimedCount = vouchers.filter((v) => !v.isClaimed).length;
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
 
-      {/* HEADER BAR */}
+      {/* CLEAN CIVIC HEADER BAR */}
       <View style={styles.header}>
         <View>
           <Text style={styles.brandTitle}>GabayX</Text>
-          <Text style={styles.brandSubtitle}>Municipality of Kabacan • MDRRMO</Text>
+          <Text style={styles.brandSubtitle}>MDRRMO Public Safety Platform</Text>
         </View>
 
         <View style={styles.headerRightGroup}>
-          {/* Safety Status Indicator Pill */}
-          <View
+          {/* Safety Status Toggle Pill */}
+          <TouchableOpacity
             style={[
               styles.statusHeaderBadge,
               residentStatus === 'SAFE' ? styles.statusBadgeSafe : styles.statusBadgeDanger,
             ]}
+            onPress={handleToggleStatusFromHeader}
+            activeOpacity={0.8}
+            accessibilityLabel="Toggle Safety Status"
           >
             <View
               style={[
@@ -319,14 +436,17 @@ export default function App() {
             >
               {residentStatus === 'SAFE' ? 'Safe' : 'SOS'}
             </Text>
-          </View>
+          </TouchableOpacity>
 
-          {/* Device ID Badge */}
-          {residentDeviceId ? (
-            <View style={styles.devicePill}>
-              <Text style={styles.devicePillText}>📱 {residentDeviceId}</Text>
-            </View>
-          ) : null}
+          {/* Quick Hotlines Button */}
+          <TouchableOpacity
+            style={styles.hotlinesHeaderBtn}
+            onPress={() => setIsHotlinesOpen(true)}
+            activeOpacity={0.8}
+            accessibilityLabel="Emergency Hotlines"
+          >
+            <Text style={styles.hotlinesHeaderBtnText}>Hotlines</Text>
+          </TouchableOpacity>
 
           {/* Connection Status Indicator */}
           <View style={styles.connectionBadge}>
@@ -343,10 +463,11 @@ export default function App() {
         </View>
       </View>
 
-      {/* REAL-TIME DISASTER ALERT BANNER */}
+      {/* REAL-TIME DISASTER ALERT BANNER WITH AUDIBLE SIREN & SILENCE CONTROL */}
       <DisasterAlertBanner
         alert={activeAlert}
         onPressViewMap={() => {
+          soundService.stopEmergencySiren();
           setAutoRouteRequested(true);
           setCurrentScreen('MAP');
         }}
@@ -357,11 +478,10 @@ export default function App() {
         <View style={styles.replyCard}>
           <View style={styles.replyCardHeader}>
             <View style={styles.replyTitleRow}>
-              <Text style={styles.replyIcon}>📩</Text>
               <View>
                 <Text style={styles.replySenderText}>{adminReply.sender}</Text>
                 <Text style={styles.replyTimeText}>
-                  Direct Message • {new Date(adminReply.timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                  Direct Dispatch Message • {new Date(adminReply.timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
                 </Text>
               </View>
             </View>
@@ -369,6 +489,7 @@ export default function App() {
               style={styles.replyDismissBtn}
               onPress={() => setAdminReply(null)}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Dismiss message"
             >
               <Text style={styles.replyDismissText}>Dismiss ✕</Text>
             </TouchableOpacity>
@@ -377,46 +498,71 @@ export default function App() {
         </View>
       )}
 
-      {/* SCREEN CONTENT: REPORTS OR MAP */}
-      {currentScreen === 'MAP' ? (
-        <MapScreen
-          initialAutoRoute={autoRouteRequested}
-          onClearAutoRoute={() => setAutoRouteRequested(false)}
-          activeDisaster={activeAlert}
-        />
-      ) : (
+      {/* SCREEN 1: INCIDENT REPORTS & EMERGENCY DISPATCH */}
+      {currentScreen === 'REPORTS' && (
         <View style={styles.contentContainer}>
-          {/* PROMINENT EMERGENCY ACTION HERO CARD */}
-          <View style={styles.actionHeroContainer}>
+          {/* PRIMARY EMERGENCY ACTION (TOP-PRIORITY BUTTON - 54px min height) */}
+          <View style={styles.sosContainer}>
             <TouchableOpacity
-              style={styles.actionHeroCard}
+              style={styles.sosCard}
               onPress={() => setIsCreateModalOpen(true)}
               activeOpacity={0.85}
+              accessibilityLabel="Report Emergency Incident"
             >
-              <View style={styles.heroLeft}>
-                <Text style={styles.heroIcon}>🚨</Text>
-                <View>
-                  <Text style={styles.heroTitle}>REPORT AN EMERGENCY</Text>
-                  <Text style={styles.heroSub}>
-                    Dispatches incident details & GPS directly to MDRRMO
+              <View style={styles.sosLeft}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sosTitle}>Report Emergency Incident</Text>
+                  <Text style={styles.sosSub}>
+                    Direct incident dispatch to MDRRMO Central Command
                   </Text>
                 </View>
               </View>
-              <View style={styles.heroBtn}>
-                <Text style={styles.heroBtnText}>+ REPORT</Text>
+              <View style={styles.sosButtonPill}>
+                <Text style={styles.sosButtonPillText}>Report</Text>
               </View>
             </TouchableOpacity>
+
+            {/* QUICK ACTIONS ROW: EVACUATION MAP, HOTLINES, AID */}
+            <View style={styles.quickActionsRow}>
+              <TouchableOpacity
+                style={styles.quickActionBtn}
+                onPress={() => setCurrentScreen('MAP')}
+                activeOpacity={0.8}
+                accessibilityLabel="Open evacuation map"
+              >
+                <Text style={styles.quickActionText}>Evacuation Map</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.quickActionBtn}
+                onPress={() => setIsHotlinesOpen(true)}
+                activeOpacity={0.8}
+                accessibilityLabel="Open hotlines directory"
+              >
+                <Text style={styles.quickActionText}>Hotlines</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.quickActionBtn}
+                onPress={() => setCurrentScreen('AID')}
+                activeOpacity={0.8}
+                accessibilityLabel="Open relief aid wallet"
+              >
+                <Text style={styles.quickActionText}>
+                  Relief Aid{unclaimedCount > 0 ? ` (${unclaimedCount})` : ''}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* SECTION HEADER & SYNC CONTROLS */}
           <View style={styles.sectionHeaderRow}>
             <View>
               <Text style={styles.sectionTitle}>Incident Reports</Text>
-              <Text style={styles.sectionSub}>Stored safely in device SQLite storage</Text>
+              <Text style={styles.sectionSub}>Stored safely in device offline storage</Text>
             </View>
 
             <View style={styles.controlsRight}>
-              {/* Sync Button */}
               <TouchableOpacity
                 style={[
                   styles.syncButton,
@@ -425,12 +571,13 @@ export default function App() {
                 onPress={handleSyncReports}
                 disabled={isSyncing}
                 activeOpacity={0.8}
+                accessibilityLabel="Sync reports"
               >
                 {isSyncing ? (
-                  <ActivityIndicator size="small" color="#ffffff" />
+                  <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
                   <Text style={styles.syncBtnText}>
-                    🔄 Sync{pendingCount > 0 ? ` (${pendingCount})` : ''}
+                    Sync{pendingCount > 0 ? ` (${pendingCount})` : ''}
                   </Text>
                 )}
               </TouchableOpacity>
@@ -439,55 +586,60 @@ export default function App() {
 
           {/* FILTER TABS */}
           <View style={styles.filterTabsRow}>
-            <TouchableOpacity
-              style={[styles.filterTab, activeTab === 'ALL' && styles.filterTabActive]}
-              onPress={() => setActiveTab('ALL')}
-            >
-              <Text
-                style={[
-                  styles.filterTabText,
-                  activeTab === 'ALL' && styles.filterTabTextActive,
-                ]}
+            <View style={styles.filterTabsWrapper}>
+              <TouchableOpacity
+                style={[styles.filterTab, activeTab === 'ALL' && styles.filterTabActive]}
+                onPress={() => setActiveTab('ALL')}
               >
-                All Reports ({reports.length})
-              </Text>
-            </TouchableOpacity>
+                <Text
+                  style={[
+                    styles.filterTabText,
+                    activeTab === 'ALL' && styles.filterTabTextActive,
+                  ]}
+                >
+                  All Reports ({reports.length})
+                </Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[
-                styles.filterTab,
-                activeTab === 'PENDING' && styles.filterTabActive,
-              ]}
-              onPress={() => setActiveTab('PENDING')}
-            >
-              <Text
-                style={[
-                  styles.filterTabText,
-                  activeTab === 'PENDING' && styles.filterTabTextActive,
-                ]}
+              <TouchableOpacity
+                style={[styles.filterTab, activeTab === 'PENDING' && styles.filterTabActive]}
+                onPress={() => setActiveTab('PENDING')}
               >
-                Pending Sync ({pendingCount})
-              </Text>
-            </TouchableOpacity>
+                <Text
+                  style={[
+                    styles.filterTabText,
+                    activeTab === 'PENDING' && styles.filterTabTextActive,
+                  ]}
+                >
+                  Pending Sync ({pendingCount})
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
-          {/* REPORT LIST OR EMPTY STATE */}
-          <View style={styles.listArea}>
+          {/* ERROR NOTICE */}
+          {errorMessage && (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            </View>
+          )}
+
+          {/* REPORTS LIST OR EMPTY STATE */}
+          <View style={styles.listContainer}>
             {isLoading ? (
               <View style={styles.centerBox}>
-                <ActivityIndicator size="small" color="#059669" />
-                <Text style={styles.loadingText}>Loading incident reports...</Text>
+                <ActivityIndicator size="large" color="#0F766E" />
+                <Text style={styles.centerBoxText}>Loading local reports...</Text>
               </View>
             ) : displayedReports.length === 0 ? (
-              <View style={styles.centerBox}>
-                <Text style={styles.emptyIcon}>📋</Text>
+              <View style={styles.emptyContainer}>
                 <Text style={styles.emptyTitle}>
-                  {activeTab === 'PENDING' ? 'All Reports Synchronized' : 'No Incident Reports Yet'}
+                  {activeTab === 'PENDING' ? 'No Pending Uploads' : 'No Incident Reports Logged'}
                 </Text>
                 <Text style={styles.emptySub}>
                   {activeTab === 'PENDING'
-                    ? 'All your emergency reports have been acknowledged by MDRRMO Central Dispatch.'
-                    : 'Tap "Report An Emergency" above to immediately submit a report with offline backup.'}
+                    ? 'All reports on this device are verified and synchronized with MDRRMO Central Command.'
+                    : 'Tap "Report Emergency Incident" above to log and dispatch a situation report.'}
                 </Text>
               </View>
             ) : (
@@ -498,12 +650,12 @@ export default function App() {
                   <RefreshControl
                     refreshing={isRefreshing}
                     onRefresh={handleRefresh}
-                    tintColor="#059669"
+                    tintColor="#0F766E"
                   />
                 }
                 contentContainerStyle={styles.listContent}
                 renderItem={({ item }) => {
-                  const catConfig = CATEGORY_ICONS[item.category] || { icon: '📢', color: '#10b981' };
+                  const catConfig = CATEGORY_ICONS[item.category] || { icon: '', color: '#0F766E' };
                   const formattedDate = new Date(item.createdAt).toLocaleTimeString([], {
                     hour: 'numeric',
                     minute: '2-digit',
@@ -517,20 +669,16 @@ export default function App() {
                       onPress={() => setSelectedReport(item)}
                       activeOpacity={0.8}
                     >
-                      {/* CARD TOP ROW */}
                       <View style={styles.cardTopRow}>
                         <View style={styles.categoryBadgeRow}>
                           <View
                             style={[
-                              styles.categoryIconWrap,
-                              { backgroundColor: `${catConfig.color}20`, borderColor: catConfig.color },
+                              styles.categoryDot,
+                              { backgroundColor: catConfig.color },
                             ]}
-                          >
-                            <Text style={styles.categoryEmoji}>{catConfig.icon}</Text>
-                          </View>
+                          />
                           <Text style={styles.categoryTitleText}>{item.category}</Text>
                           
-                          {/* Severity pill */}
                           <View
                             style={[
                               styles.severityPill,
@@ -540,23 +688,31 @@ export default function App() {
                               item.severity === 'LOW' && styles.sevLow,
                             ]}
                           >
-                            <Text style={styles.severityPillText}>{item.severity}</Text>
+                            <Text
+                              style={[
+                                styles.severityPillText,
+                                item.severity === 'CRITICAL' && styles.sevCriticalText,
+                                item.severity === 'HIGH' && styles.sevHighText,
+                                item.severity === 'MEDIUM' && styles.sevMediumText,
+                                item.severity === 'LOW' && styles.sevLowText,
+                              ]}
+                            >
+                              {item.severity}
+                            </Text>
                           </View>
                         </View>
 
                         <Text style={styles.cardTimeText}>{formattedDate}</Text>
                       </View>
 
-                      {/* DESCRIPTION */}
                       <Text style={styles.cardDescText} numberOfLines={2}>
                         {item.description}
                       </Text>
 
-                      {/* CARD FOOTER */}
                       <View style={styles.cardFooterRow}>
                         <View style={styles.cardLocationBadge}>
                           <Text style={styles.cardLocationText}>
-                            📍 {item.nearestBuilding || 'Central Poblacion'}
+                            {item.nearestBuilding || 'Central Poblacion'}
                           </Text>
                         </View>
 
@@ -572,7 +728,7 @@ export default function App() {
                               isSynced ? styles.syncTextSynced : styles.syncTextPending,
                             ]}
                           >
-                            {isSynced ? '✓ Synced with MDRRMO' : '⏳ Saved Locally'}
+                            {isSynced ? '✓ Synced to MDRRMO' : 'Saved Locally'}
                           </Text>
                         </View>
                       </View>
@@ -585,16 +741,128 @@ export default function App() {
         </View>
       )}
 
-      {/* BOTTOM NAVIGATION BAR */}
+      {/* SCREEN 2: EVACUATION MAP */}
+      {currentScreen === 'MAP' && (
+        <MapScreen
+          initialAutoRoute={autoRouteRequested}
+          onClearAutoRoute={() => setAutoRouteRequested(false)}
+          activeDisaster={activeAlert}
+        />
+      )}
+
+      {/* SCREEN 3: RELIEF AID & GCASH VOUCHERS */}
+      {currentScreen === 'AID' && (
+        <ScrollView style={styles.aidContainer} contentContainerStyle={styles.aidContentContainer} showsVerticalScrollIndicator={false}>
+          {/* COMMUNITY RELIEF AID CARD */}
+          <View style={styles.aidHeroCard}>
+            <View style={styles.aidHeroBadge}>
+              <Text style={styles.aidHeroBadgeText}>MDRRMO DISASTER RELIEF SYSTEM</Text>
+            </View>
+            <Text style={styles.aidHeroTitle}>Community Relief Aid</Text>
+            <Text style={styles.aidHeroSub}>
+              Deploy GCash emergency funds directly to disaster-affected residents. Generates verified claim vouchers redeemable at MDRRMO relief distribution centers.
+            </Text>
+            <TouchableOpacity
+              style={styles.deployAidBtn}
+              onPress={() => setIsDonateModalOpen(true)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.deployAidBtnText}>+ Deploy GCash Relief Funds</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* VOUCHER WALLET HEADER */}
+          <View style={styles.walletHeaderRow}>
+            <View>
+              <Text style={styles.walletSectionTitle}>My Relief Vouchers</Text>
+              <Text style={styles.walletSectionSub}>Claimable emergency relief vouchers</Text>
+            </View>
+            <View style={styles.walletBadge}>
+              <Text style={styles.walletBadgeText}>
+                {unclaimedCount} Ready to Claim
+              </Text>
+            </View>
+          </View>
+
+          {/* VOUCHER LIST OR EMPTY STATE */}
+          {vouchers.length === 0 ? (
+            <View style={styles.emptyVouchersBox}>
+              <Text style={styles.emptyVouchersTitle}>No Vouchers Received Yet</Text>
+              <Text style={styles.emptyVouchersSub}>
+                When community donors or MDRRMO deploy relief assistance, your claim codes will appear here automatically.
+              </Text>
+              <TouchableOpacity
+                style={styles.emptyDonateBtn}
+                onPress={() => setIsDonateModalOpen(true)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.emptyDonateBtnText}>Deploy Relief Aid as Donor</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            vouchers.map((v) => (
+              <View key={v.id} style={[styles.voucherItemCard, v.isClaimed && styles.voucherClaimedCard]}>
+                <View style={styles.voucherItemTop}>
+                  <View>
+                    <Text style={styles.voucherCodeLabel}>CLAIM VOUCHER CODE</Text>
+                    <Text style={styles.voucherCodeText}>{v.voucherCode}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.copyPillBtn}
+                    onPress={() => handleCopyVoucher(v.voucherCode)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.copyPillBtnText}>Copy Code</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.voucherItemDivider} />
+
+                <View style={styles.voucherItemMeta}>
+                  <View>
+                    <Text style={styles.voucherMetaLabel}>VALUE</Text>
+                    <Text style={styles.voucherMetaValue}>₱{v.amount.toFixed(2)}</Text>
+                  </View>
+                  <View>
+                    <Text style={styles.voucherMetaLabel}>BENEFICIARY</Text>
+                    <Text style={styles.voucherMetaValue}>Good for {v.personsCount} Person(s)</Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={styles.voucherMetaLabel}>STATUS</Text>
+                    <Text style={[styles.voucherStatusPill, v.isClaimed ? styles.statusClaimed : styles.statusUnclaimed]}>
+                      {v.isClaimed ? 'Redeemed' : 'Ready to Claim'}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.voucherDonorRow}>
+                  <Text style={styles.voucherDonorText}>
+                    Donor: {v.donorName} • Zone: {v.targetZone}
+                  </Text>
+                  {!v.isClaimed && (
+                    <TouchableOpacity
+                      onPress={() => handleClaimVoucher(v.id, v.voucherCode)}
+                      style={styles.markClaimedLink}
+                    >
+                      <Text style={styles.markClaimedLinkText}>Mark Redeemed</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            ))
+          )}
+        </ScrollView>
+      )}
+
+      {/* THREE-TAB INDUSTRY-STANDARD BOTTOM NAVIGATION BAR */}
       <View style={styles.bottomNav}>
         <TouchableOpacity
           style={[styles.navItem, currentScreen === 'REPORTS' && styles.navItemActive]}
           onPress={() => setCurrentScreen('REPORTS')}
           activeOpacity={0.8}
         >
-          <Text style={styles.navIcon}>📋</Text>
           <Text style={[styles.navText, currentScreen === 'REPORTS' && styles.navTextActive]}>
-            Reports
+            Incidents
           </Text>
         </TouchableOpacity>
 
@@ -603,14 +871,30 @@ export default function App() {
           onPress={() => setCurrentScreen('MAP')}
           activeOpacity={0.8}
         >
-          <Text style={styles.navIcon}>🗺️</Text>
           <Text style={[styles.navText, currentScreen === 'MAP' && styles.navTextActive]}>
             Evacuation Map
           </Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.navItem, currentScreen === 'AID' && styles.navItemActive]}
+          onPress={() => setCurrentScreen('AID')}
+          activeOpacity={0.8}
+        >
+          <View style={styles.navIconContainer}>
+            <Text style={[styles.navText, currentScreen === 'AID' && styles.navTextActive]}>
+              Relief Aid
+            </Text>
+            {unclaimedCount > 0 && (
+              <View style={styles.navBadge}>
+                <Text style={styles.navBadgeText}>{unclaimedCount}</Text>
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
       </View>
 
-      {/* POP-UP DIRECT MESSAGE MODAL (GUARANTEED VISIBILITY ON ALL DEVICES) */}
+      {/* POP-UP DIRECT MESSAGE MODAL (GUARANTEED VISIBILITY ON ALL SCREENS) */}
       <Modal
         visible={isReplyModalVisible}
         transparent={true}
@@ -620,7 +904,7 @@ export default function App() {
         <View style={styles.replyModalOverlay}>
           <View style={styles.replyModalCard}>
             <View style={styles.replyModalHeader}>
-              <Text style={styles.replyModalBadge}>🚨 MDRRMO CENTRAL COMMAND</Text>
+              <Text style={styles.replyModalBadge}>MDRRMO CENTRAL DISPATCH</Text>
               <Text style={styles.replyModalTitle}>Direct Message to Your Device</Text>
             </View>
 
@@ -636,25 +920,67 @@ export default function App() {
               onPress={() => setIsReplyModalVisible(false)}
               activeOpacity={0.85}
             >
-              <Text style={styles.replyModalBtnText}>✓ Acknowledge Message</Text>
+              <Text style={styles.replyModalBtnText}>Acknowledge Message</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
-      {/* MODALS */}
+      {/* CREATE EMERGENCY REPORT MODAL */}
       <CreateReportModal
         visible={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onSubmit={handleCreateReport}
       />
 
+      {/* REPORT DETAIL MODAL */}
       <ReportDetailModal
         visible={!!selectedReport}
         report={selectedReport}
         onClose={() => setSelectedReport(null)}
         onDelete={handleDeleteReport}
       />
+
+      {/* GCASH RELIEF DONATION MODAL */}
+      <DonateModal
+        visible={isDonateModalOpen}
+        onClose={() => setIsDonateModalOpen(false)}
+        onDonationSuccess={() => {
+          loadVouchers();
+        }}
+      />
+
+      {/* GCASH VOUCHER RECEIVED CELEBRATION MODAL */}
+      <VoucherAlertModal
+        visible={isVoucherAlertOpen}
+        voucher={incomingVoucherAlert}
+        onClose={() => setIsVoucherAlertOpen(false)}
+        onViewAllVouchers={() => {
+          setIsVoucherAlertOpen(false);
+          setCurrentScreen('AID');
+        }}
+      />
+
+      {/* GCASH VOUCHERS LIST MODAL */}
+      <VouchersListModal
+        visible={isVouchersListOpen}
+        vouchers={vouchers}
+        onClose={() => setIsVouchersListOpen(false)}
+        onRefreshVouchers={loadVouchers}
+        onOpenDonateModal={() => {
+          setIsVouchersListOpen(false);
+          setIsDonateModalOpen(true);
+        }}
+      />
+
+      {/* 1-TAP EMERGENCY HOTLINES DIRECTORY */}
+      <HotlinesModal
+        visible={isHotlinesOpen}
+        onClose={() => setIsHotlinesOpen(false)}
+      />
+
+      {/* AUDIO ENGINE (WEBVIEW BRIDGE - NO NATIVE MODULES REQUIRED) */}
+      <AudioPlayer />
     </SafeAreaView>
   );
 }
@@ -662,29 +988,30 @@ export default function App() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#F8FAFC',
   },
   header: {
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 12,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#1e293b',
+    borderBottomColor: '#E2E8F0',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   brandTitle: {
     fontSize: 20,
-    fontWeight: '900',
-    color: '#f8fafc',
-    letterSpacing: 0.3,
+    fontWeight: '800',
+    color: '#0F172A',
+    letterSpacing: -0.3,
   },
   brandSubtitle: {
-    fontSize: 11.5,
-    color: '#94a3b8',
+    fontSize: 11,
+    color: '#475569',
     marginTop: 1,
+    fontWeight: '500',
   },
   headerRightGroup: {
     flexDirection: 'row',
@@ -694,19 +1021,19 @@ const styles = StyleSheet.create({
   statusHeaderBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
   },
   statusBadgeSafe: {
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+    backgroundColor: '#F0FDF4',
+    borderColor: '#BBF7D0',
   },
   statusBadgeDanger: {
-    backgroundColor: 'rgba(239, 68, 68, 0.18)',
-    borderColor: 'rgba(239, 68, 68, 0.4)',
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
   },
   statusHeaderDot: {
     width: 6,
@@ -714,116 +1041,141 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   statusDotSafe: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#16A34A',
   },
   statusDotDanger: {
-    backgroundColor: '#ef4444',
+    backgroundColor: '#DC2626',
   },
   statusHeaderBadgeText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '800',
   },
   statusTextSafe: {
-    color: '#34d399',
+    color: '#15803D',
   },
   statusTextDanger: {
-    color: '#f87171',
+    color: '#B91C1C',
   },
-  devicePill: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
+  hotlinesHeaderBtn: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: '#E2E8F0',
   },
-  devicePillText: {
-    color: '#38bdf8',
-    fontSize: 10,
-    fontFamily: 'monospace',
+  hotlinesHeaderBtnText: {
+    color: '#0F172A',
+    fontSize: 11,
     fontWeight: '700',
   },
   connectionBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#F1F5F9',
     paddingHorizontal: 8,
-    paddingVertical: 5,
+    paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#E2E8F0',
   },
   connectionDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   statusDotLive: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#16A34A',
   },
   statusDotOffline: {
-    backgroundColor: '#f59e0b',
+    backgroundColor: '#D97706',
   },
   connectionText: {
-    color: '#cbd5e1',
-    fontSize: 11,
+    color: '#475569',
+    fontSize: 10.5,
     fontWeight: '600',
   },
-  // ACTION HERO CONTAINER & CARD
-  actionHeroContainer: {
+
+  /* INCIDENT / REPORTS SCREEN */
+  contentContainer: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  sosContainer: {
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 6,
+    paddingBottom: 8,
   },
-  actionHeroCard: {
-    backgroundColor: '#991b1b',
-    borderRadius: 14,
+  sosCard: {
+    backgroundColor: '#DC2626',
+    borderRadius: 12,
     padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: 1.5,
-    borderColor: '#ef4444',
-    shadowColor: '#ef4444',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    minHeight: 54,
+    borderWidth: 1,
+    borderColor: '#B91C1C',
+    shadowColor: '#DC2626',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  heroLeft: {
+  sosLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
     flex: 1,
+    paddingRight: 10,
   },
-  heroIcon: {
-    fontSize: 30,
-  },
-  heroTitle: {
-    color: '#ffffff',
+  sosTitle: {
+    color: '#FFFFFF',
     fontSize: 15,
-    fontWeight: '900',
-    letterSpacing: 0.4,
+    fontWeight: '800',
   },
-  heroSub: {
-    color: '#fecaca',
+  sosSub: {
+    color: 'rgba(255, 255, 255, 0.9)',
     fontSize: 11,
     marginTop: 2,
-    maxWidth: '92%',
+    lineHeight: 15,
   },
-  heroBtn: {
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 12,
+  sosButtonPill: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 8,
   },
-  heroBtnText: {
-    color: '#991b1b',
-    fontWeight: '900',
+  sosButtonPillText: {
+    color: '#DC2626',
+    fontWeight: '800',
     fontSize: 12,
   },
-  // SECTION HEADER & SYNC
+  quickActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+  },
+  quickActionBtn: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+  },
+  quickActionText: {
+    color: '#0F172A',
+    fontSize: 11.5,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+
+  /* SECTION HEADER & SYNC */
   sectionHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -833,78 +1185,475 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
   },
   sectionTitle: {
-    color: '#f8fafc',
+    color: '#0F172A',
     fontSize: 14,
     fontWeight: '800',
   },
   sectionSub: {
-    color: '#64748b',
-    fontSize: 10.5,
+    color: '#64748B',
+    fontSize: 11,
   },
   controlsRight: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   syncButton: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#0F766E',
     borderWidth: 1,
-    borderColor: '#334155',
-    paddingHorizontal: 10,
+    borderColor: '#0F766E',
+    paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
   },
   syncBtnPending: {
-    backgroundColor: '#065f46',
-    borderColor: '#059669',
+    backgroundColor: '#D97706',
+    borderColor: '#B45309',
   },
   syncBtnText: {
-    color: '#f8fafc',
-    fontSize: 11,
+    color: '#FFFFFF',
+    fontSize: 11.5,
     fontWeight: '700',
   },
-  // FILTER TABS
+
+  /* FILTER TABS */
   filterTabsRow: {
-    flexDirection: 'row',
     paddingHorizontal: 16,
-    gap: 8,
     marginBottom: 8,
   },
-  filterTab: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+  filterTabsWrapper: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
     borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    padding: 3,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: '#E2E8F0',
+  },
+  filterTab: {
+    flex: 1,
+    paddingVertical: 7,
+    alignItems: 'center',
+    borderRadius: 6,
   },
   filterTabActive: {
-    backgroundColor: 'rgba(5, 150, 105, 0.2)',
-    borderColor: '#059669',
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   filterTabText: {
-    color: '#94a3b8',
-    fontSize: 11,
+    color: '#64748B',
+    fontSize: 11.5,
     fontWeight: '600',
   },
   filterTabTextActive: {
-    color: '#34d399',
+    color: '#0F172A',
     fontWeight: '800',
   },
-  // TARGETED MDRRMO REPLY CARD
+
+  /* LIST & CARDS */
+  listContainer: {
+    flex: 1,
+  },
+  listContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 80,
+  },
+  reportCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 14,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  cardTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  categoryBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  categoryDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  categoryTitleText: {
+    color: '#0F172A',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  severityPill: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+  },
+  sevCritical: { backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
+  sevHigh: { backgroundColor: '#FFF7ED', borderColor: '#FFEDD5' },
+  sevMedium: { backgroundColor: '#FFFBEB', borderColor: '#FEF3C7' },
+  sevLow: { backgroundColor: '#F0FDF4', borderColor: '#DCFCE7' },
+  severityPillText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+  },
+  sevCriticalText: { color: '#DC2626' },
+  sevHighText: { color: '#EA580C' },
+  sevMediumText: { color: '#D97706' },
+  sevLowText: { color: '#16A34A' },
+  cardTimeText: {
+    color: '#64748B',
+    fontSize: 11,
+  },
+  cardDescText: {
+    color: '#334155',
+    fontSize: 12.5,
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  cardFooterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    paddingTop: 8,
+  },
+  cardLocationBadge: {
+    flex: 1,
+  },
+  cardLocationText: {
+    color: '#475569',
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  syncStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  syncBadgeSynced: {
+    backgroundColor: '#F0FDF4',
+    borderColor: '#BBF7D0',
+  },
+  syncBadgePending: {
+    backgroundColor: '#FFFBEB',
+    borderColor: '#FDE68A',
+  },
+  syncStatusText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  syncTextSynced: {
+    color: '#15803D',
+  },
+  syncTextPending: {
+    color: '#B45309',
+  },
+
+  /* EMPTY / LOADING */
+  centerBox: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 30,
+  },
+  centerBoxText: {
+    color: '#475569',
+    fontSize: 12,
+    marginTop: 10,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+    marginTop: 20,
+  },
+  emptyTitle: {
+    color: '#0F172A',
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  emptySub: {
+    color: '#64748B',
+    fontSize: 12,
+    textAlign: 'center',
+    lineHeight: 17,
+    maxWidth: 280,
+  },
+  errorBanner: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
+    borderWidth: 1,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    padding: 10,
+    borderRadius: 8,
+  },
+  errorText: {
+    color: '#B91C1C',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+
+  /* AID SCREEN */
+  aidContainer: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  aidContentContainer: {
+    padding: 16,
+    paddingBottom: 90,
+  },
+  aidHeroCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  aidHeroBadge: {
+    backgroundColor: '#F0FDFA',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#CCFBF1',
+  },
+  aidHeroBadgeText: {
+    color: '#0F766E',
+    fontSize: 9.5,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  aidHeroTitle: {
+    color: '#0F172A',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  aidHeroSub: {
+    color: '#475569',
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 4,
+    marginBottom: 14,
+  },
+  deployAidBtn: {
+    backgroundColor: '#0F766E',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    minHeight: 48,
+    justifyContent: 'center',
+  },
+  deployAidBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  walletHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  walletSectionTitle: {
+    color: '#0F172A',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  walletSectionSub: {
+    color: '#64748B',
+    fontSize: 11,
+  },
+  walletBadge: {
+    backgroundColor: '#F0FDFA',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#CCFBF1',
+  },
+  walletBadgeText: {
+    color: '#0F766E',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  emptyVouchersBox: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 24,
+    alignItems: 'center',
+  },
+  emptyVouchersTitle: {
+    color: '#0F172A',
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  emptyVouchersSub: {
+    color: '#64748B',
+    fontSize: 11.5,
+    textAlign: 'center',
+    lineHeight: 16,
+    marginBottom: 14,
+  },
+  emptyDonateBtn: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  emptyDonateBtnText: {
+    color: '#0F172A',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  voucherItemCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 14,
+    marginBottom: 10,
+  },
+  voucherClaimedCard: {
+    opacity: 0.65,
+    backgroundColor: '#F1F5F9',
+  },
+  voucherItemTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  voucherCodeLabel: {
+    color: '#64748B',
+    fontSize: 9.5,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  voucherCodeText: {
+    color: '#0F766E',
+    fontSize: 17,
+    fontWeight: '900',
+    fontFamily: 'monospace',
+    marginTop: 1,
+    letterSpacing: 1,
+  },
+  copyPillBtn: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  copyPillBtnText: {
+    color: '#0F766E',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  voucherItemDivider: {
+    height: 1,
+    backgroundColor: '#E2E8F0',
+    marginVertical: 10,
+  },
+  voucherItemMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  voucherMetaLabel: {
+    color: '#64748B',
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  voucherMetaValue: {
+    color: '#0F172A',
+    fontSize: 12.5,
+    fontWeight: '800',
+    marginTop: 1,
+  },
+  voucherStatusPill: {
+    fontSize: 10,
+    fontWeight: '800',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginTop: 2,
+  },
+  statusClaimed: {
+    backgroundColor: '#F1F5F9',
+    color: '#64748B',
+  },
+  statusUnclaimed: {
+    backgroundColor: '#F0FDF4',
+    color: '#15803D',
+  },
+  voucherDonorRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    paddingTop: 8,
+  },
+  voucherDonorText: {
+    color: '#64748B',
+    fontSize: 10.5,
+    flex: 1,
+  },
+  markClaimedLink: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  markClaimedLinkText: {
+    color: '#0F766E',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+
+  /* REPLY BANNER */
   replyCard: {
     marginHorizontal: 16,
     marginTop: 8,
-    marginBottom: 6,
-    backgroundColor: '#0c4a6e',
-    borderColor: '#0284c7',
-    borderWidth: 1.5,
-    borderRadius: 12,
+    marginBottom: 4,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#0F766E',
     padding: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   replyCardHeader: {
     flexDirection: 'row',
@@ -916,279 +1665,144 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    flex: 1,
-  },
-  replyIcon: {
-    fontSize: 18,
   },
   replySenderText: {
-    color: '#ffffff',
-    fontSize: 13,
+    color: '#0F766E',
+    fontSize: 12,
     fontWeight: '800',
   },
   replyTimeText: {
-    color: '#bae6fd',
-    fontSize: 10.5,
+    color: '#64748B',
+    fontSize: 10,
   },
   replyDismissBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    padding: 4,
   },
   replyDismissText: {
-    color: '#f0f9ff',
+    color: '#64748B',
     fontSize: 11,
     fontWeight: '700',
   },
   replyBodyText: {
-    color: '#ffffff',
-    fontSize: 13.5,
-    fontWeight: '600',
-    lineHeight: 18,
-  },
-  contentContainer: {
-    flex: 1,
-    backgroundColor: '#0f172a',
-  },
-  listArea: {
-    flex: 1,
-  },
-  listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 20,
-    gap: 10,
-  },
-  centerBox: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 30,
-    gap: 8,
-  },
-  loadingText: {
-    color: '#94a3b8',
-    fontSize: 13,
-  },
-  emptyIcon: {
-    fontSize: 40,
-    marginBottom: 4,
-  },
-  emptyTitle: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  emptySub: {
-    color: '#64748b',
-    fontSize: 12,
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-  // REPORT CARD
-  reportCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 12,
-    padding: 14,
-    gap: 8,
-  },
-  cardTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  categoryBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  categoryIconWrap: {
-    width: 26,
-    height: 26,
-    borderRadius: 6,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  categoryEmoji: {
-    fontSize: 14,
-  },
-  categoryTitleText: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: 0.3,
-  },
-  severityPill: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  sevCritical: {
-    backgroundColor: 'rgba(239, 68, 68, 0.25)',
-  },
-  sevHigh: {
-    backgroundColor: 'rgba(249, 115, 22, 0.25)',
-  },
-  sevMedium: {
-    backgroundColor: 'rgba(234, 179, 8, 0.25)',
-  },
-  sevLow: {
-    backgroundColor: 'rgba(16, 185, 129, 0.25)',
-  },
-  severityPillText: {
-    fontSize: 9.5,
-    fontWeight: '800',
-    color: '#e2e8f0',
-  },
-  cardTimeText: {
-    color: '#64748b',
-    fontSize: 11,
-    fontFamily: 'monospace',
-  },
-  cardDescText: {
-    color: '#cbd5e1',
+    color: '#0F172A',
     fontSize: 12.5,
     lineHeight: 17,
   },
-  cardFooterRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 4,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  cardLocationBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  cardLocationText: {
-    color: '#94a3b8',
-    fontSize: 11,
-  },
-  syncStatusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  syncBadgeSynced: {
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-  },
-  syncBadgePending: {
-    backgroundColor: 'rgba(245, 158, 11, 0.12)',
-  },
-  syncStatusText: {
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  syncTextSynced: {
-    color: '#34d399',
-  },
-  syncTextPending: {
-    color: '#fbbf24',
-  },
-  // BOTTOM NAVIGATION
+
+  /* BOTTOM NAVIGATION BAR */
   bottomNav: {
-    flexDirection: 'row',
-    backgroundColor: '#0f172a',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 58,
+    backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: '#1e293b',
-    paddingVertical: 8,
-    paddingHorizontal: 24,
-    justifyContent: 'space-around',
+    borderTopColor: '#E2E8F0',
+    flexDirection: 'row',
   },
   navItem: {
+    flex: 1,
     alignItems: 'center',
-    paddingVertical: 4,
-    paddingHorizontal: 20,
-    borderRadius: 8,
+    justifyContent: 'center',
+    paddingVertical: 6,
   },
   navItemActive: {
-    backgroundColor: '#1e293b',
+    borderTopWidth: 2,
+    borderTopColor: '#0F766E',
   },
-  navIcon: {
-    fontSize: 18,
+  navIconContainer: {
+    position: 'relative',
+  },
+  navBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -10,
+    backgroundColor: '#DC2626',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  navBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '900',
   },
   navText: {
-    fontSize: 11,
-    color: '#64748b',
+    color: '#64748B',
+    fontSize: 11.5,
     fontWeight: '600',
-    marginTop: 2,
   },
   navTextActive: {
-    color: '#10b981',
+    color: '#0F766E',
     fontWeight: '800',
   },
-  // POP-UP DIRECT MESSAGE MODAL
+
+  /* MODALS */
   replyModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: 20,
   },
   replyModalCard: {
     width: '100%',
-    backgroundColor: '#0f172a',
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#0284c7',
-    padding: 20,
-    gap: 14,
-    shadowColor: '#0284c7',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
+    maxWidth: 380,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 18,
   },
   replyModalHeader: {
-    gap: 4,
+    marginBottom: 12,
   },
   replyModalBadge: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: '900',
-    color: '#38bdf8',
-    letterSpacing: 1.5,
+    color: '#0F766E',
+    letterSpacing: 0.8,
   },
   replyModalTitle: {
-    fontSize: 17,
-    fontWeight: '900',
-    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginTop: 2,
   },
   replyModalBody: {
-    backgroundColor: 'rgba(2, 132, 199, 0.1)',
-    borderRadius: 10,
-    padding: 14,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(2, 132, 199, 0.25)',
-    gap: 8,
+    borderColor: '#E2E8F0',
+    padding: 12,
+    marginBottom: 14,
   },
   replyModalQuote: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#f0f9ff',
-    lineHeight: 22,
-    fontStyle: 'italic',
+    fontSize: 13.5,
+    fontWeight: '600',
+    color: '#0F172A',
+    lineHeight: 20,
   },
   replyModalMeta: {
-    fontSize: 11,
-    color: '#94a3b8',
-    fontFamily: 'monospace',
+    fontSize: 10.5,
+    color: '#64748B',
+    marginTop: 6,
   },
   replyModalButton: {
-    backgroundColor: '#0284c7',
-    borderRadius: 10,
+    backgroundColor: '#0F766E',
+    borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
+    minHeight: 48,
+    justifyContent: 'center',
   },
   replyModalBtnText: {
-    color: '#ffffff',
+    color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: '900',
-    letterSpacing: 0.5,
+    fontWeight: '800',
   },
 });

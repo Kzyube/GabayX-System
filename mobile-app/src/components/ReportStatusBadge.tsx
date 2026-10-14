@@ -12,43 +12,43 @@ export const ReportStatusBadge: React.FC<Props> = ({ status, size = 'normal' }) 
     switch (status) {
       case 'PENDING':
         return {
-          icon: '⏳',
-          label: 'Saved on Phone',
-          bg: '#451a03',
-          border: '#d97706',
-          text: '#fde68a',
+          icon: '●',
+          label: 'Saved Locally',
+          bg: '#FFFBEB',
+          border: '#FDE68A',
+          text: '#B45309',
         };
       case 'SYNCING':
         return {
-          icon: '🔄',
+          icon: '●',
           label: 'Sending...',
-          bg: '#0c4a6e',
-          border: '#0284c7',
-          text: '#bae6fd',
+          bg: '#F0F9FF',
+          border: '#BAE6FD',
+          text: '#0369A1',
         };
       case 'SYNCED':
         return {
           icon: '✓',
-          label: 'Sent to Dispatch',
-          bg: '#064e3b',
-          border: '#059669',
-          text: '#a7f3d0',
+          label: 'Synced to MDRRMO',
+          bg: '#F0FDF4',
+          border: '#BBF7D0',
+          text: '#15803D',
         };
       case 'FAILED':
         return {
           icon: '!',
           label: 'Retry Required',
-          bg: '#450a0a',
-          border: '#dc2626',
-          text: '#fecaca',
+          bg: '#FEF2F2',
+          border: '#FECACA',
+          text: '#B91C1C',
         };
       default:
         return {
           icon: '•',
           label: status,
-          bg: '#1e293b',
-          border: '#475569',
-          text: '#cbd5e1',
+          bg: '#F1F5F9',
+          border: '#E2E8F0',
+          text: '#475569',
         };
     }
   };
@@ -87,7 +87,7 @@ export const ReportStatusBadge: React.FC<Props> = ({ status, size = 'normal' }) 
 const styles = StyleSheet.create({
   badge: {
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 6,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,

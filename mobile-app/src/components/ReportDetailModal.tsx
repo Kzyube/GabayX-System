@@ -44,26 +44,25 @@ export const ReportDetailModal: React.FC<Props> = ({
               <Text style={styles.headerSubtitle}>EMERGENCY REPORT DETAIL</Text>
               <Text style={styles.headerTitle}>{report.category}</Text>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton} accessibilityLabel="Close report details">
               <Text style={styles.closeButtonText}>✕</Text>
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
+          <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false}>
             {/* OFFLINE NOTICE BANNER */}
             <View style={styles.noticeBanner}>
-              <Text style={styles.noticeIcon}>⚠️</Text>
               <Text style={styles.noticeText}>
                 {report.localStatus === 'SYNCED'
-                  ? 'This report has been acknowledged by the central emergency dashboard.'
-                  : 'This report is saved in device SQLite storage. It has NOT necessarily reached emergency responders yet until synced via internet or peer-to-peer relay.'}
+                  ? 'This report has been acknowledged and synchronized with MDRRMO Central Dispatch.'
+                  : 'This report is securely saved in device SQLite storage. It will auto-synchronize once connection to MDRRMO Central Dispatch is restored.'}
               </Text>
             </View>
 
             {/* STATUS & SEVERITY ROW */}
             <View style={styles.metaRow}>
               <View>
-                <Text style={styles.label}>LOCAL STATUS</Text>
+                <Text style={styles.label}>DISPATCH STATUS</Text>
                 <ReportStatusBadge status={report.localStatus} />
               </View>
               <View style={styles.alignRight}>
@@ -95,64 +94,47 @@ export const ReportDetailModal: React.FC<Props> = ({
                   <Text style={styles.infoVal}>
                     {report.latitude !== null && report.longitude !== null
                       ? `${report.latitude.toFixed(5)}, ${report.longitude.toFixed(5)}`
-                      : 'Not acquired (offline / no GPS fix)'}
+                      : 'Not acquired (offline / manual)'}
                   </Text>
                 </View>
                 {report.accuracy !== null && (
                   <View style={styles.infoRow}>
                     <Text style={styles.infoKey}>GPS Accuracy:</Text>
-                    <Text style={styles.infoVal}>±{Math.round(report.accuracy)}m</Text>
+                    <Text style={styles.infoVal}>±{Math.round(report.accuracy)} meters</Text>
                   </View>
                 )}
               </View>
             </View>
 
-            {/* REPORTER INFO (SEPARATED FROM MESH BROADCAST) */}
+            {/* CONTACT INFORMATION */}
             <View style={styles.section}>
-              <Text style={styles.label}>REPORTER CONTACT (PRIVATE)</Text>
+              <Text style={styles.label}>REPORTER INFORMATION</Text>
               <View style={styles.infoBox}>
                 <View style={styles.infoRow}>
                   <Text style={styles.infoKey}>Mode:</Text>
                   <Text style={styles.infoVal}>
-                    {report.contactInformation.isAnonymous ? 'Anonymous Citizen' : 'Identified'}
+                    {report.contactInformation.isAnonymous ? 'Anonymous Resident' : 'Named Citizen'}
                   </Text>
                 </View>
-                {report.contactInformation.name && (
+                {!report.contactInformation.isAnonymous && report.contactInformation.name && (
                   <View style={styles.infoRow}>
-                    <Text style={styles.infoKey}>Reporter Name:</Text>
+                    <Text style={styles.infoKey}>Name:</Text>
                     <Text style={styles.infoVal}>{report.contactInformation.name}</Text>
                   </View>
                 )}
-                {report.contactInformation.phone && (
+                {!report.contactInformation.isAnonymous && report.contactInformation.phone && (
                   <View style={styles.infoRow}>
                     <Text style={styles.infoKey}>Contact Phone:</Text>
                     <Text style={styles.infoVal}>{report.contactInformation.phone}</Text>
                   </View>
                 )}
-              </View>
-            </View>
-
-            {/* AUDIT METADATA */}
-            <View style={styles.section}>
-              <Text style={styles.label}>STORAGE & AUDIT TRAIL</Text>
-              <View style={styles.infoBox}>
                 <View style={styles.infoRow}>
-                  <Text style={styles.infoKey}>Report ID (UUID):</Text>
-                  <Text style={[styles.infoVal, styles.monoText]}>{report.id}</Text>
-                </View>
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoKey}>Created At:</Text>
+                  <Text style={styles.infoKey}>Reported At:</Text>
                   <Text style={styles.infoVal}>{formattedDate}</Text>
                 </View>
                 <View style={styles.infoRow}>
-                  <Text style={styles.infoKey}>Relay Hops:</Text>
-                  <Text style={styles.infoVal}>{report.meshHopCount} (Origin Device)</Text>
-                </View>
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoKey}>Server Confirmed:</Text>
-                  <Text style={styles.infoVal}>
-                    {report.serverAcknowledgedAt ? report.serverAcknowledgedAt : 'Pending Sync'}
-                  </Text>
+                  <Text style={styles.infoKey}>Report Reference ID:</Text>
+                  <Text style={styles.monoText}>{report.id}</Text>
                 </View>
               </View>
             </View>
@@ -160,18 +142,20 @@ export const ReportDetailModal: React.FC<Props> = ({
 
           {/* FOOTER ACTIONS */}
           <View style={styles.footer}>
-            {report.localStatus === 'PENDING' && onDelete && (
+            {report.localStatus !== 'SYNCED' && onDelete && (
               <TouchableOpacity
                 style={styles.deleteButton}
                 onPress={() => {
                   onDelete(report.id);
                   onClose();
                 }}
+                activeOpacity={0.7}
               >
                 <Text style={styles.deleteButtonText}>Delete Draft</Text>
               </TouchableOpacity>
             )}
-            <TouchableOpacity style={styles.closeActionBtn} onPress={onClose}>
+
+            <TouchableOpacity style={styles.closeActionBtn} onPress={onClose} activeOpacity={0.85}>
               <Text style={styles.closeActionText}>Close</Text>
             </TouchableOpacity>
           </View>
@@ -184,68 +168,70 @@ export const ReportDetailModal: React.FC<Props> = ({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
     justifyContent: 'flex-end',
   },
   modalContainer: {
-    backgroundColor: '#0c1712',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: '#E2E8F0',
     maxHeight: '90%',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 18,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    borderBottomColor: '#E2E8F0',
   },
   headerSubtitle: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#10b981',
-    letterSpacing: 1,
+    color: '#0F766E',
+    letterSpacing: 0.8,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
-    color: '#f1f5f9',
+    color: '#0F172A',
     marginTop: 2,
   },
   closeButton: {
-    padding: 8,
+    backgroundColor: '#F1F5F9',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   closeButtonText: {
-    color: '#94a3b8',
-    fontSize: 18,
+    color: '#475569',
+    fontSize: 14,
     fontWeight: '700',
   },
   body: {
-    paddingHorizontal: 18,
+    paddingHorizontal: 20,
   },
   bodyContent: {
     paddingVertical: 16,
-    gap: 16,
   },
   noticeBanner: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(245, 158, 11, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.4)',
-    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
     padding: 12,
-    alignItems: 'center',
-    gap: 10,
-  },
-  noticeIcon: {
-    fontSize: 18,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 14,
   },
   noticeText: {
-    flex: 1,
-    color: '#fef3c7',
+    color: '#475569',
     fontSize: 11.5,
     lineHeight: 16,
   },
@@ -253,6 +239,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 16,
+    backgroundColor: '#F8FAFC',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   alignRight: {
     alignItems: 'flex-end',
@@ -260,58 +252,58 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#94a3b8',
+    color: '#64748B',
     letterSpacing: 0.8,
-    marginBottom: 6,
+    marginBottom: 4,
   },
   severityBadge: {
-    paddingVertical: 3,
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 6,
     borderWidth: 1,
   },
   sev_CRITICAL: {
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
-    borderColor: '#ef4444',
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
   },
   sev_HIGH: {
-    backgroundColor: 'rgba(249, 115, 22, 0.2)',
-    borderColor: '#f97316',
+    backgroundColor: '#FFF7ED',
+    borderColor: '#FFEDD5',
   },
   sev_MEDIUM: {
-    backgroundColor: 'rgba(234, 179, 8, 0.2)',
-    borderColor: '#eab308',
+    backgroundColor: '#FFFBEB',
+    borderColor: '#FEF3C7',
   },
   sev_LOW: {
-    backgroundColor: 'rgba(59, 130, 246, 0.2)',
-    borderColor: '#3b82f6',
+    backgroundColor: '#F0FDF4',
+    borderColor: '#DCFCE7',
   },
   severityText: {
-    color: '#f1f5f9',
-    fontSize: 10,
     fontWeight: '800',
+    fontSize: 11,
+    color: '#0F172A',
   },
   section: {
-    gap: 4,
+    marginBottom: 14,
   },
   descriptionBox: {
-    backgroundColor: '#060d09',
-    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
     padding: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: '#E2E8F0',
   },
   descriptionText: {
-    color: '#f1f5f9',
+    color: '#0F172A',
     fontSize: 13,
     lineHeight: 19,
   },
   infoBox: {
-    backgroundColor: '#060d09',
-    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
     padding: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: '#E2E8F0',
     gap: 8,
   },
   infoRow: {
@@ -320,51 +312,57 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   infoKey: {
-    color: '#94a3b8',
-    fontSize: 11,
+    color: '#64748B',
+    fontSize: 11.5,
   },
   infoVal: {
-    color: '#f1f5f9',
-    fontSize: 11,
+    color: '#0F172A',
+    fontSize: 12,
     fontWeight: '600',
   },
   monoText: {
-    fontSize: 9.5,
+    fontSize: 10.5,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-    color: '#10b981',
+    color: '#0F766E',
+    fontWeight: '700',
   },
   footer: {
     flexDirection: 'row',
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
-    gap: 12,
+    borderTopColor: '#E2E8F0',
+    gap: 10,
   },
   deleteButton: {
     flex: 1,
     paddingVertical: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#ef4444',
+    borderColor: '#FECACA',
     alignItems: 'center',
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    backgroundColor: '#FEF2F2',
+    minHeight: 48,
+    justifyContent: 'center',
   },
   deleteButtonText: {
-    color: '#ef4444',
+    color: '#DC2626',
     fontWeight: '700',
-    fontSize: 12,
+    fontSize: 12.5,
   },
   closeActionBtn: {
     flex: 2,
     paddingVertical: 12,
     borderRadius: 8,
-    backgroundColor: '#10b981',
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     alignItems: 'center',
+    minHeight: 48,
+    justifyContent: 'center',
   },
   closeActionText: {
-    color: '#060d09',
+    color: '#0F172A',
     fontWeight: '800',
     fontSize: 13,
-    letterSpacing: 0.5,
   },
 });

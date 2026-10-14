@@ -26,47 +26,43 @@ interface Props {
   onSubmit: (data: CreateReportInput) => Promise<void>;
 }
 
-const CATEGORIES: { label: string; value: ReportCategory; icon: string; color: string }[] = [
-  { label: 'Medical', value: 'MEDICAL', icon: '🚑', color: '#ef4444' },
-  { label: 'Fire', value: 'FIRE', icon: '🔥', color: '#f97316' },
-  { label: 'Flood', value: 'FLOOD', icon: '🌊', color: '#0284c7' },
-  { label: 'Earthquake', value: 'EARTHQUAKE', icon: '🏚️', color: '#d97706' },
-  { label: 'Trapped', value: 'TRAPPED', icon: '🆘', color: '#dc2626' },
-  { label: 'Hazard', value: 'HAZARD', icon: '⚠️', color: '#eab308' },
+const CATEGORIES: { label: string; value: ReportCategory; color: string }[] = [
+  { label: 'Medical', value: 'MEDICAL', color: '#DC2626' },
+  { label: 'Fire', value: 'FIRE', color: '#EA580C' },
+  { label: 'Flood', value: 'FLOOD', color: '#0284C7' },
+  { label: 'Earthquake', value: 'EARTHQUAKE', color: '#D97706' },
+  { label: 'Trapped', value: 'TRAPPED', color: '#B91C1C' },
+  { label: 'Hazard', value: 'HAZARD', color: '#CA8A04' },
 ];
 
 const SEVERITIES: { label: string; value: ReportSeverity; color: string }[] = [
-  { label: 'Critical', value: 'CRITICAL', color: '#ef4444' },
-  { label: 'High', value: 'HIGH', color: '#f97316' },
-  { label: 'Medium', value: 'MEDIUM', color: '#eab308' },
-  { label: 'Low', value: 'LOW', color: '#10b981' },
+  { label: 'Critical', value: 'CRITICAL', color: '#DC2626' },
+  { label: 'High', value: 'HIGH', color: '#EA580C' },
+  { label: 'Medium', value: 'MEDIUM', color: '#D97706' },
+  { label: 'Low', value: 'LOW', color: '#16A34A' },
 ];
 
 const QUICK_PRESETS = [
   {
-    icon: '🚑',
     title: 'Medical Triage',
     category: 'MEDICAL' as ReportCategory,
     severity: 'CRITICAL' as ReportSeverity,
     text: 'Injured resident requiring emergency ambulance and paramedic assistance.',
   },
   {
-    icon: '🔥',
     title: 'Structure Fire',
     category: 'FIRE' as ReportCategory,
     severity: 'HIGH' as ReportSeverity,
     text: 'Active structure fire spreading rapidly. Evacuation in progress.',
   },
   {
-    icon: '🌊',
     title: 'Flood Rescue',
     category: 'FLOOD' as ReportCategory,
     severity: 'HIGH' as ReportSeverity,
     text: 'Rising flood waters trapped residents. Need evacuation transport.',
   },
   {
-    icon: '🏚️',
-    title: 'Collapsed Wall',
+    title: 'Structural Damage',
     category: 'EARTHQUAKE' as ReportCategory,
     severity: 'HIGH' as ReportSeverity,
     text: 'Structural damage and partial collapse from earthquake tremors.',
@@ -116,7 +112,7 @@ export const CreateReportModal: React.FC<Props> = ({
 
   const handleAcquireLocation = async () => {
     setIsLocating(true);
-    setLocationStatus('Requesting GPS lock...');
+    setLocationStatus('Acquiring GPS coordinates...');
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
@@ -133,7 +129,7 @@ export const CreateReportModal: React.FC<Props> = ({
       setLongitude(location.coords.longitude);
       setAccuracy(location.coords.accuracy);
       setLocationStatus(
-        `📍 ${location.coords.latitude.toFixed(5)}, ${location.coords.longitude.toFixed(5)} (±${Math.round(location.coords.accuracy || 0)}m)`
+        `GPS: ${location.coords.latitude.toFixed(5)}, ${location.coords.longitude.toFixed(5)} (±${Math.round(location.coords.accuracy || 0)}m)`
       );
     } catch (err) {
       setLocationStatus('GPS unavailable (report will save without coordinates)');
@@ -197,7 +193,7 @@ export const CreateReportModal: React.FC<Props> = ({
           <View style={styles.header}>
             <View>
               <Text style={styles.headerSubtitle}>MUNICIPALITY OF KABACAN • MDRRMO</Text>
-              <Text style={styles.headerTitle}>🚨 Report Emergency Incident</Text>
+              <Text style={styles.headerTitle}>Report Emergency Incident</Text>
             </View>
             <TouchableOpacity
               onPress={() => {
@@ -206,24 +202,24 @@ export const CreateReportModal: React.FC<Props> = ({
               }}
               style={styles.closeButton}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityLabel="Close report form"
             >
               <Text style={styles.closeButtonText}>✕</Text>
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
+          <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false}>
             {/* STATUS ASSURANCE BANNER */}
             <View style={styles.assuranceBanner}>
-              <Text style={styles.assuranceIcon}>🛡️</Text>
               <Text style={styles.assuranceText}>
-                Offline-Ready: Saved permanently on device and auto-dispatched to MDRRMO Central Command.
+                Offline-Ready: Saved permanently in device SQLite storage and auto-dispatched to MDRRMO Central Command.
               </Text>
             </View>
 
             {/* ERROR DISPLAY */}
             {errorMessage && (
               <View style={styles.errorBox}>
-                <Text style={styles.errorText}>⚠️ {errorMessage}</Text>
+                <Text style={styles.errorText}>{errorMessage}</Text>
               </View>
             )}
 
@@ -238,7 +234,6 @@ export const CreateReportModal: React.FC<Props> = ({
                     onPress={() => handleApplyPreset(preset)}
                     activeOpacity={0.8}
                   >
-                    <Text style={styles.presetChipIcon}>{preset.icon}</Text>
                     <Text style={styles.presetChipText}>{preset.title}</Text>
                   </TouchableOpacity>
                 ))}
@@ -258,16 +253,15 @@ export const CreateReportModal: React.FC<Props> = ({
                       key={cat.value}
                       style={[
                         styles.categoryBtn,
-                        isSelected && { borderColor: cat.color, backgroundColor: `${cat.color}15` },
+                        isSelected && { borderColor: cat.color, backgroundColor: `${cat.color}12` },
                       ]}
                       onPress={() => setCategory(cat.value)}
                       activeOpacity={0.8}
                     >
-                      <Text style={styles.categoryBtnIcon}>{cat.icon}</Text>
                       <Text
                         style={[
                           styles.categoryBtnLabel,
-                          isSelected && { color: '#ffffff', fontWeight: '800' },
+                          isSelected && { color: cat.color, fontWeight: '800' },
                         ]}
                       >
                         {cat.label}
@@ -289,7 +283,7 @@ export const CreateReportModal: React.FC<Props> = ({
                       key={sev.value}
                       style={[
                         styles.severityButton,
-                        isSelected && { borderColor: sev.color, backgroundColor: `${sev.color}25` },
+                        isSelected && { borderColor: sev.color, backgroundColor: `${sev.color}15` },
                       ]}
                       onPress={() => setSeverity(sev.value)}
                       activeOpacity={0.8}
@@ -316,7 +310,7 @@ export const CreateReportModal: React.FC<Props> = ({
               <TextInput
                 style={styles.textInputArea}
                 placeholder="Describe current situation, injuries, trapped residents, or assistance needed..."
-                placeholderTextColor="#64748b"
+                placeholderTextColor="#94A3B8"
                 multiline
                 numberOfLines={4}
                 value={description}
@@ -339,9 +333,9 @@ export const CreateReportModal: React.FC<Props> = ({
                 activeOpacity={0.8}
               >
                 {isLocating ? (
-                  <ActivityIndicator size="small" color="#10b981" />
+                  <ActivityIndicator size="small" color="#0F766E" />
                 ) : (
-                  <Text style={styles.gpsButtonText}>📍 Pin Hardware GPS Coordinates</Text>
+                  <Text style={styles.gpsButtonText}>Pin Current GPS Coordinates</Text>
                 )}
               </TouchableOpacity>
               <Text style={styles.gpsStatusText}>{locationStatus}</Text>
@@ -369,7 +363,7 @@ export const CreateReportModal: React.FC<Props> = ({
               <TextInput
                 style={[styles.textInput, { marginTop: 8 }]}
                 placeholder="Or type specific street, barangay, or landmark..."
-                placeholderTextColor="#64748b"
+                placeholderTextColor="#94A3B8"
                 value={nearestBuilding}
                 onChangeText={setNearestBuilding}
               />
@@ -378,19 +372,19 @@ export const CreateReportModal: React.FC<Props> = ({
             {/* 5. CONTACT INFO (OPTIONAL) */}
             <View style={styles.formGroup}>
               <View style={styles.anonymousRow}>
-                <View style={{ flex: 1 }}>
+                <View style={{ flex: 1, paddingRight: 8 }}>
                   <Text style={styles.sectionLabel}>ANONYMOUS REPORT</Text>
                   <Text style={styles.sublabel}>
                     {isAnonymous
-                      ? 'Protected: Only device ID attached for dispatch reply'
-                      : 'Attach name and phone for direct responder callback'}
+                      ? 'Device ID attached for direct dispatch reply.'
+                      : 'Attach name and phone for direct responder callback.'}
                   </Text>
                 </View>
                 <Switch
                   value={isAnonymous}
                   onValueChange={setIsAnonymous}
-                  trackColor={{ false: '#334155', true: '#059669' }}
-                  thumbColor={isAnonymous ? '#10b981' : '#94a3b8'}
+                  trackColor={{ false: '#CBD5E1', true: '#0F766E' }}
+                  thumbColor={isAnonymous ? '#FFFFFF' : '#F1F5F9'}
                 />
               </View>
 
@@ -400,7 +394,7 @@ export const CreateReportModal: React.FC<Props> = ({
                   <TextInput
                     style={styles.textInput}
                     placeholder="e.g. Juan dela Cruz"
-                    placeholderTextColor="#64748b"
+                    placeholderTextColor="#94A3B8"
                     value={reporterName}
                     onChangeText={setReporterName}
                   />
@@ -409,7 +403,7 @@ export const CreateReportModal: React.FC<Props> = ({
                   <TextInput
                     style={styles.textInput}
                     placeholder="e.g. 0912-345-6789"
-                    placeholderTextColor="#64748b"
+                    placeholderTextColor="#94A3B8"
                     keyboardType="phone-pad"
                     value={reporterPhone}
                     onChangeText={setReporterPhone}
@@ -441,7 +435,7 @@ export const CreateReportModal: React.FC<Props> = ({
               {isSubmitting ? (
                 <ActivityIndicator size="small" color="#ffffff" />
               ) : (
-                <Text style={styles.submitBtnText}>🚨 SEND TO MDRRMO</Text>
+                <Text style={styles.submitBtnText}>Send Emergency Report</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -454,132 +448,130 @@ export const CreateReportModal: React.FC<Props> = ({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
     justifyContent: 'flex-end',
   },
   modalContainer: {
-    backgroundColor: '#0f172a',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    height: '92%',
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    maxHeight: '92%',
     display: 'flex',
     flexDirection: 'column',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingTop: 16,
+    paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    borderBottomColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
   },
   headerSubtitle: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#059669',
-    letterSpacing: 1,
+    color: '#0F766E',
+    letterSpacing: 0.8,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#ffffff',
+    color: '#0F172A',
     marginTop: 2,
   },
   closeButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: '#F1F5F9',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   closeButtonText: {
-    fontSize: 16,
-    color: '#94a3b8',
+    color: '#475569',
+    fontSize: 14,
     fontWeight: '700',
   },
   body: {
     flex: 1,
   },
   bodyContent: {
-    padding: 18,
-    gap: 16,
+    padding: 20,
   },
   assuranceBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(5, 150, 105, 0.12)',
+    backgroundColor: '#F0FDF4',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(5, 150, 105, 0.3)',
-    borderRadius: 10,
-    padding: 10,
-    gap: 8,
-  },
-  assuranceIcon: {
-    fontSize: 16,
+    borderColor: '#BBF7D0',
+    marginBottom: 14,
   },
   assuranceText: {
-    flex: 1,
+    color: '#166534',
     fontSize: 11.5,
-    color: '#a7f3d0',
     lineHeight: 16,
   },
   errorBox: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.4)',
+    backgroundColor: '#FEF2F2',
     padding: 10,
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    marginBottom: 12,
   },
   errorText: {
-    color: '#fca5a5',
-    fontSize: 12,
+    color: '#B91C1C',
+    fontSize: 11.5,
     fontWeight: '600',
   },
   formGroup: {
-    gap: 6,
+    marginBottom: 16,
   },
   sectionLabel: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#94a3b8',
-    letterSpacing: 0.8,
+    color: '#0F172A',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  required: {
+    color: '#DC2626',
   },
   sublabel: {
-    fontSize: 10.5,
-    color: '#64748b',
-    marginTop: 2,
+    fontSize: 11,
+    color: '#475569',
+    marginTop: 1,
+    lineHeight: 15,
   },
   miniLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#64748b',
-  },
-  required: {
-    color: '#ef4444',
+    color: '#64748B',
+    marginBottom: 4,
   },
   presetScroll: {
     gap: 8,
-    paddingVertical: 2,
   },
   presetChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: 20,
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 7,
-    gap: 6,
-  },
-  presetChipIcon: {
-    fontSize: 13,
+    paddingVertical: 8,
   },
   presetChipText: {
+    color: '#0F172A',
     fontSize: 11.5,
-    color: '#e2e8f0',
-    fontWeight: '600',
+    fontWeight: '700',
   },
   categoryGrid: {
     flexDirection: 'row',
@@ -588,22 +580,18 @@ const styles = StyleSheet.create({
   },
   categoryBtn: {
     width: '31%',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 10,
-    paddingVertical: 10,
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
+    paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-  },
-  categoryBtnIcon: {
-    fontSize: 22,
   },
   categoryBtnLabel: {
-    fontSize: 11,
+    color: '#475569',
+    fontSize: 12,
     fontWeight: '700',
-    color: '#94a3b8',
   },
   severityRow: {
     flexDirection: 'row',
@@ -611,144 +599,145 @@ const styles = StyleSheet.create({
   },
   severityButton: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderRadius: 8,
-    paddingVertical: 9,
-    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
   },
   severityButtonText: {
-    color: '#94a3b8',
-    fontSize: 11,
+    color: '#475569',
+    fontSize: 11.5,
     fontWeight: '700',
   },
   textInput: {
-    backgroundColor: '#020617',
+    backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: '#CBD5E1',
     borderRadius: 8,
     padding: 11,
-    color: '#f8fafc',
+    color: '#0F172A',
     fontSize: 13,
+    minHeight: 44,
   },
   textInputArea: {
-    backgroundColor: '#020617',
+    backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: '#CBD5E1',
     borderRadius: 8,
     padding: 12,
-    color: '#f8fafc',
+    color: '#0F172A',
     fontSize: 13,
     minHeight: 85,
     textAlignVertical: 'top',
   },
   characterCount: {
-    fontSize: 9.5,
-    color: '#64748b',
+    fontSize: 10,
+    color: '#64748B',
     textAlign: 'right',
+    marginTop: 4,
   },
   gpsButton: {
-    backgroundColor: 'rgba(5, 150, 105, 0.15)',
+    backgroundColor: '#F0FDF4',
     borderWidth: 1,
-    borderColor: '#059669',
+    borderColor: '#0F766E',
     borderRadius: 8,
-    paddingVertical: 9,
+    paddingVertical: 10,
     alignItems: 'center',
+    minHeight: 44,
+    justifyContent: 'center',
   },
   gpsButtonText: {
-    color: '#10b981',
+    color: '#0F766E',
     fontWeight: '700',
     fontSize: 12,
   },
   gpsStatusText: {
-    color: '#94a3b8',
-    fontSize: 10.5,
-    fontFamily: 'monospace',
-    marginTop: 3,
+    color: '#475569',
+    fontSize: 11,
+    marginTop: 4,
   },
   facilityScroll: {
     gap: 6,
     paddingVertical: 2,
   },
   facilityChip: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#F1F5F9',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: '#E2E8F0',
     borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
   facilityChipActive: {
-    borderColor: '#059669',
-    backgroundColor: 'rgba(5, 150, 105, 0.2)',
+    borderColor: '#0F766E',
+    backgroundColor: '#0F766E',
   },
   facilityChipText: {
-    fontSize: 10.5,
-    color: '#94a3b8',
+    fontSize: 11,
+    color: '#475569',
     fontWeight: '600',
   },
   facilityChipTextActive: {
-    color: '#34d399',
+    color: '#FFFFFF',
     fontWeight: '700',
   },
   anonymousRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: '#F8FAFC',
     padding: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: '#E2E8F0',
   },
   contactFieldsBox: {
     marginTop: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: '#F8FAFC',
     padding: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    gap: 4,
+    borderColor: '#E2E8F0',
   },
   footer: {
     flexDirection: 'row',
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
-    gap: 12,
-    backgroundColor: '#0f172a',
+    borderTopColor: '#E2E8F0',
+    gap: 10,
+    backgroundColor: '#FFFFFF',
   },
   cancelBtn: {
     flex: 1,
-    paddingVertical: 13,
+    paddingVertical: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: '#E2E8F0',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#F1F5F9',
+    minHeight: 48,
+    justifyContent: 'center',
   },
   cancelBtnText: {
-    color: '#94a3b8',
+    color: '#475569',
     fontWeight: '700',
     fontSize: 13,
   },
   submitBtn: {
     flex: 2,
-    paddingVertical: 13,
+    paddingVertical: 12,
     borderRadius: 8,
-    backgroundColor: '#dc2626',
+    backgroundColor: '#DC2626',
     alignItems: 'center',
-    shadowColor: '#dc2626',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 4,
+    minHeight: 52,
+    justifyContent: 'center',
   },
   submitBtnText: {
-    color: '#ffffff',
-    fontWeight: '900',
-    fontSize: 13,
-    letterSpacing: 0.5,
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 13.5,
+    letterSpacing: 0.3,
   },
 });

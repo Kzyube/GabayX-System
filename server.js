@@ -258,6 +258,7 @@ app.post('/auth/register', async (req, res) => {
 app.post('/api/donate', async (req, res) => {
     const donorName = req.body.donor_name ? req.body.donor_name.trim() : 'Anonymous Hero';
     const amount = parseFloat(req.body.amount) || 0;
+    const personsCount = parseInt(req.body.persons_count) || Math.max(1, Math.round(amount / 250));
     const targetZone = req.body.target_zone || 'ALL ZONES';
     const targetLat = req.body.target_lat ? parseFloat(req.body.target_lat) : null;
     const targetLng = req.body.target_lng ? parseFloat(req.body.target_lng) : null;
@@ -276,29 +277,50 @@ app.post('/api/donate', async (req, res) => {
         // Supabase offline/error
     }
 
-    localStore.donations.unshift({
+    const donationObj = {
+        donor: donorName,
         donor_name: donorName,
         amount: amount,
+        persons_count: personsCount,
+        zone: targetZone,
         target_zone: targetZone,
         target_lat: targetLat,
         target_lng: targetLng,
+        voucher: voucherCode,
         voucher_code: voucherCode,
         created_at: new Date().toISOString()
-    });
+    };
+
+    localStore.donations.unshift(donationObj);
     saveLocalStore();
 
-    console.log(`💰 DONATION SECURED: ₱${amount} to ${targetZone} (Voucher: ${voucherCode})`);
-    // Broadcast the voucher to the students live
-    io.emit('donation-dropped', {
-        donor: donorName,
-        amount: amount,
-        zone: targetZone,
-        target_lat: targetLat,
-        target_lng: targetLng,
-        voucher: voucherCode
-    });
+    console.log(`💰 DONATION SECURED: ₱${amount} for ${personsCount} persons in ${targetZone} (Voucher: ${voucherCode})`);
+    // Broadcast the voucher to all connected phones and web clients live
+    io.emit('donation-dropped', donationObj);
+
+    if (req.is('json') || req.headers['accept']?.includes('application/json') || req.headers['content-type']?.includes('application/json')) {
+        return res.json({
+            success: true,
+            voucher: voucherCode,
+            amount: amount,
+            persons_count: personsCount,
+            donor: donorName,
+            zone: targetZone,
+            created_at: donationObj.created_at
+        });
+    }
 
     res.redirect(`/donate.html?success=true&voucher=${voucherCode}`);
+});
+
+app.get('/api/donations', (req, res) => {
+    res.json(localStore.donations);
+});
+
+app.get('/api/supplies', (req, res) => {
+    const supplies = (localStore.disaster_history || [])
+        .filter(d => (d.type === 'SUPPLY' || d.type === 'Relief Supplies') && d.lat && d.lng);
+    res.json(supplies);
 });
 
 app.get('/api/me', (req, res) => {
@@ -536,8 +558,11 @@ io.on('connection', (socket) => {
         }
 
         localStore.disaster_history.unshift({
+            id: Date.now(),
             type: data.type,
             instructions: data.message,
+            lat: data.lat || null,
+            lng: data.lng || null,
             count_safe: 0,
             count_danger: 0,
             created_at: new Date().toISOString()
@@ -627,6 +652,42 @@ io.on('connection', (socket) => {
             targetId: data.targetId,
             timestamp: new Date().toISOString()
         }); 
+    });
+
+    socket.on('submit-donation', (data) => {
+        if (!data) return;
+        const donorName = data.donor_name ? data.donor_name.trim() : (data.donor ? data.donor.trim() : 'Anonymous Hero');
+        const amount = parseFloat(data.amount) || 0;
+        const personsCount = parseInt(data.persons_count) || Math.max(1, Math.round(amount / 250));
+        const targetZone = data.target_zone || data.zone || 'ALL ZONES';
+        const targetLat = data.target_lat ? parseFloat(data.target_lat) : null;
+        const targetLng = data.target_lng ? parseFloat(data.target_lng) : null;
+        const voucherCode = 'GX-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+
+        const donationObj = {
+            donor: donorName,
+            donor_name: donorName,
+            amount: amount,
+            persons_count: personsCount,
+            zone: targetZone,
+            target_zone: targetZone,
+            target_lat: targetLat,
+            target_lng: targetLng,
+            voucher: voucherCode,
+            voucher_code: voucherCode,
+            created_at: new Date().toISOString()
+        };
+
+        localStore.donations.unshift(donationObj);
+        saveLocalStore();
+
+        console.log(`💰 [SOCKET DONATION]: ₱${amount} for ${personsCount} persons in ${targetZone} (Voucher: ${voucherCode})`);
+        io.emit('donation-dropped', donationObj);
+        socket.emit('donation-success', donationObj);
+    });
+
+    socket.on('supply-removed', (data) => {
+        io.emit('supply-removed', data);
     });
 
     // --- HOTSPOT / LOCAL PEER-TO-PEER MESSAGING (Zero Internet LAN) ---

@@ -749,6 +749,9 @@
                 map.removeLayer(supplyMarkers[index]);
                 supplyMarkers.splice(index, 1);
                 showToast("Supply marker removed.");
+                if (socket) {
+                    socket.emit("supply-removed", { id });
+                }
             }
         }
 
