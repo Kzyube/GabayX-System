@@ -18,10 +18,10 @@ import { CreateReportModal } from './src/components/CreateReportModal';
 import { ReportDetailModal } from './src/components/ReportDetailModal';
 import { MapScreen } from './src/screens/MapScreen';
 import { syncService } from './src/sync/syncService';
-import { alertService, AdminReplyMessage } from './src/services/alertService';
+import { alertService, AdminReplyMessage, ResidentStatus } from './src/services/alertService';
 import { DisasterAlert } from './src/types/alert';
 import { DisasterAlertBanner } from './src/components/DisasterAlertBanner';
-import { getResidentDeviceId } from './src/utils/deviceIdentity';
+import { getResidentDeviceId, getStoredResidentStatus } from './src/utils/deviceIdentity';
 
 const CATEGORY_ICONS: Record<string, { icon: string; color: string }> = {
   MEDICAL: { icon: '🚑', color: '#ef4444' },
@@ -57,6 +57,9 @@ export default function App() {
 
   // Targeted private direct replies from MDRRMO Dispatch to this user
   const [adminReply, setAdminReply] = useState<AdminReplyMessage | null>(null);
+
+  // Resident safety status
+  const [residentStatus, setResidentStatus] = useState<ResidentStatus>('SAFE');
 
   /**
    * Initialize device identity and Socket.io connection
@@ -106,6 +109,14 @@ export default function App() {
       setIsReplyModalVisible(true);
     });
 
+    // 3. Listen for resident safety status updates
+    getStoredResidentStatus().then((stored) => {
+      setResidentStatus(stored);
+    });
+    const unsubResidentStatus = alertService.subscribeResidentStatus((status) => {
+      setResidentStatus(status);
+    });
+
     // Check on startup if an active disaster was already declared
     alertService.fetchActiveDisaster().then((existing) => {
       if (existing) {
@@ -118,6 +129,7 @@ export default function App() {
       unsubClear();
       unsubStatus();
       unsubReply();
+      unsubResidentStatus();
     };
   }, []);
 
@@ -286,6 +298,29 @@ export default function App() {
         </View>
 
         <View style={styles.headerRightGroup}>
+          {/* Safety Status Indicator Pill */}
+          <View
+            style={[
+              styles.statusHeaderBadge,
+              residentStatus === 'SAFE' ? styles.statusBadgeSafe : styles.statusBadgeDanger,
+            ]}
+          >
+            <View
+              style={[
+                styles.statusHeaderDot,
+                residentStatus === 'SAFE' ? styles.statusDotSafe : styles.statusDotDanger,
+              ]}
+            />
+            <Text
+              style={[
+                styles.statusHeaderBadgeText,
+                residentStatus === 'SAFE' ? styles.statusTextSafe : styles.statusTextDanger,
+              ]}
+            >
+              {residentStatus === 'SAFE' ? 'Safe' : 'SOS'}
+            </Text>
+          </View>
+
           {/* Device ID Badge */}
           {residentDeviceId ? (
             <View style={styles.devicePill}>
@@ -655,6 +690,44 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+  },
+  statusHeaderBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  statusBadgeSafe: {
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  },
+  statusBadgeDanger: {
+    backgroundColor: 'rgba(239, 68, 68, 0.18)',
+    borderColor: 'rgba(239, 68, 68, 0.4)',
+  },
+  statusHeaderDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statusDotSafe: {
+    backgroundColor: '#10b981',
+  },
+  statusDotDanger: {
+    backgroundColor: '#ef4444',
+  },
+  statusHeaderBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  statusTextSafe: {
+    color: '#34d399',
+  },
+  statusTextDanger: {
+    color: '#f87171',
   },
   devicePill: {
     backgroundColor: 'rgba(255, 255, 255, 0.06)',

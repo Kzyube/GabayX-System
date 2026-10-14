@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Vibration,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import * as Location from 'expo-location';
@@ -17,6 +18,10 @@ import {
   LatLng,
   getOfflineRoadWaypoints,
 } from '../constants/geoData';
+import { alertService, ResidentStatus } from '../services/alertService';
+import { getStoredResidentStatus, setStoredResidentStatus } from '../utils/deviceIdentity';
+import { reportRepository } from '../database/reportRepository';
+import { syncService } from '../sync/syncService';
 
 function calculateDistanceMeters(
   lat1: number,
@@ -136,6 +141,24 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   // Live GPS tracking
   const [userCoords, setUserCoords] = useState<LatLng | null>(null);
   const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'pending'>('pending');
+
+  // Resident safety status ('SAFE' vs 'DANGER') - mirrors PWA logic
+  const [residentStatus, setResidentStatus] = useState<ResidentStatus>('SAFE');
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState<boolean>(false);
+
+  useEffect(() => {
+    // 1. Read stored status from SQLite
+    getStoredResidentStatus().then((status) => {
+      setResidentStatus(status);
+    });
+
+    // 2. Subscribe to real-time status updates from alertService
+    const unsubscribe = alertService.subscribeResidentStatus((status) => {
+      setResidentStatus(status);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const postMessageToWeb = useCallback((msg: object) => {
     const js = `window.handleNativeMessage && window.handleNativeMessage(${JSON.stringify(msg)}); true;`;
@@ -278,6 +301,98 @@ export const MapScreen: React.FC<MapScreenProps> = ({
     setActiveEvacRoute(null);
     postMessageToWeb({ type: 'CLEAR_EVACUATION_ROUTE' });
   };
+
+  /**
+   * Mark as Safe - Exactly mirrors PWA markAsSafe() logic:
+   * 1. Confirms with resident
+   * 2. Clears active evacuation route HUD
+   * 3. Emits student-status 'SAFE' to Socket.io and updates SQLite
+   * 4. Updates Admin Console map marker to green blip-safe & increments safe counter
+   */
+  const handleMarkSafe = useCallback(() => {
+    Alert.alert(
+      'Mark as Safe?',
+      'This will inform MDRRMO Central Dispatch that you are safe in a secure location.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: "Yes, I'm Safe",
+          onPress: async () => {
+            setIsUpdatingStatus(true);
+            try {
+              if (activeEvacRoute) {
+                handleClearRoute();
+              }
+              try {
+                Vibration.vibrate(100);
+              } catch {}
+              setResidentStatus('SAFE');
+              await setStoredResidentStatus('SAFE');
+              await alertService.updateResidentStatus('SAFE', userCoords, 10);
+              Alert.alert('✅ Marked as SAFE', 'MDRRMO Central Dispatch has received your safety confirmation.');
+            } catch (err) {
+              console.warn('[MapScreen] Error marking safe:', err);
+            } finally {
+              setIsUpdatingStatus(false);
+            }
+          },
+        },
+      ]
+    );
+  }, [activeEvacRoute, userCoords, handleClearRoute]);
+
+  /**
+   * Mark as Not Safe - Exactly mirrors PWA markAsDanger() logic:
+   * 1. Vibrates emergency haptic pulse
+   * 2. Sets status to DANGER and emits student-status 'DANGER' to Socket.io
+   * 3. Saves offline SOS emergency incident in local SQLite
+   * 4. Automatically activates smart road route to nearest safe hub
+   * 5. Prompts Admin Console with emergency chime, red pulsing marker, and reply capability
+   */
+  const handleMarkNotSafe = useCallback(async () => {
+    setIsUpdatingStatus(true);
+    try {
+      try {
+        Vibration.vibrate([0, 300, 150, 300]);
+      } catch {}
+
+      setResidentStatus('DANGER');
+      await setStoredResidentStatus('DANGER');
+      await alertService.updateResidentStatus('DANGER', userCoords, 10);
+
+      // Offline-first: Guarantee SQLite emergency record is saved
+      try {
+        await reportRepository.createReport({
+          category: 'TRAPPED',
+          severity: 'CRITICAL',
+          description: '🚨 RESIDENT IN DANGER: Pressed "I\'M NOT SAFE". SOS dispatched to MDRRMO Central Command.',
+          nearestBuilding: 'Kabacan Community Area',
+          latitude: userCoords?.latitude || null,
+          longitude: userCoords?.longitude || null,
+          contactInformation: {
+            isAnonymous: true,
+          },
+        });
+        // Background sync attempt
+        syncService.syncPendingReports().catch(() => {});
+      } catch (dbErr) {
+        console.warn('[MapScreen] Failed to save SOS report to SQLite:', dbErr);
+      }
+
+      // Automatically calculate and activate smart road evacuation route to nearest safe hub
+      handleTriggerEvacuate();
+
+      Alert.alert(
+        '🚨 Emergency SOS Dispatched',
+        'MDRRMO Central Command has received your distress alert.\n\nSmart road evacuation route has been activated to guide you to the nearest municipal safe hub.',
+        [{ text: 'Proceed to Safe Hub' }]
+      );
+    } catch (err) {
+      console.warn('[MapScreen] Error marking not safe:', err);
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  }, [userCoords, handleTriggerEvacuate]);
 
   useEffect(() => {
     if (initialAutoRoute && mapLoaded) {
@@ -618,25 +733,92 @@ export const MapScreen: React.FC<MapScreenProps> = ({
                 );
               })}
             </View>
+
+            {/* Arrived / Mark Safe Action */}
+            <TouchableOpacity
+              style={styles.arrivedSafeBtn}
+              onPress={handleMarkSafe}
+              activeOpacity={0.85}
+              disabled={isUpdatingStatus}
+            >
+              <Text style={styles.arrivedSafeBtnText}>🛡️ I've Arrived / Mark as Safe</Text>
+            </TouchableOpacity>
           </View>
         </View>
       )}
 
-      {/* 2. When No Route is Active: Big Clean Action Button */}
+      {/* 2. When No Route is Active: Dual Emergency Status Controls (Matching PWA student.html) */}
       {!activeEvacRoute && !selectedPlace && (
         <View style={styles.bottomCardContainer}>
-          <TouchableOpacity
-            style={styles.mainEvacBtn}
-            onPress={handleTriggerEvacuate}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.mainEvacBtnIcon}>🚨</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.mainEvacBtnTitle}>Find Nearest Safe Zone</Text>
-              <Text style={styles.mainEvacBtnSub}>Shows the fastest evacuation walking path</Text>
+          <View style={styles.statusPanelCard}>
+            {/* Live Status Pill Header */}
+            <View style={styles.statusHeaderRow}>
+              <View
+                style={[
+                  styles.statusIndicatorPill,
+                  residentStatus === 'SAFE' ? styles.statusPillSafe : styles.statusPillDanger,
+                ]}
+              >
+                <View
+                  style={[
+                    styles.statusPillDot,
+                    residentStatus === 'SAFE' ? styles.statusDotSafe : styles.statusDotDanger,
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.statusPillText,
+                    residentStatus === 'SAFE' ? styles.statusTextSafe : styles.statusTextDanger,
+                  ]}
+                >
+                  {residentStatus === 'SAFE' ? 'STATUS: MARKED SAFE' : 'STATUS: IN DANGER / SOS'}
+                </Text>
+              </View>
+
+              <Text style={styles.statusGpsNote}>
+                {userCoords ? '📍 Live GPS' : '🛰️ Acquiring GPS'}
+              </Text>
             </View>
-            <Text style={styles.mainEvacBtnArrow}>→</Text>
-          </TouchableOpacity>
+
+            {/* The Two Main Action Buttons side-by-side */}
+            <View style={styles.statusButtonGroup}>
+              {/* I'M SAFE BUTTON */}
+              <TouchableOpacity
+                style={[
+                  styles.statusActionBtn,
+                  styles.btnSafe,
+                  residentStatus === 'SAFE' && styles.btnSafeActive,
+                ]}
+                onPress={handleMarkSafe}
+                disabled={isUpdatingStatus}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.btnActionIcon}>🛡️</Text>
+                <View style={styles.btnTextCol}>
+                  <Text style={styles.btnSafeTitle}>I'M SAFE</Text>
+                  <Text style={styles.btnSafeSubtitle}>Mark as Safe</Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* I'M NOT SAFE / SOS BUTTON */}
+              <TouchableOpacity
+                style={[
+                  styles.statusActionBtn,
+                  styles.btnDanger,
+                  residentStatus === 'DANGER' && styles.btnDangerActive,
+                ]}
+                onPress={handleMarkNotSafe}
+                disabled={isUpdatingStatus}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.btnActionIcon}>🚨</Text>
+                <View style={styles.btnTextCol}>
+                  <Text style={styles.btnDangerTitle}>I'M NOT SAFE</Text>
+                  <Text style={styles.btnDangerSubtitle}>SOS & Evacuate</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       )}
 
@@ -750,37 +932,155 @@ const styles = StyleSheet.create({
     left: 14,
     right: 14,
   },
-  mainEvacBtn: {
-    backgroundColor: '#dc2626',
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+  statusPanelCard: {
+    backgroundColor: '#0f172a',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#1e293b',
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  statusHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+    paddingHorizontal: 2,
+  },
+  statusIndicatorPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 5,
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
-  mainEvacBtnIcon: {
-    fontSize: 22,
+  statusPillSafe: {
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
   },
-  mainEvacBtnTitle: {
-    color: '#ffffff',
-    fontSize: 15,
+  statusPillDanger: {
+    backgroundColor: 'rgba(239, 68, 68, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.4)',
+  },
+  statusPillDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  statusDotSafe: {
+    backgroundColor: '#10b981',
+  },
+  statusDotDanger: {
+    backgroundColor: '#ef4444',
+  },
+  statusPillText: {
+    fontSize: 10.5,
     fontWeight: '800',
+    letterSpacing: 0.4,
   },
-  mainEvacBtnSub: {
-    color: '#fee2e2',
+  statusTextSafe: {
+    color: '#34d399',
+  },
+  statusTextDanger: {
+    color: '#f87171',
+  },
+  statusGpsNote: {
+    color: '#94a3b8',
     fontSize: 11,
-    marginTop: 2,
+    fontWeight: '600',
   },
-  mainEvacBtnArrow: {
+  statusButtonGroup: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  statusActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    gap: 8,
+  },
+  btnSafe: {
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1.5,
+    borderColor: '#86efac',
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  btnSafeActive: {
+    backgroundColor: '#dcfce7',
+    borderColor: '#22c55e',
+  },
+  btnSafeTitle: {
+    color: '#15803d',
+    fontSize: 14.5,
+    fontWeight: '900',
+    letterSpacing: 0.3,
+  },
+  btnSafeSubtitle: {
+    color: '#166534',
+    fontSize: 10,
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  btnDanger: {
+    backgroundColor: '#dc2626',
+    borderWidth: 1.5,
+    borderColor: '#b91c1c',
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 5,
+    elevation: 4,
+  },
+  btnDangerActive: {
+    backgroundColor: '#b91c1c',
+  },
+  btnDangerTitle: {
     color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 14.5,
+    fontWeight: '900',
+    letterSpacing: 0.3,
+  },
+  btnDangerSubtitle: {
+    color: '#fee2e2',
+    fontSize: 10,
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  btnActionIcon: {
+    fontSize: 20,
+  },
+  btnTextCol: {
+    flexDirection: 'column',
+  },
+  arrivedSafeBtn: {
+    backgroundColor: '#059669',
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#10b981',
+  },
+  arrivedSafeBtnText: {
+    color: '#ffffff',
+    fontSize: 12.5,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
   evacCard: {
     backgroundColor: '#0f172a',

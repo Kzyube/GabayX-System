@@ -18,6 +18,9 @@ export interface AdminReplyMessage {
   timestamp: string;
 }
 
+export type ResidentStatus = 'SAFE' | 'DANGER';
+export type ResidentStatusListener = (status: ResidentStatus) => void;
+
 type AlertListener = (alert: DisasterAlert) => void;
 type ClearListener = () => void;
 type StatusListener = (connected: boolean) => void;
@@ -29,13 +32,25 @@ class AlertService {
   private clearListeners: Set<ClearListener> = new Set();
   private statusListeners: Set<StatusListener> = new Set();
   private replyListeners: Set<ReplyListener> = new Set();
+  private residentStatusListeners: Set<ResidentStatusListener> = new Set();
   private isConnected: boolean = false;
   private currentAlert: DisasterAlert | null = null;
+  private currentResidentStatus: ResidentStatus = 'SAFE';
   private residentId: string | null = null;
   private heartbeatTimer: any = null;
 
   getResidentId(): string | null {
     return this.residentId;
+  }
+
+  getResidentStatus(): ResidentStatus {
+    return this.currentResidentStatus;
+  }
+
+  subscribeResidentStatus(listener: ResidentStatusListener): () => void {
+    this.residentStatusListeners.add(listener);
+    listener(this.currentResidentStatus);
+    return () => this.residentStatusListeners.delete(listener);
   }
 
   /**
@@ -60,6 +75,13 @@ class AlertService {
         if (this.socket && this.residentId) {
           this.socket.emit('register-student', this.residentId);
           this.socket.emit('register-resident', this.residentId);
+          this.socket.emit('student-status', {
+            id: this.residentId,
+            status: this.currentResidentStatus,
+            lat: null,
+            lng: null,
+            accuracy: 10,
+          });
         }
       };
 
@@ -189,6 +211,53 @@ class AlertService {
       lng: report.lng || null,
       accuracy: 10,
     });
+    this.currentResidentStatus = 'DANGER';
+    this.notifyResidentStatus('DANGER');
+  }
+
+  /**
+   * Update resident emergency status ('SAFE' or 'DANGER')
+   * Mirrors PWA markAsSafe() and markAsDanger() logic
+   */
+  async updateResidentStatus(
+    status: ResidentStatus,
+    coords?: { latitude: number; longitude: number } | null,
+    accuracy: number = 10
+  ): Promise<void> {
+    this.currentResidentStatus = status;
+    this.notifyResidentStatus(status);
+
+    if (!this.residentId) {
+      this.residentId = await getResidentDeviceId();
+    }
+
+    if (this.socket && this.residentId) {
+      this.socket.emit('register-student', this.residentId);
+      this.socket.emit('register-resident', this.residentId);
+
+      this.socket.emit('student-status', {
+        id: this.residentId,
+        status: status,
+        lat: coords ? coords.latitude : null,
+        lng: coords ? coords.longitude : null,
+        accuracy: accuracy,
+      });
+
+      if (status === 'DANGER') {
+        this.socket.emit('student-note', {
+          id: this.residentId,
+          message: `[EMERGENCY SOS]: Resident declared DANGER status at ${new Date().toLocaleTimeString()}`,
+        });
+      } else {
+        this.socket.emit('student-note', {
+          id: this.residentId,
+          message: `[STATUS]: Resident marked SAFE at ${new Date().toLocaleTimeString()}`,
+        });
+      }
+      console.log(`[AlertService] Dispatched student-status '${status}' for ${this.residentId}`);
+    } else {
+      console.log(`[AlertService] Socket offline. Status updated locally as: ${status}`);
+    }
   }
 
   /**
@@ -299,6 +368,16 @@ class AlertService {
         l(reply);
       } catch (e) {
         console.error(e);
+      }
+    });
+  }
+
+  private notifyResidentStatus(status: ResidentStatus) {
+    this.residentStatusListeners.forEach((l) => {
+      try {
+        l(status);
+      } catch (e) {
+        console.error('[AlertService] Error in residentStatusListener:', e);
       }
     });
   }

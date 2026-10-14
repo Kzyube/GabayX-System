@@ -49,3 +49,30 @@ export async function getResidentDeviceId(): Promise<string> {
     return cachedDeviceId;
   }
 }
+
+export async function getStoredResidentStatus(): Promise<'SAFE' | 'DANGER'> {
+  try {
+    const db = await getDatabase();
+    const row = await db.getFirstAsync<{ value: string }>(
+      "SELECT value FROM app_settings WHERE key = 'resident_status';"
+    );
+    if (row && (row.value === 'SAFE' || row.value === 'DANGER')) {
+      return row.value;
+    }
+  } catch {
+    // Fallback default
+  }
+  return 'SAFE';
+}
+
+export async function setStoredResidentStatus(status: 'SAFE' | 'DANGER'): Promise<void> {
+  try {
+    const db = await getDatabase();
+    await db.runAsync(
+      "INSERT OR REPLACE INTO app_settings (key, value) VALUES ('resident_status', ?);",
+      [status]
+    );
+  } catch (err) {
+    console.warn('[DeviceIdentity] Could not persist resident_status:', err);
+  }
+}
