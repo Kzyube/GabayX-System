@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import {
   StyleSheet,
@@ -30,6 +30,7 @@ import { DonateModal } from './src/components/DonateModal';
 import { VoucherAlertModal } from './src/components/VoucherAlertModal';
 import { VouchersListModal } from './src/components/VouchersListModal';
 import { HotlinesModal } from './src/components/HotlinesModal';
+import { BluetoothMeshModal } from './src/components/BluetoothMeshModal';
 import { soundService } from './src/services/soundService';
 import { AudioPlayer } from './src/components/AudioPlayer';
 
@@ -63,10 +64,35 @@ export default function App() {
   const [isReplyModalVisible, setIsReplyModalVisible] = useState(false);
   const [isHotlinesOpen, setIsHotlinesOpen] = useState(false);
 
-  // Real-time Disaster Alerts from Central Command
+  // Real-time Disaster Alerts from Central Command & Connection State
   const [activeAlert, setActiveAlert] = useState<DisasterAlert | null>(null);
   const [isSocketConnected, setIsSocketConnected] = useState(false);
+  const [isOfflineSimulated, setIsOfflineSimulated] = useState(false);
+  const effectiveOnline = isSocketConnected && !isOfflineSimulated;
   const [autoRouteRequested, setAutoRouteRequested] = useState(false);
+
+  // Auto-activate municipal evacuation route and prompt user when going offline (Ahmad's requirement)
+  const prevEffectiveOnlineRef = useRef(effectiveOnline);
+  useEffect(() => {
+    if (prevEffectiveOnlineRef.current && !effectiveOnline) {
+      // Signal lost: auto-activate evacuation route and switch to map view
+      setAutoRouteRequested(true);
+      setCurrentScreen('MAP');
+      Alert.alert(
+        '⚠️ Offline Disaster Mode Engaged',
+        'Cellular / Wi-Fi connection lost.\n\nAutomatic road evacuation route along Kabacan municipal streets has been activated. Emergency reports will be saved safely in offline storage on this device.',
+        [{ text: 'Proceed to Safe Hub' }]
+      );
+    } else if (!prevEffectiveOnlineRef.current && effectiveOnline) {
+      // Reconnected: trigger background sync for any offline reports
+      syncService.syncPendingReports().then((res) => {
+        if (res.syncedCount > 0) {
+          loadReports();
+        }
+      }).catch(() => {});
+    }
+    prevEffectiveOnlineRef.current = effectiveOnline;
+  }, [effectiveOnline]);
 
   // Targeted private direct replies from MDRRMO Dispatch to this user
   const [adminReply, setAdminReply] = useState<AdminReplyMessage | null>(null);
@@ -80,6 +106,7 @@ export default function App() {
   const [isVouchersListOpen, setIsVouchersListOpen] = useState(false);
   const [incomingVoucherAlert, setIncomingVoucherAlert] = useState<GCashVoucher | null>(null);
   const [isVoucherAlertOpen, setIsVoucherAlertOpen] = useState(false);
+  const [isMeshModalOpen, setIsMeshModalOpen] = useState(false);
 
   /**
    * Initialize device identity and Socket.io connection
@@ -91,28 +118,11 @@ export default function App() {
 
     alertService.connect();
 
-    // 1. Listen for community disaster broadcasts (triggers siren & vibration)
+    // 1. Listen for community disaster broadcasts (triggers siren, auto-navigates to map with route)
     const unsubAlert = alertService.subscribeAlert((alert) => {
       setActiveAlert(alert);
-      Alert.alert(
-        `🚨 ${String(alert.type).toUpperCase()} BROADCAST`,
-        `${alert.message}\n\nPlease proceed immediately along the designated municipal road route to the nearest Safe Hub.`,
-        [
-          {
-            text: '🗺️ View Evacuation Route',
-            onPress: () => {
-              soundService.stopEmergencySiren();
-              setAutoRouteRequested(true);
-              setCurrentScreen('MAP');
-            },
-          },
-          {
-            text: 'Silence Siren',
-            style: 'cancel',
-            onPress: () => soundService.stopEmergencySiren(),
-          },
-        ]
-      );
+      setAutoRouteRequested(true);
+      setCurrentScreen('MAP');
     });
 
     const unsubClear = alertService.subscribeClear(() => {
@@ -270,9 +280,9 @@ export default function App() {
         nearest_building: created.nearestBuilding,
         lat: created.latitude,
         lng: created.longitude,
-        student_name: created.contactInformation.isAnonymous
+        student_name: created.contactInformation?.isAnonymous
           ? `Resident (${residentDeviceId ? residentDeviceId.slice(-4) : 'Mobile'})`
-          : created.contactInformation.name || undefined,
+          : created.contactInformation?.name || undefined,
       });
 
       // Background sync attempt with REST backend
@@ -312,6 +322,34 @@ export default function App() {
             } catch (err) {
               console.error('[App] Failed to delete report:', err);
               Alert.alert('Error', 'Failed to delete report.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  /**
+   * Handle clearing all stored incident reports permanently
+   */
+  const handleClearAllReports = () => {
+    if (reports.length === 0) return;
+
+    Alert.alert(
+      'Clear All Reports',
+      'Are you sure you want to permanently delete all saved reports from this device?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear All',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await reportRepository.clearAllReports();
+              await loadReports();
+            } catch (err) {
+              console.error('[App] Failed to clear reports:', err);
+              Alert.alert('Error', 'Failed to clear reports.');
             }
           },
         },
@@ -438,40 +476,45 @@ export default function App() {
             </Text>
           </TouchableOpacity>
 
-          {/* Quick Hotlines Button */}
+          {/* Connection Status Indicator & Disaster Demo Toggle */}
           <TouchableOpacity
-            style={styles.hotlinesHeaderBtn}
-            onPress={() => setIsHotlinesOpen(true)}
+            style={[
+              styles.connectionBadge,
+              !effectiveOnline && styles.connectionBadgeOffline,
+            ]}
+            onPress={() => setIsOfflineSimulated((prev) => !prev)}
             activeOpacity={0.8}
-            accessibilityLabel="Emergency Hotlines"
+            accessibilityLabel="Toggle offline disaster mode simulation"
           >
-            <Text style={styles.hotlinesHeaderBtnText}>Hotlines</Text>
-          </TouchableOpacity>
-
-          {/* Connection Status Indicator */}
-          <View style={styles.connectionBadge}>
             <View
               style={[
                 styles.connectionDot,
-                isSocketConnected ? styles.statusDotLive : styles.statusDotOffline,
+                effectiveOnline ? styles.statusDotLive : styles.statusDotOffline,
               ]}
             />
-            <Text style={styles.connectionText}>
-              {isSocketConnected ? 'Online' : 'Offline'}
+            <Text
+              style={[
+                styles.connectionText,
+                !effectiveOnline && styles.connectionTextOffline,
+              ]}
+            >
+              {effectiveOnline ? 'Online' : 'Offline'}
             </Text>
-          </View>
+          </TouchableOpacity>
         </View>
       </View>
 
-      {/* REAL-TIME DISASTER ALERT BANNER WITH AUDIBLE SIREN & SILENCE CONTROL */}
-      <DisasterAlertBanner
-        alert={activeAlert}
-        onPressViewMap={() => {
-          soundService.stopEmergencySiren();
-          setAutoRouteRequested(true);
-          setCurrentScreen('MAP');
-        }}
-      />
+      {/* REAL-TIME DISASTER ALERT BANNER (ONLY ON NON-MAP SCREENS; MAP HAS DEDICATED TOP SIREN BANNER) */}
+      {currentScreen !== 'MAP' && (
+        <DisasterAlertBanner
+          alert={activeAlert}
+          onPressViewMap={() => {
+            soundService.stopEmergencySiren();
+            setAutoRouteRequested(true);
+            setCurrentScreen('MAP');
+          }}
+        />
+      )}
 
       {/* TARGETED PRIVATE DIRECT MESSAGE FROM MDRRMO DISPATCH */}
       {adminReply && (
@@ -522,15 +565,16 @@ export default function App() {
               </View>
             </TouchableOpacity>
 
-            {/* QUICK ACTIONS ROW: EVACUATION MAP, HOTLINES, AID */}
+            {/* QUICK ACTIONS ROW: MESSAGING & HOTLINES */}
             <View style={styles.quickActionsRow}>
               <TouchableOpacity
                 style={styles.quickActionBtn}
-                onPress={() => setCurrentScreen('MAP')}
+                onPress={() => setIsMeshModalOpen(true)}
                 activeOpacity={0.8}
-                accessibilityLabel="Open evacuation map"
+                accessibilityLabel="Open Messaging"
               >
-                <Text style={styles.quickActionText}>Evacuation Map</Text>
+                <Text style={styles.quickActionIcon}>💬</Text>
+                <Text style={styles.quickActionText}>Messaging</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -539,18 +583,8 @@ export default function App() {
                 activeOpacity={0.8}
                 accessibilityLabel="Open hotlines directory"
               >
+                <Text style={styles.quickActionIcon}>📞</Text>
                 <Text style={styles.quickActionText}>Hotlines</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.quickActionBtn}
-                onPress={() => setCurrentScreen('AID')}
-                activeOpacity={0.8}
-                accessibilityLabel="Open relief aid wallet"
-              >
-                <Text style={styles.quickActionText}>
-                  Relief Aid{unclaimedCount > 0 ? ` (${unclaimedCount})` : ''}
-                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -558,11 +592,24 @@ export default function App() {
           {/* SECTION HEADER & SYNC CONTROLS */}
           <View style={styles.sectionHeaderRow}>
             <View>
-              <Text style={styles.sectionTitle}>Incident Reports</Text>
+              <Text style={styles.sectionTitle}>
+                Incident Reports{reports.length > 0 ? ` (${reports.length})` : ''}
+              </Text>
               <Text style={styles.sectionSub}>Stored safely in device offline storage</Text>
             </View>
 
             <View style={styles.controlsRight}>
+              {reports.length > 0 && (
+                <TouchableOpacity
+                  style={styles.clearAllButton}
+                  onPress={handleClearAllReports}
+                  activeOpacity={0.8}
+                  accessibilityLabel="Clear all incident reports"
+                >
+                  <Text style={styles.clearAllBtnText}>Clear All</Text>
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity
                 style={[
                   styles.syncButton,
@@ -641,6 +688,15 @@ export default function App() {
                     ? 'All reports on this device are verified and synchronized with MDRRMO Central Command.'
                     : 'Tap "Report Emergency Incident" above to log and dispatch a situation report.'}
                 </Text>
+                {activeTab !== 'PENDING' && (
+                  <TouchableOpacity
+                    style={styles.emptyActionBtn}
+                    onPress={() => setIsCreateModalOpen(true)}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.emptyActionBtnText}>+ File Emergency Report</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             ) : (
               <FlatList
@@ -682,7 +738,7 @@ export default function App() {
                           <View
                             style={[
                               styles.severityPill,
-                              item.severity === 'CRITICAL' && styles.sevCritical,
+                              (item.severity === 'CRITICAL' || item.severity === 'EXTREME') && styles.sevCritical,
                               item.severity === 'HIGH' && styles.sevHigh,
                               item.severity === 'MEDIUM' && styles.sevMedium,
                               item.severity === 'LOW' && styles.sevLow,
@@ -691,13 +747,13 @@ export default function App() {
                             <Text
                               style={[
                                 styles.severityPillText,
-                                item.severity === 'CRITICAL' && styles.sevCriticalText,
+                                (item.severity === 'CRITICAL' || item.severity === 'EXTREME') && styles.sevCriticalText,
                                 item.severity === 'HIGH' && styles.sevHighText,
                                 item.severity === 'MEDIUM' && styles.sevMediumText,
                                 item.severity === 'LOW' && styles.sevLowText,
                               ]}
                             >
-                              {item.severity}
+                              {item.severity === 'CRITICAL' ? 'EXTREME' : item.severity}
                             </Text>
                           </View>
                         </View>
@@ -741,14 +797,21 @@ export default function App() {
         </View>
       )}
 
-      {/* SCREEN 2: EVACUATION MAP */}
-      {currentScreen === 'MAP' && (
+      {/* SCREEN 2: EVACUATION MAP (ALWAYS MOUNTED TO PRESERVE LEAFLET AND NEVER DISAPPEAR) */}
+      <View
+        style={[
+          styles.mapScreenContainer,
+          currentScreen === 'MAP' ? styles.screenVisible : styles.screenHidden,
+        ]}
+      >
         <MapScreen
           initialAutoRoute={autoRouteRequested}
           onClearAutoRoute={() => setAutoRouteRequested(false)}
           activeDisaster={activeAlert}
+          isOffline={!effectiveOnline}
+          onOpenReportModal={() => setIsCreateModalOpen(true)}
         />
-      )}
+      </View>
 
       {/* SCREEN 3: RELIEF AID & GCASH VOUCHERS */}
       {currentScreen === 'AID' && (
@@ -877,6 +940,17 @@ export default function App() {
         </TouchableOpacity>
 
         <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => setIsMeshModalOpen(true)}
+          activeOpacity={0.8}
+          accessibilityLabel="Open Messaging"
+        >
+          <Text style={styles.navText}>
+            Messaging
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
           style={[styles.navItem, currentScreen === 'AID' && styles.navItemActive]}
           onPress={() => setCurrentScreen('AID')}
           activeOpacity={0.8}
@@ -979,6 +1053,12 @@ export default function App() {
         onClose={() => setIsHotlinesOpen(false)}
       />
 
+      {/* BLUETOOTH MESH P2P MESSAGING & RELAY MODAL */}
+      <BluetoothMeshModal
+        visible={isMeshModalOpen}
+        onClose={() => setIsMeshModalOpen(false)}
+      />
+
       {/* AUDIO ENGINE (WEBVIEW BRIDGE - NO NATIVE MODULES REQUIRED) */}
       <AudioPlayer />
     </SafeAreaView>
@@ -1055,6 +1135,19 @@ const styles = StyleSheet.create({
   },
   statusTextDanger: {
     color: '#B91C1C',
+  },
+  meshHeaderBtn: {
+    backgroundColor: '#CCFBF1',
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#99F6E4',
+  },
+  meshHeaderBtnText: {
+    color: '#0F766E',
+    fontSize: 11,
+    fontWeight: '800',
   },
   hotlinesHeaderBtn: {
     backgroundColor: '#F1F5F9',
@@ -1153,24 +1246,34 @@ const styles = StyleSheet.create({
   },
   quickActionsRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
     marginTop: 10,
   },
   quickActionBtn: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    paddingVertical: 10,
-    paddingHorizontal: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 44,
+    gap: 8,
+    minHeight: 48,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  quickActionIcon: {
+    fontSize: 16,
   },
   quickActionText: {
     color: '#0F172A',
-    fontSize: 11.5,
+    fontSize: 13,
     fontWeight: '700',
     textAlign: 'center',
   },
@@ -1181,12 +1284,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 6,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   sectionTitle: {
     color: '#0F172A',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '800',
   },
   sectionSub: {
@@ -1196,6 +1299,20 @@ const styles = StyleSheet.create({
   controlsRight: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
+  },
+  clearAllButton: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  clearAllBtnText: {
+    color: '#DC2626',
+    fontSize: 11.5,
+    fontWeight: '700',
   },
   syncButton: {
     backgroundColor: '#0F766E',
@@ -1393,6 +1510,18 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 17,
     maxWidth: 280,
+  },
+  emptyActionBtn: {
+    marginTop: 14,
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  emptyActionBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12.5,
+    fontWeight: '800',
   },
   errorBanner: {
     backgroundColor: '#FEF2F2',
@@ -1804,5 +1933,30 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '800',
+  },
+  mapScreenContainer: {
+    flex: 1,
+  },
+  screenVisible: {
+    flex: 1,
+    opacity: 1,
+  },
+  screenHidden: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    opacity: 0,
+    zIndex: -10,
+    pointerEvents: 'none',
+  },
+  connectionBadgeOffline: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#FCD34D',
+  },
+  connectionTextOffline: {
+    color: '#B45309',
+    fontWeight: '700',
   },
 });

@@ -23,6 +23,7 @@ import { getStoredResidentStatus, setStoredResidentStatus } from '../utils/devic
 import { reportRepository } from '../database/reportRepository';
 import { syncService } from '../sync/syncService';
 import { ReliefSupply } from '../types/voucher';
+import { soundService } from '../services/soundService';
 
 function calculateDistanceMeters(
   lat1: number,
@@ -51,37 +52,40 @@ function calculateDistanceMeters(
  */
 async function calculateSmartRoadRoute(
   origin: LatLng,
-  targetHub: SafeAssemblyZone
+  targetHub: SafeAssemblyZone,
+  forceOffline: boolean = false
 ): Promise<{ waypoints: [number, number][]; distanceMeters: number; walkMinutes: number }> {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3500);
-    const url = `https://router.project-osrm.org/route/v1/foot/${origin.longitude},${origin.latitude};${targetHub.longitude},${targetHub.latitude}?overview=full&geometries=geojson`;
-    const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeoutId);
+  if (!forceOffline) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2500);
+      const url = `https://router.project-osrm.org/route/v1/foot/${origin.longitude},${origin.latitude};${targetHub.longitude},${targetHub.latitude}?overview=full&geometries=geojson`;
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
 
-    if (res.ok) {
-      const data = await res.json();
-      if (data.code === 'Ok' && data.routes && data.routes[0]) {
-        const route = data.routes[0];
-        const rawCoords: [number, number][] = route.geometry.coordinates.map(
-          (pt: [number, number]) => [pt[1], pt[0]]
-        );
-        const waypoints: [number, number][] = [
-          [origin.latitude, origin.longitude],
-          ...rawCoords,
-          [targetHub.latitude, targetHub.longitude],
-        ];
-        const distanceMeters = Math.max(20, Math.round(route.distance));
-        const walkMinutes = Math.max(1, Math.ceil(route.duration / 60));
-        return { waypoints, distanceMeters, walkMinutes };
+      if (res.ok) {
+        const data = await res.json();
+        if (data.code === 'Ok' && data.routes && data.routes[0]) {
+          const route = data.routes[0];
+          const rawCoords: [number, number][] = route.geometry.coordinates.map(
+            (pt: [number, number]) => [pt[1], pt[0]]
+          );
+          const waypoints: [number, number][] = [
+            [origin.latitude, origin.longitude],
+            ...rawCoords,
+            [targetHub.latitude, targetHub.longitude],
+          ];
+          const distanceMeters = Math.max(20, Math.round(route.distance));
+          const walkMinutes = Math.max(1, Math.ceil(route.duration / 60));
+          return { waypoints, distanceMeters, walkMinutes };
+        }
       }
+    } catch (err) {
+      console.log('[Router] OSRM live routing unreachable, using municipal road network fallback.');
     }
-  } catch (err) {
-    console.log('[Router] OSRM live routing unreachable, using municipal road network fallback.');
   }
 
-  // Authoritative municipal road network fallback (Poblacion streets)
+  // Authoritative municipal road network fallback (Poblacion streets) - 0ms instant
   const waypoints = getOfflineRoadWaypoints(origin, targetHub);
   let totalDist = 0;
   for (let i = 0; i < waypoints.length - 1; i++) {
@@ -110,11 +114,16 @@ export interface MapScreenProps {
   initialAutoRoute?: boolean;
   onClearAutoRoute?: () => void;
   activeDisaster?: { type: string; message: string } | null;
+  isOffline?: boolean;
+  onOpenReportModal?: () => void;
 }
 
 export const MapScreen: React.FC<MapScreenProps> = ({
   initialAutoRoute = false,
   onClearAutoRoute,
+  activeDisaster,
+  isOffline = false,
+  onOpenReportModal,
 }) => {
   const webViewRef = useRef<WebView>(null);
   const [isSatellite, setIsSatellite] = useState(false);
@@ -139,9 +148,13 @@ export const MapScreen: React.FC<MapScreenProps> = ({
     badge?: string;
   } | null>(null);
 
-  // Live GPS tracking
-  const [userCoords, setUserCoords] = useState<LatLng | null>(null);
+  // Live GPS tracking - initialized to MUNICIPAL_CENTER so marker is NEVER missing
+  const [userCoords, setUserCoords] = useState<LatLng>(MUNICIPAL_CENTER);
+  const userCoordsRef = useRef<LatLng>(MUNICIPAL_CENTER);
   const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'pending'>('pending');
+
+  // Emergency siren playback state
+  const [isSirenActive, setIsSirenActive] = useState<boolean>(soundService.isPlaying());
 
   // Resident safety status ('SAFE' vs 'DANGER') - mirrors PWA logic
   const [residentStatus, setResidentStatus] = useState<ResidentStatus>('SAFE');
@@ -154,6 +167,27 @@ export const MapScreen: React.FC<MapScreenProps> = ({
     const js = `window.handleNativeMessage && window.handleNativeMessage(${JSON.stringify(msg)}); true;`;
     webViewRef.current?.injectJavaScript(js);
   }, []);
+
+  // Sync ref with state
+  useEffect(() => {
+    userCoordsRef.current = userCoords;
+  }, [userCoords]);
+
+  // Keep siren audio listener active
+  useEffect(() => {
+    const unsub = soundService.subscribe((action) => {
+      setIsSirenActive(action === 'PLAY_SIREN');
+    });
+    return () => unsub();
+  }, []);
+
+  // Guarantee that whenever the Leaflet webview is loaded or userCoords updates,
+  // the user location pulse marker is immediately rendered on the map
+  useEffect(() => {
+    if (mapLoaded && userCoords) {
+      postMessageToWeb({ type: 'UPDATE_USER_LOCATION', coords: userCoords });
+    }
+  }, [mapLoaded, userCoords, postMessageToWeb]);
 
   useEffect(() => {
     // 1. Read stored status from SQLite
@@ -192,46 +226,82 @@ export const MapScreen: React.FC<MapScreenProps> = ({
 
   useEffect(() => {
     let subscriber: Location.LocationSubscription | null = null;
+    let isMounted = true;
 
     async function initLocation() {
       try {
+        // 1. Check if device location services (GPS toggle in Android settings) are enabled
+        const hasServices = await Location.hasServicesEnabledAsync().catch(() => true);
+        if (!hasServices) {
+          console.warn('[MapScreen] Android device location services are disabled');
+        }
+
+        // 2. Request foreground permissions
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
-          setLocationPermission('denied');
+          if (isMounted) {
+            setLocationPermission('denied');
+          }
           return;
         }
 
-        setLocationPermission('granted');
+        if (isMounted) setLocationPermission('granted');
 
-        const current = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-        if (current && current.coords) {
-          const coords = {
-            latitude: current.coords.latitude,
-            longitude: current.coords.longitude,
-          };
-          setUserCoords(coords);
-          postMessageToWeb({ type: 'UPDATE_USER_LOCATION', coords });
+        // 3. Fast cached last known position
+        try {
+          const lastKnown = await Location.getLastKnownPositionAsync();
+          if (isMounted && lastKnown && lastKnown.coords) {
+            const coords = {
+              latitude: lastKnown.coords.latitude,
+              longitude: lastKnown.coords.longitude,
+            };
+            setUserCoords(coords);
+            userCoordsRef.current = coords;
+            postMessageToWeb({ type: 'UPDATE_USER_LOCATION', coords });
+          }
+        } catch {}
+
+        // 4. Live GPS current position
+        try {
+          const current = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          if (isMounted && current && current.coords) {
+            const coords = {
+              latitude: current.coords.latitude,
+              longitude: current.coords.longitude,
+            };
+            setUserCoords(coords);
+            userCoordsRef.current = coords;
+            postMessageToWeb({ type: 'UPDATE_USER_LOCATION', coords });
+          }
+        } catch (posErr) {
+          console.log('[MapScreen] Live GPS fix delayed, using last known or municipal center:', posErr);
         }
 
-        subscriber = await Location.watchPositionAsync(
-          {
-            accuracy: Location.Accuracy.Balanced,
-            timeInterval: 4000,
-            distanceInterval: 5,
-          },
-          (loc) => {
-            if (loc && loc.coords) {
-              const coords = {
-                latitude: loc.coords.latitude,
-                longitude: loc.coords.longitude,
-              };
-              setUserCoords(coords);
-              postMessageToWeb({ type: 'UPDATE_USER_LOCATION', coords });
+        // 5. Continuous position watcher
+        try {
+          subscriber = await Location.watchPositionAsync(
+            {
+              accuracy: Location.Accuracy.Balanced,
+              timeInterval: 2500,
+              distanceInterval: 2,
+            },
+            (loc) => {
+              if (isMounted && loc && loc.coords) {
+                const coords = {
+                  latitude: loc.coords.latitude,
+                  longitude: loc.coords.longitude,
+                };
+                setUserCoords(coords);
+                userCoordsRef.current = coords;
+                postMessageToWeb({ type: 'UPDATE_USER_LOCATION', coords });
+              }
             }
-          }
-        );
+          );
+        } catch (watchErr) {
+          console.log('[MapScreen] Watch position setup:', watchErr);
+        }
       } catch (err) {
         console.warn('Location initialization error:', err);
       }
@@ -240,6 +310,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
     initLocation();
 
     return () => {
+      isMounted = false;
       if (subscriber) subscriber.remove();
     };
   }, [postMessageToWeb]);
@@ -269,7 +340,8 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       // Compute exact road-following route via OSRM / Municipal Street Network
       const { waypoints, distanceMeters, walkMinutes } = await calculateSmartRoadRoute(
         origin,
-        targetHub
+        targetHub,
+        isOffline
       );
 
       const routeData: ActiveEvacRoute = {
@@ -293,32 +365,12 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         hubBadge: targetHub.shortLabel,
       });
     },
-    [postMessageToWeb]
+    [postMessageToWeb, isOffline]
   );
 
   const handleTriggerEvacuate = useCallback(() => {
-    let origin = MUNICIPAL_CENTER;
-    let title = 'Municipal Center';
-
-    if (userCoords) {
-      const distFromCenter = calculateDistanceMeters(
-        userCoords.latitude,
-        userCoords.longitude,
-        MUNICIPAL_CENTER.latitude,
-        MUNICIPAL_CENTER.longitude
-      );
-      if (distFromCenter < 2500) {
-        origin = userCoords;
-        title = 'Your Location';
-      } else {
-        origin = { latitude: COMMUNITY_FACILITIES[0].latitude, longitude: COMMUNITY_FACILITIES[0].longitude };
-        title = `${COMMUNITY_FACILITIES[0].name}`;
-      }
-    } else {
-      origin = { latitude: COMMUNITY_FACILITIES[0].latitude, longitude: COMMUNITY_FACILITIES[0].longitude };
-      title = `${COMMUNITY_FACILITIES[0].name}`;
-    }
-
+    const origin = userCoordsRef.current || userCoords || MUNICIPAL_CENTER;
+    const title = 'Your Location';
     startEvacuationRoute(origin, title);
   }, [userCoords, startEvacuationRoute]);
 
@@ -407,17 +459,16 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       // Automatically calculate and activate smart road evacuation route to nearest safe hub
       handleTriggerEvacuate();
 
-      Alert.alert(
-        '🚨 Emergency SOS Dispatched',
-        'MDRRMO Central Command has received your distress alert.\n\nSmart road evacuation route has been activated to guide you to the nearest municipal safe hub.',
-        [{ text: 'Proceed to Safe Hub' }]
-      );
+      // Open emergency report form immediately so resident can provide Details, Priority, Landmark
+      if (onOpenReportModal) {
+        onOpenReportModal();
+      }
     } catch (err) {
       console.warn('[MapScreen] Error marking not safe:', err);
     } finally {
       setIsUpdatingStatus(false);
     }
-  }, [userCoords, handleTriggerEvacuate]);
+  }, [userCoords, handleTriggerEvacuate, onOpenReportModal]);
 
   useEffect(() => {
     if (initialAutoRoute && mapLoaded) {
@@ -427,6 +478,20 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       }
     }
   }, [initialAutoRoute, mapLoaded, handleTriggerEvacuate, onClearAutoRoute]);
+
+  // Automatically activate evacuation route immediately when admin triggers an alarm
+  useEffect(() => {
+    if (activeDisaster && mapLoaded) {
+      handleTriggerEvacuate();
+    }
+  }, [activeDisaster, mapLoaded, handleTriggerEvacuate]);
+
+  // Auto-activate offline municipal safe route when signal is lost (Ahmad's requirement)
+  useEffect(() => {
+    if (isOffline && mapLoaded && !activeEvacRoute) {
+      handleTriggerEvacuate();
+    }
+  }, [isOffline, mapLoaded, activeEvacRoute, handleTriggerEvacuate]);
 
   const toggleMapType = () => {
     const next = !isSatellite;
@@ -454,17 +519,25 @@ export const MapScreen: React.FC<MapScreenProps> = ({
     postMessageToWeb({ type: 'RECENTER_CENTER' });
   };
 
-  const handleRecenterUser = () => {
-    if (!userCoords) {
-      if (locationPermission === 'denied') {
-        Alert.alert('Location Disabled', 'Please enable location in phone settings to see your position.');
-      } else {
-        Alert.alert('Acquiring GPS', 'Looking for GPS fix. Centering on Municipal Center.');
-        handleRecenterCenter();
+  const handleRecenterUser = async () => {
+    try {
+      const current = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      if (current && current.coords) {
+        const coords = {
+          latitude: current.coords.latitude,
+          longitude: current.coords.longitude,
+        };
+        setUserCoords(coords);
+        userCoordsRef.current = coords;
+        postMessageToWeb({ type: 'UPDATE_USER_LOCATION', coords, recenter: true });
+        return;
       }
-      return;
-    }
-    postMessageToWeb({ type: 'RECENTER_USER', coords: userCoords });
+    } catch {}
+
+    const target = userCoordsRef.current || userCoords || MUNICIPAL_CENTER;
+    postMessageToWeb({ type: 'RECENTER_USER', coords: target });
   };
 
   const handleWebMessage = (event: any) => {
@@ -472,9 +545,8 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       const data = JSON.parse(event.nativeEvent.data);
       if (data.type === 'MAP_READY') {
         setMapLoaded(true);
-        if (userCoords) {
-          postMessageToWeb({ type: 'UPDATE_USER_LOCATION', coords: userCoords });
-        }
+        const target = userCoordsRef.current || userCoords || MUNICIPAL_CENTER;
+        postMessageToWeb({ type: 'UPDATE_USER_LOCATION', coords: target });
         if (activeSupplies.length > 0) {
           postMessageToWeb({ type: 'UPDATE_SUPPLIES', supplies: activeSupplies });
         }
@@ -509,7 +581,16 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
-    html, body, #map { margin: 0; padding: 0; width: 100%; height: 100%; background: #f8fafc; }
+    html, body, #map {
+      margin: 0; padding: 0; width: 100%; height: 100%;
+      background-color: #0f172a;
+      background-image: 
+        radial-gradient(circle at 50% 50%, #1e293b 0%, #0f172a 100%),
+        linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+      background-size: 100% 100%, 28px 28px, 28px 28px;
+    }
+    .leaflet-tile-pane { background: transparent; }
     .bldg-marker {
       width: 22px; height: 22px; border-radius: 11px; background: #0f172a;
       border: 2px solid #ffffff; color: #ffffff; font-weight: 800; font-size: 11px;
@@ -527,9 +608,50 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 8px rgba(234,88,12,0.5);
       white-space: nowrap;
     }
-    .user-pulse {
-      width: 16px; height: 16px; border-radius: 50%; background: #2563eb;
-      border: 3px solid #ffffff; box-shadow: 0 0 8px rgba(37,99,235,0.7);
+    .user-pulse-container {
+      position: relative;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .user-pulse-radar {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(37, 99, 235, 0.25);
+      border: 2px solid rgba(37, 99, 235, 0.8);
+      animation: user-radar 2s infinite ease-out;
+    }
+    .user-pulse-core {
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #2563eb;
+      border: 3px solid #ffffff;
+      box-shadow: 0 0 10px rgba(37,99,235,0.85);
+      z-index: 2;
+    }
+    .user-label {
+      position: absolute;
+      bottom: -13px;
+      background: #0f172a;
+      color: #ffffff;
+      font-size: 9px;
+      font-weight: 800;
+      padding: 1px 5px;
+      border-radius: 4px;
+      white-space: nowrap;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+      z-index: 3;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    @keyframes user-radar {
+      0% { transform: scale(0.5); opacity: 1; }
+      100% { transform: scale(1.6); opacity: 0; }
     }
   </style>
 </head>
@@ -542,11 +664,47 @@ export const MapScreen: React.FC<MapScreenProps> = ({
     const osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
     const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 });
 
-    let userMarker = null;
+    // Handle offline tile failures gracefully without broken image badges
+    osmLayer.on('tileerror', function() {});
+    satLayer.on('tileerror', function() {});
+
+    const USER_INIT_POS = [${userCoords ? userCoords.latitude : MUNICIPAL_CENTER.latitude}, ${userCoords ? userCoords.longitude : MUNICIPAL_CENTER.longitude}];
+    const createUserIcon = function() {
+      return L.divIcon({
+        className: '',
+        html: '<div class="user-pulse-container"><div class="user-pulse-radar"></div><div class="user-pulse-core"></div><div class="user-label">You</div></div>',
+        iconSize: [44, 44],
+        iconAnchor: [22, 22]
+      });
+    };
+    let userMarker = L.marker(USER_INIT_POS, { icon: createUserIcon(), zIndexOffset: 2000 }).addTo(map);
+    userMarker.bindPopup('<b>📍 Your Location</b><br/><span style="color:#2563eb;font-weight:600;">Active GPS</span>');
+    let baseRoadLayer = L.layerGroup().addTo(map);
     let bldgLayer = L.layerGroup().addTo(map);
     let zoneLayer = L.layerGroup().addTo(map);
     let supplyLayer = L.layerGroup().addTo(map);
     let dynamicRouteGroup = L.layerGroup().addTo(map);
+
+    // Guaranteed Offline Municipal Road Corridors (Rendered directly via local vectors)
+    const MUNICIPAL_STREETS = [
+      // Rizal Ave North-to-South Spine
+      [[7.100767, 124.824077], [7.1005898, 124.823930], [7.100450, 124.823900], [7.100250, 124.823850], [7.100077, 124.823690], [7.099850, 124.823720]],
+      // East Municipal Corridor (MDRRMO, BFP, Police, Market East)
+      [[7.100458, 124.824615], [7.100423, 124.824379], [7.100282, 124.824365], [7.100146, 124.824301], [7.099643, 124.824357]],
+      // Hall Street Connector
+      [[7.100767, 124.824077], [7.100636, 124.824271], [7.100458, 124.824615]],
+      // Mid Crossing Connector
+      [[7.100450, 124.823900], [7.100423, 124.824379]],
+      // Market Crossing to Civic Center
+      [[7.100250, 124.823850], [7.100282, 124.824365], [7.100146, 124.824301]],
+      // South Plaza Crossing to South Junction
+      [[7.100077, 124.823690], [7.099850, 124.823720], [7.099643, 124.824357]]
+    ];
+
+    MUNICIPAL_STREETS.forEach(function(coords) {
+      L.polyline(coords, { color: '#334155', weight: 7, opacity: 0.85, lineCap: 'round', lineJoin: 'round' }).addTo(baseRoadLayer);
+      L.polyline(coords, { color: '#64748b', weight: 2.5, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }).addTo(baseRoadLayer);
+    });
 
     const BUILDINGS = ${JSON.stringify(COMMUNITY_FACILITIES)};
     const SAFE_ZONES = ${JSON.stringify(SAFE_ASSEMBLY_ZONES)};
@@ -613,10 +771,13 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       } else if (data.type === 'UPDATE_USER_LOCATION' && data.coords) {
         const userPos = [data.coords.latitude, data.coords.longitude];
         if (!userMarker) {
-          const userIcon = L.divIcon({ className: '', html: '<div class="user-pulse"></div>', iconSize: [16, 16], iconAnchor: [8, 8] });
-          userMarker = L.marker(userPos, { icon: userIcon }).addTo(map);
+          userMarker = L.marker(userPos, { icon: createUserIcon(), zIndexOffset: 2000 }).addTo(map);
+          userMarker.bindPopup('<b>📍 Your Location</b><br/><span style="color:#2563eb;font-weight:600;">Active GPS</span>');
         } else {
           userMarker.setLatLng(userPos);
+        }
+        if (data.recenter) {
+          map.setView(userPos, 18, { animate: true });
         }
       } else if (data.type === 'SHOW_EVACUATION_ROUTE') {
         dynamicRouteGroup.clearLayers();
@@ -723,8 +884,33 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         )}
       />
 
-      {/* CLEAN TOP HEADER CONTROLS */}
-      <View style={styles.topBar}>
+      {/* 1. TOP EMERGENCY SIREN BANNER FLOATING AT THE TOP OF THE MAP */}
+      {activeDisaster && (
+        <View style={styles.topSirenBanner}>
+          <View style={styles.topSirenLeft}>
+            <View style={styles.topSirenPulseDot} />
+            <View style={styles.topSirenTextGroup}>
+              <Text style={styles.topSirenTitle}>
+                🚨 {String(activeDisaster.type || 'EMERGENCY').toUpperCase()} ALERT
+              </Text>
+              <Text style={styles.topSirenSub} numberOfLines={1}>
+                {activeDisaster.message || 'Evacuation route activated to nearest safe hub'}
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.silenceSirenBtn}
+            onPress={() => soundService.stopEmergencySiren()}
+            activeOpacity={0.8}
+            accessibilityLabel="Silence siren"
+          >
+            <Text style={styles.silenceSirenBtnText}>Silence Siren 🔕</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* 2. TOP BAR CONTROLS */}
+      <View style={[styles.topBar, activeDisaster && styles.topBarWithSiren]}>
         <View style={styles.titlePill}>
           <Text style={styles.titlePillText}>Municipal Evacuation Map</Text>
         </View>
@@ -747,8 +933,34 @@ export const MapScreen: React.FC<MapScreenProps> = ({
           >
             <Text style={styles.circleBtnText}>{isSatellite ? 'Map' : 'Sat'}</Text>
           </TouchableOpacity>
+
+          {onOpenReportModal && (
+            <TouchableOpacity
+              style={[styles.circleBtn, styles.sosQuickBtn]}
+              onPress={onOpenReportModal}
+              activeOpacity={0.8}
+              accessibilityLabel="Report Emergency Incident"
+            >
+              <Text style={styles.sosQuickBtnText}>🚨</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
+
+      {/* 3. OFFLINE DISASTER MODE BANNER */}
+      {isOffline && (
+        <View style={[styles.offlineBanner, activeDisaster && styles.offlineBannerWithSiren]}>
+          <View style={styles.offlineBannerContent}>
+            <Text style={styles.offlineBannerIcon}>⚡</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.offlineBannerTitle}>OFFLINE DISASTER MODE ACTIVE</Text>
+              <Text style={styles.offlineBannerSub}>
+                Cellular/Wi-Fi lost. Routing along Kabacan municipal road network.
+              </Text>
+            </View>
+          </View>
+        </View>
+      )}
 
       {/* BOTTOM SECTION */}
       {/* 1. When Active Evacuation Route is Displayed */}
@@ -776,7 +988,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
             </View>
 
             <Text style={styles.instructionText}>
-              Follow the green dashed street route directly to the designated safe zone.
+              Follow the green line street directly to the designated safe zone!
             </Text>
 
             {/* Hub Selector */}
@@ -799,15 +1011,44 @@ export const MapScreen: React.FC<MapScreenProps> = ({
               })}
             </View>
 
-            {/* Arrived / Mark Safe Action */}
-            <TouchableOpacity
-              style={styles.arrivedSafeBtn}
-              onPress={handleMarkSafe}
-              activeOpacity={0.85}
-              disabled={isUpdatingStatus}
-            >
-              <Text style={styles.arrivedSafeBtnText}>I've Arrived / Mark as Safe</Text>
-            </TouchableOpacity>
+            {/* Dual Status Action Buttons: I'M NOT SAFE and I'M SAFE */}
+            <View style={[styles.statusButtonGroup, { marginTop: 10 }]}>
+              {/* I'M NOT SAFE BUTTON */}
+              <TouchableOpacity
+                style={[
+                  styles.statusActionBtn,
+                  styles.btnDanger,
+                  residentStatus === 'DANGER' && styles.btnDangerActive,
+                ]}
+                onPress={handleMarkNotSafe}
+                disabled={isUpdatingStatus}
+                activeOpacity={0.8}
+                accessibilityLabel="Declare emergency SOS and report"
+              >
+                <View style={styles.btnTextCol}>
+                  <Text style={styles.btnDangerTitle}>I'M NOT SAFE</Text>
+                  <Text style={styles.btnDangerSubtitle}>SOS & Report</Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* I'M SAFE BUTTON */}
+              <TouchableOpacity
+                style={[
+                  styles.statusActionBtn,
+                  styles.btnSafe,
+                  residentStatus === 'SAFE' && styles.btnSafeActive,
+                ]}
+                onPress={handleMarkSafe}
+                disabled={isUpdatingStatus}
+                activeOpacity={0.8}
+                accessibilityLabel="Mark as safe"
+              >
+                <View style={styles.btnTextCol}>
+                  <Text style={styles.btnSafeTitle}>I'M SAFE</Text>
+                  <Text style={styles.btnSafeSubtitle}>Mark as Safe</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       )}
@@ -996,6 +1237,68 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontWeight: '600',
   },
+  topSirenBanner: {
+    position: 'absolute',
+    top: 10,
+    left: 12,
+    right: 12,
+    backgroundColor: '#DC2626',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    zIndex: 999,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+  },
+  topSirenLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 10,
+    paddingRight: 10,
+  },
+  topSirenPulseDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#FFFFFF',
+  },
+  topSirenTextGroup: {
+    flex: 1,
+  },
+  topSirenTitle: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  topSirenSub: {
+    color: 'rgba(255, 255, 255, 0.92)',
+    fontSize: 11,
+    marginTop: 1,
+  },
+  silenceSirenBtn: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  silenceSirenBtnText: {
+    color: '#DC2626',
+    fontSize: 11.5,
+    fontWeight: '800',
+  },
   topBar: {
     position: 'absolute',
     top: 12,
@@ -1004,6 +1307,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    zIndex: 900,
+  },
+  topBarWithSiren: {
+    top: 76,
+  },
+  offlineBannerWithSiren: {
+    top: 126,
   },
   titlePill: {
     backgroundColor: '#FFFFFF',
@@ -1236,10 +1546,25 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   instructionText: {
-    color: '#475569',
+    color: '#065F46',
+    backgroundColor: '#ECFDF5',
+    borderColor: '#A7F3D0',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
     fontSize: 12,
+    fontWeight: '700',
     lineHeight: 16,
-    marginBottom: 10,
+    marginBottom: 8,
+  },
+  sosQuickBtn: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#DC2626',
+    borderWidth: 1.5,
+  },
+  sosQuickBtnText: {
+    fontSize: 13,
   },
   hubSelectorRow: {
     flexDirection: 'row',
@@ -1365,5 +1690,44 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '800',
+  },
+  offlineBanner: {
+    position: 'absolute',
+    top: 54,
+    left: 14,
+    right: 14,
+    backgroundColor: '#FEF3C7',
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#F59E0B',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    zIndex: 100,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  offlineBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  offlineBannerIcon: {
+    fontSize: 18,
+    color: '#D97706',
+  },
+  offlineBannerTitle: {
+    color: '#92400E',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  offlineBannerSub: {
+    color: '#B45309',
+    fontSize: 11,
+    marginTop: 2,
+    lineHeight: 14,
   },
 });

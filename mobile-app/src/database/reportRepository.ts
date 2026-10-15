@@ -345,6 +345,16 @@ export const reportRepository = {
   },
 
   /**
+   * Permanently delete all stored emergency reports from the local database
+   */
+  async clearAllReports(): Promise<number> {
+    const db = await getDatabase();
+    const count = await this.getReportCount();
+    await db.runAsync('DELETE FROM emergency_reports;');
+    return count;
+  },
+
+  /**
    * Get count of stored reports
    */
   async getReportCount(): Promise<number> {

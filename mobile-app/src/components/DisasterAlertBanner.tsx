@@ -102,9 +102,9 @@ export const DisasterAlertBanner: React.FC<Props> = ({
             onPressViewMap();
           }}
           activeOpacity={0.85}
-          accessibilityLabel="View evacuation route"
+          accessibilityLabel="Open evacuation map"
         >
-          <Text style={styles.actionBtnText}>View Evacuation Route</Text>
+          <Text style={styles.actionBtnText}>Open Evacuation Map ›</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -113,7 +113,7 @@ export const DisasterAlertBanner: React.FC<Props> = ({
           activeOpacity={0.8}
           accessibilityLabel="Silence siren"
         >
-          <Text style={styles.silenceBtnText}>Silence Siren</Text>
+          <Text style={styles.silenceBtnText}>Silence Siren 🔕</Text>
         </TouchableOpacity>
       </View>
     </View>

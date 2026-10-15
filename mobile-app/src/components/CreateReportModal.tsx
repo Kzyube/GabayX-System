@@ -1,3 +1,9 @@
+/**
+ * GabayX Mobile - Emergency Incident Report Modal
+ * Streamlined civic emergency form: Details of the Report, Priority Risk, Landmark.
+ * Aligned with DESIGN.md and offline-first SQLite synchronization.
+ */
+
 import React, { useState } from 'react';
 import {
   Modal,
@@ -9,7 +15,10 @@ import {
   ScrollView,
   SafeAreaView,
   ActivityIndicator,
-  Switch,
+  Alert,
+  Vibration,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import * as Location from 'expo-location';
 import {
@@ -26,46 +35,30 @@ interface Props {
   onSubmit: (data: CreateReportInput) => Promise<void>;
 }
 
-const CATEGORIES: { label: string; value: ReportCategory; color: string }[] = [
-  { label: 'Medical', value: 'MEDICAL', color: '#DC2626' },
-  { label: 'Fire', value: 'FIRE', color: '#EA580C' },
-  { label: 'Flood', value: 'FLOOD', color: '#0284C7' },
-  { label: 'Earthquake', value: 'EARTHQUAKE', color: '#D97706' },
-  { label: 'Trapped', value: 'TRAPPED', color: '#B91C1C' },
-  { label: 'Hazard', value: 'HAZARD', color: '#CA8A04' },
-];
-
-const SEVERITIES: { label: string; value: ReportSeverity; color: string }[] = [
-  { label: 'Critical', value: 'CRITICAL', color: '#DC2626' },
-  { label: 'High', value: 'HIGH', color: '#EA580C' },
-  { label: 'Medium', value: 'MEDIUM', color: '#D97706' },
-  { label: 'Low', value: 'LOW', color: '#16A34A' },
-];
-
-const QUICK_PRESETS = [
+const SEVERITIES: { label: string; value: ReportSeverity; color: string; desc: string }[] = [
   {
-    title: 'Medical Triage',
-    category: 'MEDICAL' as ReportCategory,
-    severity: 'CRITICAL' as ReportSeverity,
-    text: 'Injured resident requiring emergency ambulance and paramedic assistance.',
+    label: 'Extreme',
+    value: 'EXTREME',
+    color: '#DC2626',
+    desc: '🚨 Extreme Risk: Life-threatening danger, trapped residents, or critical rescue needed.',
   },
   {
-    title: 'Structure Fire',
-    category: 'FIRE' as ReportCategory,
-    severity: 'HIGH' as ReportSeverity,
-    text: 'Active structure fire spreading rapidly. Evacuation in progress.',
+    label: 'High',
+    value: 'HIGH',
+    color: '#EA580C',
+    desc: '⚠️ High Risk: Serious injury, active fire, or structural hazard requiring prompt dispatch.',
   },
   {
-    title: 'Flood Rescue',
-    category: 'FLOOD' as ReportCategory,
-    severity: 'HIGH' as ReportSeverity,
-    text: 'Rising flood waters trapped residents. Need evacuation transport.',
+    label: 'Medium',
+    value: 'MEDIUM',
+    color: '#D97706',
+    desc: '⚡ Medium Risk: Moderate incident requiring responder attention and monitoring.',
   },
   {
-    title: 'Structural Damage',
-    category: 'EARTHQUAKE' as ReportCategory,
-    severity: 'HIGH' as ReportSeverity,
-    text: 'Structural damage and partial collapse from earthquake tremors.',
+    label: 'Low',
+    value: 'LOW',
+    color: '#16A34A',
+    desc: 'ℹ️ Low Risk: Minor incident, non-urgent assistance, or advisory observation.',
   },
 ];
 
@@ -74,39 +67,33 @@ export const CreateReportModal: React.FC<Props> = ({
   onClose,
   onSubmit,
 }) => {
-  const [category, setCategory] = useState<ReportCategory>('MEDICAL');
-  const [severity, setSeverity] = useState<ReportSeverity>('HIGH');
   const [description, setDescription] = useState('');
+  const [severity, setSeverity] = useState<ReportSeverity>('EXTREME');
   const [nearestBuilding, setNearestBuilding] = useState('Municipal Hall');
-  
+
   // Location
   const [isLocating, setIsLocating] = useState(false);
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [accuracy, setAccuracy] = useState<number | null>(null);
-  const [locationStatus, setLocationStatus] = useState<string>('GPS not acquired');
-
-  // Contact Info
-  const [isAnonymous, setIsAnonymous] = useState(true);
-  const [reporterName, setReporterName] = useState('');
-  const [reporterPhone, setReporterPhone] = useState('');
+  const [locationStatus, setLocationStatus] = useState<string>('GPS not pinned');
 
   // UI State
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const selectedSeverityObj =
+    SEVERITIES.find((s) => s.value === severity || (s.value === 'EXTREME' && severity === 'CRITICAL')) ||
+    SEVERITIES[0];
+
   const resetForm = () => {
-    setCategory('MEDICAL');
-    setSeverity('HIGH');
     setDescription('');
+    setSeverity('EXTREME');
     setNearestBuilding('Municipal Hall');
     setLatitude(null);
     setLongitude(null);
     setAccuracy(null);
-    setLocationStatus('GPS not acquired');
-    setIsAnonymous(true);
-    setReporterName('');
-    setReporterPhone('');
+    setLocationStatus('GPS not pinned');
     setErrorMessage(null);
   };
 
@@ -129,42 +116,85 @@ export const CreateReportModal: React.FC<Props> = ({
       setLongitude(location.coords.longitude);
       setAccuracy(location.coords.accuracy);
       setLocationStatus(
-        `GPS: ${location.coords.latitude.toFixed(5)}, ${location.coords.longitude.toFixed(5)} (±${Math.round(location.coords.accuracy || 0)}m)`
+        `📍 GPS: ${location.coords.latitude.toFixed(5)}, ${location.coords.longitude.toFixed(5)}`
       );
-    } catch (err) {
-      setLocationStatus('GPS unavailable (report will save without coordinates)');
+    } catch {
+      // Fast fallback to last known
+      try {
+        const last = await Location.getLastKnownPositionAsync();
+        if (last?.coords) {
+          setLatitude(last.coords.latitude);
+          setLongitude(last.coords.longitude);
+          setAccuracy(last.coords.accuracy);
+          setLocationStatus(
+            `📍 GPS: ${last.coords.latitude.toFixed(5)}, ${last.coords.longitude.toFixed(5)}`
+          );
+          return;
+        }
+      } catch {}
+      setLocationStatus('GPS unavailable (report will save with landmark)');
     } finally {
       setIsLocating(false);
     }
   };
 
-  const handleApplyPreset = (preset: typeof QUICK_PRESETS[0]) => {
-    setCategory(preset.category);
-    setSeverity(preset.severity);
-    setDescription(preset.text);
-  };
-
   const handleSubmit = async () => {
     setErrorMessage(null);
 
+    try {
+      Vibration.vibrate(60);
+    } catch {}
+
+    const trimmedDesc = description.trim();
+    const finalDescription =
+      trimmedDesc.length >= 5
+        ? trimmedDesc
+        : `Emergency incident reported near ${nearestBuilding || 'Kabacan Poblacion'}. Priority: ${severity}. Immediate responder assistance requested.`;
+
+    let finalLat = latitude;
+    let finalLng = longitude;
+    let finalAcc = accuracy;
+
+    // Auto-attach location if not explicitly pinned
+    if (finalLat === null || finalLng === null) {
+      try {
+        const lastKnown = await Location.getLastKnownPositionAsync();
+        if (lastKnown?.coords) {
+          finalLat = lastKnown.coords.latitude;
+          finalLng = lastKnown.coords.longitude;
+          finalAcc = lastKnown.coords.accuracy;
+        }
+      } catch {}
+    }
+
+    // Auto-detect category from description for backend classification
+    let derivedCategory: ReportCategory = 'GENERAL';
+    const lower = finalDescription.toLowerCase();
+    if (lower.includes('fire')) derivedCategory = 'FIRE';
+    else if (lower.includes('quake') || lower.includes('tremor') || lower.includes('collapse')) derivedCategory = 'EARTHQUAKE';
+    else if (lower.includes('flood') || lower.includes('water')) derivedCategory = 'FLOOD';
+    else if (lower.includes('medic') || lower.includes('injur') || lower.includes('wound') || lower.includes('blood')) derivedCategory = 'MEDICAL';
+    else if (lower.includes('trap')) derivedCategory = 'TRAPPED';
+    else if (lower.includes('wire') || lower.includes('hazard') || lower.includes('gas')) derivedCategory = 'HAZARD';
+
     const payload: CreateReportInput = {
-      category,
+      category: derivedCategory,
       severity,
-      description,
-      latitude,
-      longitude,
-      accuracy,
-      nearestBuilding,
+      description: finalDescription,
+      latitude: finalLat,
+      longitude: finalLng,
+      accuracy: finalAcc,
+      nearestBuilding: nearestBuilding.trim() || 'Central Poblacion Zone',
       contactInformation: {
-        isAnonymous,
-        name: isAnonymous ? null : reporterName.trim() || null,
-        phone: isAnonymous ? null : reporterPhone.trim() || null,
+        isAnonymous: true,
       },
     };
 
     const validation = validateReportInput(payload);
     if (!validation.valid) {
-      setErrorMessage(validation.errors.join(' '));
+      const err = validation.errors.join('\n');
+      setErrorMessage(err);
+      Alert.alert('Required Information', err);
       return;
     }
 
@@ -174,7 +204,10 @@ export const CreateReportModal: React.FC<Props> = ({
       resetForm();
       onClose();
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Failed to save report.');
+      console.error('[CreateReportModal] Submit failed:', err);
+      const errText = err instanceof Error ? err.message : 'Failed to save emergency report.';
+      setErrorMessage(errText);
+      Alert.alert('Submission Error', errText);
     } finally {
       setIsSubmitting(false);
     }
@@ -188,258 +221,224 @@ export const CreateReportModal: React.FC<Props> = ({
       onRequestClose={onClose}
     >
       <SafeAreaView style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
-          {/* HEADER */}
-          <View style={styles.header}>
-            <View>
-              <Text style={styles.headerSubtitle}>MUNICIPALITY OF KABACAN • MDRRMO</Text>
-              <Text style={styles.headerTitle}>Report Emergency Incident</Text>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.keyboardAvoid}
+        >
+          <View style={styles.modalContainer}>
+            {/* HEADER */}
+            <View style={styles.header}>
+              <View>
+                <Text style={styles.headerSubtitle}>MUNICIPALITY OF KABACAN • MDRRMO</Text>
+                <Text style={styles.headerTitle}>Report Emergency Incident</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  resetForm();
+                  onClose();
+                }}
+                style={styles.closeButton}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityLabel="Close report form"
+              >
+                <Text style={styles.closeButtonText}>✕</Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              onPress={() => {
-                resetForm();
-                onClose();
-              }}
-              style={styles.closeButton}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              accessibilityLabel="Close report form"
+
+            <ScrollView
+              style={styles.body}
+              contentContainerStyle={styles.bodyContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
             >
-              <Text style={styles.closeButtonText}>✕</Text>
-            </TouchableOpacity>
-          </View>
+              {/* ERROR DISPLAY */}
+              {errorMessage && (
+                <View style={styles.errorBox}>
+                  <Text style={styles.errorText}>{errorMessage}</Text>
+                </View>
+              )}
 
-          <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false}>
-            {/* STATUS ASSURANCE BANNER */}
-            <View style={styles.assuranceBanner}>
-              <Text style={styles.assuranceText}>
-                Offline-Ready: Saved permanently in device SQLite storage and auto-dispatched to MDRRMO Central Command.
-              </Text>
-            </View>
+              {/* 1. DETAILS OF THE REPORT */}
+              <View style={styles.formGroup}>
+                <Text style={styles.sectionLabel}>
+                  DETAILS OF THE REPORT <Text style={styles.required}>*</Text>
+                </Text>
+                <TextInput
+                  style={styles.textInputArea}
+                  placeholder="Describe what happened, injuries, trapped residents, or assistance needed..."
+                  placeholderTextColor="#94A3B8"
+                  multiline
+                  numberOfLines={4}
+                  value={description}
+                  onChangeText={setDescription}
+                  autoCapitalize="sentences"
+                  returnKeyType="default"
+                />
+                <View style={styles.descHelperRow}>
+                  <Text style={styles.descHelperText}>
+                    {description.trim().length === 0
+                      ? '💡 Tap to type details, or leave blank to auto-use summary'
+                      : 'Custom details provided'}
+                  </Text>
+                  <Text style={styles.characterCount}>
+                    {description.length} / 2000
+                  </Text>
+                </View>
+              </View>
 
-            {/* ERROR DISPLAY */}
+              {/* 2. PRIORITY RISK */}
+              <View style={styles.formGroup}>
+                <Text style={styles.sectionLabel}>
+                  PRIORITY RISK <Text style={styles.required}>*</Text>
+                </Text>
+                <View style={styles.severityRow}>
+                  {SEVERITIES.map((sev) => {
+                    const isSelected =
+                      severity === sev.value ||
+                      (sev.value === 'EXTREME' && severity === 'CRITICAL');
+                    return (
+                      <TouchableOpacity
+                        key={sev.value}
+                        style={[
+                          styles.severityButton,
+                          isSelected && {
+                            borderColor: sev.color,
+                            backgroundColor: `${sev.color}15`,
+                            borderWidth: 2,
+                          },
+                        ]}
+                        onPress={() => setSeverity(sev.value)}
+                        activeOpacity={0.8}
+                        accessibilityLabel={`Priority ${sev.label}`}
+                      >
+                        <Text
+                          style={[
+                            styles.severityButtonText,
+                            isSelected && { color: sev.color, fontWeight: '800' },
+                          ]}
+                        >
+                          {sev.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* Dynamic Priority Risk Guide */}
+                {selectedSeverityObj && (
+                  <View
+                    style={[
+                      styles.priorityGuideline,
+                      {
+                        borderColor: `${selectedSeverityObj.color}35`,
+                        backgroundColor: `${selectedSeverityObj.color}0D`,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.priorityGuidelineText,
+                        { color: selectedSeverityObj.color },
+                      ]}
+                    >
+                      {selectedSeverityObj.desc}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* 3. LANDMARK */}
+              <View style={styles.formGroup}>
+                <View style={styles.landmarkHeaderRow}>
+                  <Text style={styles.sectionLabel}>
+                    LANDMARK <Text style={styles.required}>*</Text>
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.gpsSmallBtn}
+                    onPress={handleAcquireLocation}
+                    disabled={isLocating}
+                    activeOpacity={0.8}
+                  >
+                    {isLocating ? (
+                      <ActivityIndicator size="small" color="#0F766E" />
+                    ) : (
+                      <Text style={styles.gpsSmallBtnText}>📡 Pin GPS</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                {/* Fast Landmark facility chips */}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.facilityScroll}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {COMMUNITY_FACILITIES.slice(0, 8).map((fac) => {
+                    const isSelected = nearestBuilding === fac.name;
+                    return (
+                      <TouchableOpacity
+                        key={fac.id}
+                        style={[styles.facilityChip, isSelected && styles.facilityChipActive]}
+                        onPress={() => setNearestBuilding(fac.name)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.facilityChipText, isSelected && styles.facilityChipTextActive]}>
+                          {fac.name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+
+                <TextInput
+                  style={[styles.textInput, { marginTop: 8 }]}
+                  placeholder="Specify street, barangay, or landmark..."
+                  placeholderTextColor="#94A3B8"
+                  value={nearestBuilding}
+                  onChangeText={setNearestBuilding}
+                />
+                <Text style={styles.gpsStatusText}>{locationStatus}</Text>
+              </View>
+            </ScrollView>
+
+            {/* INLINE FOOTER ERROR (ALWAYS VISIBLE ABOVE SUBMIT BUTTON) */}
             {errorMessage && (
-              <View style={styles.errorBox}>
-                <Text style={styles.errorText}>{errorMessage}</Text>
+              <View style={styles.footerErrorBox}>
+                <Text style={styles.footerErrorText}>⚠️ {errorMessage}</Text>
               </View>
             )}
 
-            {/* QUICK PRESET TEMPLATES */}
-            <View style={styles.formGroup}>
-              <Text style={styles.sectionLabel}>QUICK INCIDENT TEMPLATES</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.presetScroll}>
-                {QUICK_PRESETS.map((preset, idx) => (
-                  <TouchableOpacity
-                    key={idx}
-                    style={styles.presetChip}
-                    onPress={() => handleApplyPreset(preset)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.presetChipText}>{preset.title}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-
-            {/* 1. INCIDENT CATEGORY */}
-            <View style={styles.formGroup}>
-              <Text style={styles.sectionLabel}>
-                INCIDENT TYPE <Text style={styles.required}>*</Text>
-              </Text>
-              <View style={styles.categoryGrid}>
-                {CATEGORIES.map((cat) => {
-                  const isSelected = category === cat.value;
-                  return (
-                    <TouchableOpacity
-                      key={cat.value}
-                      style={[
-                        styles.categoryBtn,
-                        isSelected && { borderColor: cat.color, backgroundColor: `${cat.color}12` },
-                      ]}
-                      onPress={() => setCategory(cat.value)}
-                      activeOpacity={0.8}
-                    >
-                      <Text
-                        style={[
-                          styles.categoryBtnLabel,
-                          isSelected && { color: cat.color, fontWeight: '800' },
-                        ]}
-                      >
-                        {cat.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-
-            {/* 2. SEVERITY */}
-            <View style={styles.formGroup}>
-              <Text style={styles.sectionLabel}>SEVERITY LEVEL</Text>
-              <View style={styles.severityRow}>
-                {SEVERITIES.map((sev) => {
-                  const isSelected = severity === sev.value;
-                  return (
-                    <TouchableOpacity
-                      key={sev.value}
-                      style={[
-                        styles.severityButton,
-                        isSelected && { borderColor: sev.color, backgroundColor: `${sev.color}15` },
-                      ]}
-                      onPress={() => setSeverity(sev.value)}
-                      activeOpacity={0.8}
-                    >
-                      <Text
-                        style={[
-                          styles.severityButtonText,
-                          isSelected && { color: sev.color, fontWeight: '800' },
-                        ]}
-                      >
-                        {sev.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-
-            {/* 3. INCIDENT DESCRIPTION */}
-            <View style={styles.formGroup}>
-              <Text style={styles.sectionLabel}>
-                INCIDENT DESCRIPTION <Text style={styles.required}>*</Text>
-              </Text>
-              <TextInput
-                style={styles.textInputArea}
-                placeholder="Describe current situation, injuries, trapped residents, or assistance needed..."
-                placeholderTextColor="#94A3B8"
-                multiline
-                numberOfLines={4}
-                value={description}
-                onChangeText={setDescription}
-              />
-              <Text style={styles.characterCount}>
-                {description.length} / 2000 characters
-              </Text>
-            </View>
-
-            {/* 4. LOCATION & LANDMARK */}
-            <View style={styles.formGroup}>
-              <Text style={styles.sectionLabel}>LOCATION & LANDMARK</Text>
-              
-              {/* GPS Button */}
+            {/* FOOTER ACTION BUTTONS */}
+            <View style={styles.footer}>
               <TouchableOpacity
-                style={styles.gpsButton}
-                onPress={handleAcquireLocation}
-                disabled={isLocating}
-                activeOpacity={0.8}
+                style={styles.cancelBtn}
+                onPress={() => {
+                  resetForm();
+                  onClose();
+                }}
+                activeOpacity={0.7}
               >
-                {isLocating ? (
-                  <ActivityIndicator size="small" color="#0F766E" />
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.submitBtn}
+                onPress={handleSubmit}
+                disabled={isSubmitting}
+                activeOpacity={0.85}
+                accessibilityLabel="Send emergency report"
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
                 ) : (
-                  <Text style={styles.gpsButtonText}>Pin Current GPS Coordinates</Text>
+                  <Text style={styles.submitBtnText}>Send Emergency Report</Text>
                 )}
               </TouchableOpacity>
-              <Text style={styles.gpsStatusText}>{locationStatus}</Text>
-
-              {/* Landmark quick select */}
-              <Text style={[styles.sectionLabel, { marginTop: 12, marginBottom: 6 }]}>NEAREST MUNICIPAL FACILITY</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.facilityScroll}>
-                {COMMUNITY_FACILITIES.slice(0, 8).map((fac) => {
-                  const isSelected = nearestBuilding === fac.name;
-                  return (
-                    <TouchableOpacity
-                      key={fac.id}
-                      style={[styles.facilityChip, isSelected && styles.facilityChipActive]}
-                      onPress={() => setNearestBuilding(fac.name)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[styles.facilityChipText, isSelected && styles.facilityChipTextActive]}>
-                        {fac.name}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-
-              <TextInput
-                style={[styles.textInput, { marginTop: 8 }]}
-                placeholder="Or type specific street, barangay, or landmark..."
-                placeholderTextColor="#94A3B8"
-                value={nearestBuilding}
-                onChangeText={setNearestBuilding}
-              />
             </View>
-
-            {/* 5. CONTACT INFO (OPTIONAL) */}
-            <View style={styles.formGroup}>
-              <View style={styles.anonymousRow}>
-                <View style={{ flex: 1, paddingRight: 8 }}>
-                  <Text style={styles.sectionLabel}>ANONYMOUS REPORT</Text>
-                  <Text style={styles.sublabel}>
-                    {isAnonymous
-                      ? 'Device ID attached for direct dispatch reply.'
-                      : 'Attach name and phone for direct responder callback.'}
-                  </Text>
-                </View>
-                <Switch
-                  value={isAnonymous}
-                  onValueChange={setIsAnonymous}
-                  trackColor={{ false: '#CBD5E1', true: '#0F766E' }}
-                  thumbColor={isAnonymous ? '#FFFFFF' : '#F1F5F9'}
-                />
-              </View>
-
-              {!isAnonymous && (
-                <View style={styles.contactFieldsBox}>
-                  <Text style={styles.miniLabel}>FULL NAME</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="e.g. Juan dela Cruz"
-                    placeholderTextColor="#94A3B8"
-                    value={reporterName}
-                    onChangeText={setReporterName}
-                  />
-
-                  <Text style={[styles.miniLabel, { marginTop: 8 }]}>PHONE NUMBER</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="e.g. 0912-345-6789"
-                    placeholderTextColor="#94A3B8"
-                    keyboardType="phone-pad"
-                    value={reporterPhone}
-                    onChangeText={setReporterPhone}
-                  />
-                </View>
-              )}
-            </View>
-          </ScrollView>
-
-          {/* FOOTER ACTION BUTTONS */}
-          <View style={styles.footer}>
-            <TouchableOpacity
-              style={styles.cancelBtn}
-              onPress={() => {
-                resetForm();
-                onClose();
-              }}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.cancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.submitBtn}
-              onPress={handleSubmit}
-              disabled={isSubmitting}
-              activeOpacity={0.85}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator size="small" color="#ffffff" />
-              ) : (
-                <Text style={styles.submitBtnText}>Send Emergency Report</Text>
-              )}
-            </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
   );
@@ -448,7 +447,11 @@ export const CreateReportModal: React.FC<Props> = ({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    justifyContent: 'flex-end',
+  },
+  keyboardAvoid: {
+    flex: 1,
     justifyContent: 'flex-end',
   },
   modalContainer: {
@@ -467,131 +470,70 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 12,
+    paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
     backgroundColor: '#FFFFFF',
   },
   headerSubtitle: {
-    fontSize: 10,
+    fontSize: 10.5,
     fontWeight: '800',
     color: '#0F766E',
-    letterSpacing: 0.8,
+    letterSpacing: 0.5,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
     color: '#0F172A',
     marginTop: 2,
   },
   closeButton: {
-    backgroundColor: '#F1F5F9',
     width: 32,
     height: 32,
     borderRadius: 16,
+    backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
   },
   closeButtonText: {
-    color: '#475569',
     fontSize: 14,
+    color: '#64748B',
     fontWeight: '700',
   },
   body: {
-    flex: 1,
+    flexGrow: 1,
   },
   bodyContent: {
-    padding: 20,
-  },
-  assuranceBanner: {
-    backgroundColor: '#F0FDF4',
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#BBF7D0',
-    marginBottom: 14,
-  },
-  assuranceText: {
-    color: '#166534',
-    fontSize: 11.5,
-    lineHeight: 16,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 24,
   },
   errorBox: {
     backgroundColor: '#FEF2F2',
-    padding: 10,
-    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#FECACA',
-    marginBottom: 12,
+    borderColor: '#F87171',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 14,
   },
   errorText: {
     color: '#B91C1C',
-    fontSize: 11.5,
+    fontSize: 12,
     fontWeight: '600',
   },
   formGroup: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   sectionLabel: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: '800',
-    color: '#0F172A',
+    color: '#334155',
     letterSpacing: 0.5,
-    marginBottom: 6,
+    marginBottom: 8,
   },
   required: {
     color: '#DC2626',
-  },
-  sublabel: {
-    fontSize: 11,
-    color: '#475569',
-    marginTop: 1,
-    lineHeight: 15,
-  },
-  miniLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#64748B',
-    marginBottom: 4,
-  },
-  presetScroll: {
-    gap: 8,
-  },
-  presetChip: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  presetChipText: {
-    color: '#0F172A',
-    fontSize: 11.5,
-    fontWeight: '700',
-  },
-  categoryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  categoryBtn: {
-    width: '31%',
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  categoryBtnLabel: {
-    color: '#475569',
-    fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   severityRow: {
     flexDirection: 'row',
@@ -603,79 +545,92 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
     borderRadius: 8,
-    paddingVertical: 10,
+    paddingVertical: 11,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 46,
   },
   severityButtonText: {
     color: '#475569',
-    fontSize: 11.5,
+    fontSize: 12,
     fontWeight: '700',
   },
-  textInput: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
+  priorityGuideline: {
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 8,
-    padding: 11,
-    color: '#0F172A',
-    fontSize: 13,
-    minHeight: 44,
+    borderWidth: 1,
+  },
+  priorityGuidelineText: {
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 16,
   },
   textInputArea: {
     backgroundColor: '#F8FAFC',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#CBD5E1',
     borderRadius: 8,
     padding: 12,
     color: '#0F172A',
-    fontSize: 13,
-    minHeight: 85,
+    fontSize: 13.5,
+    minHeight: 90,
     textAlignVertical: 'top',
+  },
+  descHelperRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 5,
+  },
+  descHelperText: {
+    fontSize: 10.5,
+    color: '#0F766E',
+    fontWeight: '600',
   },
   characterCount: {
     fontSize: 10,
     color: '#64748B',
     textAlign: 'right',
-    marginTop: 4,
   },
-  gpsButton: {
+  landmarkHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  gpsSmallBtn: {
     backgroundColor: '#F0FDF4',
     borderWidth: 1,
     borderColor: '#0F766E',
-    borderRadius: 8,
-    paddingVertical: 10,
-    alignItems: 'center',
-    minHeight: 44,
-    justifyContent: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
-  gpsButtonText: {
+  gpsSmallBtnText: {
     color: '#0F766E',
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  gpsStatusText: {
-    color: '#475569',
     fontSize: 11,
-    marginTop: 4,
+    fontWeight: '700',
   },
   facilityScroll: {
-    gap: 6,
-    paddingVertical: 2,
+    gap: 8,
+    paddingBottom: 4,
   },
   facilityChip: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 14,
+    borderRadius: 20,
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 7,
   },
   facilityChipActive: {
-    borderColor: '#0F766E',
     backgroundColor: '#0F766E',
+    borderColor: '#0F766E',
   },
   facilityChipText: {
-    fontSize: 11,
+    fontSize: 11.5,
     color: '#475569',
     fontWeight: '600',
   },
@@ -683,23 +638,32 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700',
   },
-  anonymousRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  textInput: {
     backgroundColor: '#F8FAFC',
-    padding: 12,
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    padding: 11,
+    color: '#0F172A',
+    fontSize: 13,
+    minHeight: 44,
   },
-  contactFieldsBox: {
-    marginTop: 8,
-    backgroundColor: '#F8FAFC',
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+  gpsStatusText: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 4,
+  },
+  footerErrorBox: {
+    backgroundColor: '#FEF2F2',
+    borderTopWidth: 1,
+    borderTopColor: '#FECACA',
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+  },
+  footerErrorText: {
+    color: '#DC2626',
+    fontSize: 12,
+    fontWeight: '700',
   },
   footer: {
     flexDirection: 'row',

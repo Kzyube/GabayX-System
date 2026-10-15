@@ -47,6 +47,10 @@ class AlertService {
   private residentId: string | null = null;
   private heartbeatTimer: any = null;
 
+  getSocket(): Socket | null {
+    return this.socket;
+  }
+
   getResidentId(): string | null {
     return this.residentId;
   }

@@ -527,6 +527,7 @@ app.get('/logout', (req, res) => {
 const activeSockets = new Map();
 const activeHotspotPeers = new Map();
 const activeHotspotHosts = new Map();
+const activeMeshNodes = new Map();
 
 io.on('connection', (socket) => {
     console.log(`[SOCKET] User connected: ${socket.id}`);
@@ -808,7 +809,92 @@ io.on('connection', (socket) => {
         }
     });
 
+    // --- 6. BLUETOOTH LOW ENERGY (BLE) MESH P2P RELAY (Simulation over Local LAN) ---
+    socket.on('mesh-join', (nodeData) => {
+        if (!nodeData || !nodeData.nodeId) return;
+        const nodeId = nodeData.nodeId;
+        const nodeLabel = nodeData.nodeLabel || `Resident Node (${nodeId.slice(-4)})`;
+        const nodeInfo = {
+            socketId: socket.id,
+            nodeId: nodeId,
+            nodeLabel: nodeLabel,
+            status: 'ACTIVE',
+            battery: nodeData.battery || 96,
+            reportsCount: nodeData.reportsCount || 0,
+            joinedAt: Date.now(),
+            lastSeen: Date.now()
+        };
+        activeMeshNodes.set(socket.id, nodeInfo);
+        socket.join('mesh-room');
+        socket.join(nodeId);
+
+        console.log(`📡 [BLE MESH] Node joined: ${nodeLabel} [${nodeId}]`);
+        io.to('mesh-room').emit('mesh-nodes-updated', Array.from(activeMeshNodes.values()));
+    });
+
+    socket.on('mesh-leave', () => {
+        if (activeMeshNodes.has(socket.id)) {
+            const node = activeMeshNodes.get(socket.id);
+            console.log(`📡 [BLE MESH] Node left: ${node.nodeLabel}`);
+            activeMeshNodes.delete(socket.id);
+            io.to('mesh-room').emit('mesh-nodes-updated', Array.from(activeMeshNodes.values()));
+        }
+    });
+
+    socket.on('mesh-send-message', (msg) => {
+        if (!msg) return;
+        const enrichedMsg = {
+            id: 'BLE-MSG-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+            senderId: msg.senderId || socket.id,
+            senderLabel: msg.senderLabel || 'Resident Node',
+            targetId: msg.targetId || 'ALL',
+            text: msg.text || '',
+            type: msg.type || 'TEXT',
+            timestamp: new Date().toISOString(),
+            hopCount: (msg.hopCount || 0) + 1,
+            rssi: -52 - Math.floor(Math.random() * 18),
+        };
+
+        console.log(`💬 [BLE MESH MSG] ${enrichedMsg.senderLabel} -> ${enrichedMsg.targetId}: "${enrichedMsg.text}"`);
+
+        if (enrichedMsg.targetId === 'ALL') {
+            io.to('mesh-room').emit('mesh-receive-message', enrichedMsg);
+        } else {
+            io.to(enrichedMsg.targetId).emit('mesh-receive-message', enrichedMsg);
+            socket.emit('mesh-receive-message', enrichedMsg);
+        }
+    });
+
+    socket.on('mesh-relay-sos', (relayData) => {
+        if (!relayData) return;
+        const relayPayload = {
+            id: 'BLE-RELAY-' + Date.now(),
+            senderId: relayData.senderId,
+            senderLabel: relayData.senderLabel,
+            targetId: relayData.targetId || 'ALL',
+            reports: relayData.reports || [],
+            timestamp: new Date().toISOString(),
+            hopCount: (relayData.hopCount || 0) + 1,
+        };
+
+        console.log(`📦 [BLE MESH RELAY] ${relayPayload.senderLabel} relayed ${relayPayload.reports.length} reports.`);
+
+        if (relayPayload.targetId === 'ALL') {
+            io.to('mesh-room').emit('mesh-receive-sos', relayPayload);
+        } else {
+            io.to(relayPayload.targetId).emit('mesh-receive-sos', relayPayload);
+            socket.emit('mesh-receive-sos', relayPayload);
+        }
+    });
+
     socket.on('disconnect', () => {
+        if (activeMeshNodes.has(socket.id)) {
+            const node = activeMeshNodes.get(socket.id);
+            console.log(`📡 [BLE MESH] Node disconnected: ${node.nodeLabel}`);
+            activeMeshNodes.delete(socket.id);
+            io.to('mesh-room').emit('mesh-nodes-updated', Array.from(activeMeshNodes.values()));
+        }
+
         if (activeHotspotHosts.has(socket.id)) {
             const h = activeHotspotHosts.get(socket.id);
             console.log(`[HOTSPOT] Host disconnected: ${h.ssid}`);

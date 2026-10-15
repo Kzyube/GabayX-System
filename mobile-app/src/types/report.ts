@@ -13,7 +13,7 @@ export type ReportCategory =
   | 'HAZARD'
   | 'GENERAL';
 
-export type ReportSeverity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+export type ReportSeverity = 'CRITICAL' | 'EXTREME' | 'HIGH' | 'MEDIUM' | 'LOW';
 
 export type ReportStatus =
   | 'PENDING'   // Saved locally in SQLite; not yet acknowledged by backend

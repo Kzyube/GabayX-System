@@ -8,6 +8,7 @@ import {
   ScrollView,
   SafeAreaView,
   Platform,
+  Alert,
 } from 'react-native';
 import { GabayXReport } from '../types/report';
 import { ReportStatusBadge } from './ReportStatusBadge';
@@ -142,16 +143,29 @@ export const ReportDetailModal: React.FC<Props> = ({
 
           {/* FOOTER ACTIONS */}
           <View style={styles.footer}>
-            {report.localStatus !== 'SYNCED' && onDelete && (
+            {onDelete && (
               <TouchableOpacity
                 style={styles.deleteButton}
                 onPress={() => {
-                  onDelete(report.id);
-                  onClose();
+                  Alert.alert(
+                    'Delete Report',
+                    'Are you sure you want to permanently delete this report from your device?',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Delete',
+                        style: 'destructive',
+                        onPress: () => {
+                          onDelete(report.id);
+                          onClose();
+                        },
+                      },
+                    ]
+                  );
                 }}
                 activeOpacity={0.7}
               >
-                <Text style={styles.deleteButtonText}>Delete Draft</Text>
+                <Text style={styles.deleteButtonText}>Delete Report</Text>
               </TouchableOpacity>
             )}
 
@@ -263,6 +277,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   sev_CRITICAL: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
+  },
+  sev_EXTREME: {
     backgroundColor: '#FEF2F2',
     borderColor: '#FECACA',
   },
